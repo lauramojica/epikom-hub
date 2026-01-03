@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
 
@@ -32,60 +32,57 @@ export function useAuth() {
     isAdmin: false,
   })
 
-  const supabase = createClient()
-
-  const fetchProfile = useCallback(async (userId: string) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
-
-    if (error) {
-      console.error('Error fetching profile:', error)
-      return null
-    }
-
-    return data
-  }, [supabase])
+  // Memoize supabase client to prevent recreation on every render
+  const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
-    // Get initial session
-    const getInitialSession = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (user) {
-        const profile = await fetchProfile(user.id)
-        setState({
-          user,
-          profile,
-          isLoading: false,
-          isAdmin: profile?.role === 'admin',
-        })
-      } else {
-        setState({
-          user: null,
-          profile: null,
-          isLoading: false,
-          isAdmin: false,
-        })
+    let isMounted = true
+
+    const fetchProfile = async (userId: string) => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+
+      if (error) {
+        console.error('Error fetching profile:', error)
+        return null
       }
+
+      return data
     }
 
-    getInitialSession()
+    // Get initial session
+    const getInitialSession = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        
+        if (!isMounted) return
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session?.user) {
-          const profile = await fetchProfile(session.user.id)
-          setState({
-            user: session.user,
-            profile,
-            isLoading: false,
-            isAdmin: profile?.role === 'admin',
-          })
+        if (user) {
+          const profile = await fetchProfile(user.id)
+          if (isMounted) {
+            setState({
+              user,
+              profile,
+              isLoading: false,
+              isAdmin: profile?.role === 'admin',
+            })
+          }
         } else {
+          if (isMounted) {
+            setState({
+              user: null,
+              profile: null,
+              isLoading: false,
+              isAdmin: false,
+            })
+          }
+        }
+      } catch (error) {
+        console.error('Error getting session:', error)
+        if (isMounted) {
           setState({
             user: null,
             profile: null,
@@ -94,12 +91,43 @@ export function useAuth() {
           })
         }
       }
+    }
+
+    getInitialSession()
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!isMounted) return
+
+        if (session?.user) {
+          const profile = await fetchProfile(session.user.id)
+          if (isMounted) {
+            setState({
+              user: session.user,
+              profile,
+              isLoading: false,
+              isAdmin: profile?.role === 'admin',
+            })
+          }
+        } else {
+          if (isMounted) {
+            setState({
+              user: null,
+              profile: null,
+              isLoading: false,
+              isAdmin: false,
+            })
+          }
+        }
+      }
     )
 
     return () => {
+      isMounted = false
       subscription.unsubscribe()
     }
-  }, [supabase, fetchProfile])
+  }, [supabase])
 
   const signIn = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({
