@@ -6,21 +6,20 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import { getInitials } from '@/lib/utils'
 import {
   LayoutDashboard,
   FolderKanban,
+  Users,
   BarChart3,
-  Clock,
+  MessageSquare,
   Settings,
   Bell,
-  LogOut,
+  Search,
+  Plus,
   Menu,
   X,
-  Moon,
-  Sun,
-  ChevronLeft,
+  LogOut,
 } from 'lucide-react'
 
 interface DashboardLayoutProps {
@@ -28,9 +27,8 @@ interface DashboardLayoutProps {
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [isDark, setIsDark] = useState(false)
+  const [activeTab, setActiveTab] = useState('proyectos')
   const pathname = usePathname()
   const router = useRouter()
   const { profile, isAdmin, signOut, isLoading } = useAuth()
@@ -40,20 +38,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     router.push('/login')
   }
 
-  const toggleTheme = () => {
-    setIsDark(!isDark)
-    document.documentElement.classList.toggle('dark')
-  }
-
-  const navigation = [
+  const sidebarNavigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
     { name: 'Proyectos', href: '/projects', icon: FolderKanban },
-    ...(isAdmin ? [
-      { name: 'Analytics', href: '/analytics', icon: BarChart3 },
-      { name: 'Time Tracker', href: '/time-tracker', icon: Clock },
-    ] : []),
-    { name: 'Configuración', href: '/settings', icon: Settings },
+    { name: 'Equipo', href: '/team', icon: Users },
+    { name: 'Analytics', href: '/analytics', icon: BarChart3, adminOnly: true },
+    { name: 'Mensajes', href: '/messages', icon: MessageSquare },
   ]
+
+  const tabs = ['proyectos', 'calendario', 'archivos', 'equipo']
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/'
@@ -62,88 +55,70 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-muted-foreground text-sm">Cargando...</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen flex">
-      {/* Sidebar - Desktop */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-50 hidden lg:flex flex-col transition-all duration-300 ${
-          sidebarOpen ? 'w-64' : 'w-20'
-        } glass-lg`}
-      >
+    <div className="min-h-screen bg-background flex">
+      {/* Slim Sidebar - Desktop */}
+      <aside className="hidden lg:flex w-16 bg-background-card border-r border-border flex-col items-center py-4 flex-shrink-0">
         {/* Logo */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-sidebar-border">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-lg">
-              <span className="text-lg font-bold text-primary-foreground">E</span>
-            </div>
-            {sidebarOpen && (
-              <span className="font-semibold text-lg">Epikom Hub</span>
-            )}
-          </Link>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="hidden lg:flex"
-          >
-            <ChevronLeft className={`w-4 h-4 transition-transform ${!sidebarOpen ? 'rotate-180' : ''}`} />
-          </Button>
-        </div>
+        <Link href="/" className="mb-8">
+          <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-hover rounded-xl flex items-center justify-center shadow-[0_8px_24px_rgba(16,185,129,0.25)]">
+            <span className="text-white font-bold text-sm">E</span>
+          </div>
+        </Link>
 
-        {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-2">
-          {navigation.map((item) => {
-            const Icon = item.icon
-            const active = isActive(item.href)
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
-                  active
-                    ? 'bg-primary text-primary-foreground shadow-md'
-                    : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
-                }`}
-              >
-                <Icon className="w-5 h-5 flex-shrink-0" />
-                {sidebarOpen && <span>{item.name}</span>}
-              </Link>
-            )
-          })}
+        {/* Nav icons */}
+        <nav className="flex-1 flex flex-col items-center gap-2">
+          {sidebarNavigation
+            .filter(item => !item.adminOnly || isAdmin)
+            .map((item) => {
+              const Icon = item.icon
+              const active = isActive(item.href)
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${
+                    active
+                      ? 'bg-primary-light text-primary'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  }`}
+                  title={item.name}
+                >
+                  <Icon className="w-5 h-5" />
+                </Link>
+              )
+            })}
         </nav>
 
-        {/* User section */}
-        <div className="p-4 border-t border-sidebar-border">
-          <div className={`flex items-center gap-3 ${sidebarOpen ? '' : 'justify-center'}`}>
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={profile?.avatar_url || ''} />
-              <AvatarFallback>{getInitials(profile?.full_name || 'U')}</AvatarFallback>
-            </Avatar>
-            {sidebarOpen && (
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{profile?.full_name}</p>
-                <Badge variant={isAdmin ? 'default' : 'secondary'} className="text-xs">
-                  {isAdmin ? 'Admin' : 'Cliente'}
-                </Badge>
-              </div>
-            )}
-          </div>
-          {sidebarOpen && (
-            <Button
-              variant="ghost"
-              className="w-full mt-3 justify-start text-muted-foreground"
-              onClick={handleSignOut}
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Cerrar Sesión
-            </Button>
-          )}
+        {/* Bottom icons */}
+        <div className="flex flex-col items-center gap-2">
+          <Link
+            href="/settings"
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+            title="Configuración"
+          >
+            <Settings className="w-5 h-5" />
+          </Link>
+          <button
+            onClick={handleSignOut}
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-error-light hover:text-error transition-all"
+            title="Cerrar Sesión"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
+          <Avatar size="sm">
+            <AvatarImage src={profile?.avatar_url || ''} />
+            <AvatarFallback variant="secondary">{getInitials(profile?.full_name || 'U')}</AvatarFallback>
+          </Avatar>
         </div>
       </aside>
 
@@ -151,9 +126,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       <div className="fixed top-4 left-4 z-50 lg:hidden">
         <Button
           variant="outline"
-          size="icon"
+          size="icon-sm"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="glass"
+          className="bg-background-card shadow-md"
         >
           {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </Button>
@@ -162,70 +137,115 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Mobile sidebar */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
-          <div className="fixed inset-0 bg-black/50" onClick={() => setMobileMenuOpen(false)} />
-          <aside className="fixed inset-y-0 left-0 w-64 glass-lg p-4">
-            <div className="flex items-center gap-3 mb-6 mt-12">
-              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-                <span className="text-lg font-bold text-primary-foreground">E</span>
+          <div className="fixed inset-0 bg-foreground/10 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
+          <aside className="fixed inset-y-0 left-0 w-64 bg-background-card border-r border-border p-6 animate-slide-in">
+            <div className="flex items-center gap-3 mb-8 mt-8">
+              <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-hover rounded-xl flex items-center justify-center shadow-md">
+                <span className="text-white font-bold">E</span>
               </div>
-              <span className="font-semibold text-lg">Epikom Hub</span>
+              <div>
+                <p className="font-bold text-foreground">Epikom Hub</p>
+                <p className="text-xs text-muted-foreground">Gestión de Proyectos</p>
+              </div>
             </div>
-            <nav className="space-y-2">
-              {navigation.map((item) => {
-                const Icon = item.icon
-                const active = isActive(item.href)
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
-                      active
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-muted-foreground hover:bg-sidebar-accent'
-                    }`}
-                  >
-                    <Icon className="w-5 h-5" />
-                    <span>{item.name}</span>
-                  </Link>
-                )
-              })}
+            <nav className="space-y-1">
+              {sidebarNavigation
+                .filter(item => !item.adminOnly || isAdmin)
+                .map((item) => {
+                  const Icon = item.icon
+                  const active = isActive(item.href)
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                        active
+                          ? 'bg-primary text-white'
+                          : 'text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      <Icon className="w-5 h-5" />
+                      <span className="font-medium">{item.name}</span>
+                    </Link>
+                  )
+                })}
             </nav>
+            <div className="absolute bottom-6 left-6 right-6">
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted">
+                <Avatar size="sm">
+                  <AvatarImage src={profile?.avatar_url || ''} />
+                  <AvatarFallback variant="secondary">{getInitials(profile?.full_name || 'U')}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground truncate">{profile?.full_name}</p>
+                  <p className="text-xs text-muted-foreground">{isAdmin ? 'Admin' : 'Cliente'}</p>
+                </div>
+              </div>
+            </div>
           </aside>
         </div>
       )}
 
-      {/* Main content */}
-      <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}>
-        {/* Top bar */}
-        <header className="h-16 glass-sm sticky top-0 z-30 flex items-center justify-between px-4 lg:px-6 border-b border-border">
-          <div className="lg:hidden w-10" /> {/* Spacer for mobile menu button */}
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col min-w-0">
+        {/* Top Bar */}
+        <header className="h-16 bg-background-card border-b border-border flex items-center justify-between px-6 flex-shrink-0">
+          {/* Left - Tabs */}
+          <div className="hidden md:flex items-center gap-1">
+            {tabs.map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  activeTab === tab
+                    ? 'bg-gray-900 text-white'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                }`}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </button>
+            ))}
+          </div>
           
-          <div className="flex-1" />
+          {/* Mobile spacer */}
+          <div className="md:hidden w-10" />
 
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={toggleTheme}>
-              {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </Button>
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="w-5 h-5" />
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">
-                3
-              </span>
-            </Button>
-            <div className="hidden sm:flex items-center gap-3 ml-2 pl-4 border-l border-border">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={profile?.avatar_url || ''} />
-                <AvatarFallback className="text-xs">{getInitials(profile?.full_name || 'U')}</AvatarFallback>
-              </Avatar>
-              <span className="text-sm font-medium">{profile?.full_name}</span>
+          {/* Right */}
+          <div className="flex items-center gap-3">
+            {/* Search */}
+            <div className="relative hidden sm:block">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Buscar..."
+                className="w-64 h-9 pl-9 pr-4 rounded-lg bg-muted border-0 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+              />
             </div>
+            
+            {/* Notifications */}
+            <button className="relative w-9 h-9 rounded-lg bg-muted flex items-center justify-center text-muted-foreground hover:bg-border hover:text-foreground transition-all">
+              <Bell className="w-4 h-4" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full" />
+            </button>
+            
+            {/* New Project Button */}
+            {isAdmin && (
+              <Link href="/projects/new">
+                <Button size="sm" className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  <span className="hidden sm:inline">Nuevo</span>
+                </Button>
+              </Link>
+            )}
           </div>
         </header>
 
         {/* Page content */}
-        <div className="p-4 lg:p-6">
-          {children}
+        <div className="flex-1 p-6 overflow-auto">
+          <div className="max-w-7xl mx-auto">
+            {children}
+          </div>
         </div>
       </main>
     </div>
