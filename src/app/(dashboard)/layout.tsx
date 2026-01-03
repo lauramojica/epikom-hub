@@ -53,16 +53,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     return pathname.startsWith(href)
   }
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-muted-foreground text-sm">Cargando...</p>
-        </div>
-      </div>
-    )
-  }
+  // Don't block render - middleware already protects routes
+  // Just show a simpler loading state in the sidebar/header area
+  const userName = profile?.full_name || 'Usuario'
+  const userInitials = getInitials(userName)
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -117,7 +111,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </button>
           <Avatar size="sm">
             <AvatarImage src={profile?.avatar_url || ''} />
-            <AvatarFallback variant="secondary">{getInitials(profile?.full_name || 'U')}</AvatarFallback>
+            <AvatarFallback variant="secondary">
+              {isLoading ? '...' : userInitials}
+            </AvatarFallback>
           </Avatar>
         </div>
       </aside>
@@ -175,10 +171,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <div className="flex items-center gap-3 p-3 rounded-xl bg-muted">
                 <Avatar size="sm">
                   <AvatarImage src={profile?.avatar_url || ''} />
-                  <AvatarFallback variant="secondary">{getInitials(profile?.full_name || 'U')}</AvatarFallback>
+                  <AvatarFallback variant="secondary">
+                    {isLoading ? '...' : userInitials}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground truncate">{profile?.full_name}</p>
+                  <p className="text-sm font-semibold text-foreground truncate">
+                    {isLoading ? 'Cargando...' : userName}
+                  </p>
                   <p className="text-xs text-muted-foreground">{isAdmin ? 'Admin' : 'Cliente'}</p>
                 </div>
               </div>

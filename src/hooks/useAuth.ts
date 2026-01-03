@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
 
@@ -24,6 +24,9 @@ interface AuthState {
   isAdmin: boolean
 }
 
+// Get singleton client
+const supabase = createClient()
+
 export function useAuth() {
   const [state, setState] = useState<AuthState>({
     user: null,
@@ -32,73 +35,41 @@ export function useAuth() {
     isAdmin: false,
   })
 
-  // Memoize supabase client to prevent recreation on every render
-  const supabase = useMemo(() => createClient(), [])
-
   useEffect(() => {
     let isMounted = true
+    let timeoutId: NodeJS.Timeout
 
-    const fetchProfile = async (userId: string) => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
+    const fetchProfile = async (userId: string): Promise<Profile | null> => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single()
 
-      if (error) {
-        console.error('Error fetching profile:', error)
+        if (error) {
+          console.error('Error fetching profile:', error)
+          return null
+        }
+        return data
+      } catch (err) {
+        console.error('Profile fetch error:', err)
         return null
       }
-
-      return data
     }
 
-    // Get initial session
-    const getInitialSession = async () => {
+    const initializeAuth = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
+        // Use getSession first - it's faster and uses local storage
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
         
-        if (!isMounted) return
-
-        if (user) {
-          const profile = await fetchProfile(user.id)
+        if (sessionError) {
+          console.error('Session error:', sessionError)
           if (isMounted) {
-            setState({
-              user,
-              profile,
-              isLoading: false,
-              isAdmin: profile?.role === 'admin',
-            })
+            setState({ user: null, profile: null, isLoading: false, isAdmin: false })
           }
-        } else {
-          if (isMounted) {
-            setState({
-              user: null,
-              profile: null,
-              isLoading: false,
-              isAdmin: false,
-            })
-          }
+          return
         }
-      } catch (error) {
-        console.error('Error getting session:', error)
-        if (isMounted) {
-          setState({
-            user: null,
-            profile: null,
-            isLoading: false,
-            isAdmin: false,
-          })
-        }
-      }
-    }
-
-    getInitialSession()
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!isMounted) return
 
         if (session?.user) {
           const profile = await fetchProfile(session.user.id)
@@ -112,12 +83,57 @@ export function useAuth() {
           }
         } else {
           if (isMounted) {
+            setState({ user: null, profile: null, isLoading: false, isAdmin: false })
+          }
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error)
+        if (isMounted) {
+          setState({ user: null, profile: null, isLoading: false, isAdmin: false })
+        }
+      }
+    }
+
+    // Timeout safety - if auth takes more than 5 seconds, stop loading
+    timeoutId = setTimeout(() => {
+      if (isMounted) {
+        setState(prev => {
+          if (prev.isLoading) {
+            console.warn('Auth timeout - stopping loading state')
+            return { ...prev, isLoading: false }
+          }
+          return prev
+        })
+      }
+    }, 5000)
+
+    initializeAuth()
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state changed:', event)
+        
+        if (!isMounted) return
+
+        if (event === 'SIGNED_OUT') {
+          setState({ user: null, profile: null, isLoading: false, isAdmin: false })
+          return
+        }
+
+        if (session?.user) {
+          const profile = await fetchProfile(session.user.id)
+          if (isMounted) {
             setState({
-              user: null,
-              profile: null,
+              user: session.user,
+              profile,
               isLoading: false,
-              isAdmin: false,
+              isAdmin: profile?.role === 'admin',
             })
+          }
+        } else {
+          if (isMounted) {
+            setState({ user: null, profile: null, isLoading: false, isAdmin: false })
           }
         }
       }
@@ -125,15 +141,20 @@ export function useAuth() {
 
     return () => {
       isMounted = false
+      clearTimeout(timeoutId)
       subscription.unsubscribe()
     }
-  }, [supabase])
+  }, []) // Empty dependency array - supabase is now a singleton
 
   const signIn = async (email: string, password: string) => {
+    setState(prev => ({ ...prev, isLoading: true }))
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
+    if (error) {
+      setState(prev => ({ ...prev, isLoading: false }))
+    }
     return { data, error }
   }
 
@@ -153,6 +174,9 @@ export function useAuth() {
 
   const signOut = async () => {
     const { error } = await supabase.auth.signOut()
+    if (!error) {
+      setState({ user: null, profile: null, isLoading: false, isAdmin: false })
+    }
     return { error }
   }
 
