@@ -20,7 +20,9 @@ import {
   Menu,
   X,
   LogOut,
+  Calendar,
 } from 'lucide-react'
+import { NotificationDropdown } from '@/components/ui/notification-dropdown'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -41,9 +43,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const sidebarNavigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
     { name: 'Proyectos', href: '/projects', icon: FolderKanban },
-    { name: 'Equipo', href: '/team', icon: Users },
+    { name: 'Clientes', href: '/clients', icon: Users },
+    { name: 'Calendario', href: '/calendar', icon: Calendar },
     { name: 'Analytics', href: '/analytics', icon: BarChart3, adminOnly: true },
-    { name: 'Mensajes', href: '/messages', icon: MessageSquare },
   ]
 
   const tabs = ['proyectos', 'calendario', 'archivos', 'equipo']
@@ -224,10 +226,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
             
             {/* Notifications */}
-            <button className="relative w-9 h-9 rounded-lg bg-muted flex items-center justify-center text-muted-foreground hover:bg-border hover:text-foreground transition-all">
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full" />
-            </button>
+            <NotificationDropdown />
             
             {/* New Project Button */}
             {isAdmin && (

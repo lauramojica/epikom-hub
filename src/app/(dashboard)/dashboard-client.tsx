@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { JourneyStep, JourneyFlow } from '@/components/ui/journey-step'
+import { AlertsDashboard } from '@/components/ui/alerts-dashboard'
 import { formatDate, formatRelativeTime, getInitials } from '@/lib/utils'
 import {
   FileText,
@@ -24,6 +25,7 @@ import {
   Calendar,
   SlidersHorizontal,
   ArrowRight,
+  AlertTriangle,
 } from 'lucide-react'
 
 interface Project {
@@ -367,6 +369,19 @@ export default function DashboardClient({ projects, isAdmin }: DashboardClientPr
           </Card>
         </div>
       </div>
+
+      {/* Alerts Dashboard - Only for Admins */}
+      {isAdmin && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-warning" />
+              Alertas y Recordatorios
+            </h3>
+          </div>
+          <AlertsDashboard />
+        </div>
+      )}
 
       {/* Other Projects */}
       {projects.length > 1 && (

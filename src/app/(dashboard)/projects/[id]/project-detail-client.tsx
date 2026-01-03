@@ -1,12 +1,19 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { JourneyStep, JourneyFlow } from '@/components/ui/journey-step'
+import { FileUpload } from '@/components/ui/file-upload'
+import { FileList } from '@/components/ui/file-list'
+import { CommentSection } from '@/components/ui/comment-section'
+import { SocialMediaManager } from '@/components/ui/social-media-manager'
+import { ReminderSettings } from '@/components/ui/reminder-settings'
+import { useFiles } from '@/hooks/useFiles'
+import { useAuth } from '@/hooks/useAuth'
 import { formatDate, formatRelativeTime, getInitials } from '@/lib/utils'
 import {
   ArrowLeft,
@@ -30,6 +37,9 @@ import {
   Upload,
   Download,
   ExternalLink,
+  FolderOpen,
+  Share2,
+  Settings,
 } from 'lucide-react'
 
 interface ProjectDetailClientProps {
@@ -43,6 +53,18 @@ interface ProjectDetailClientProps {
     end_date: string
     estimated_hours: number
     language: 'es' | 'en'
+    project_type?: 'web' | 'graphic' | 'social_media' | 'other'
+    duration_type?: 'fixed' | 'indefinite'
+    notification_settings?: {
+      on_start?: boolean
+      on_deliverable_due?: boolean
+      reminder_hours_before?: number
+      overdue_reminders?: {
+        first: number
+        second: number
+        third: number
+      }
+    }
     checklist_client: unknown[]
     checklist_epikom: unknown[]
     client: {
@@ -108,6 +130,29 @@ const generatePhases = (progress: number) => {
 export default function ProjectDetailClient({ project, isAdmin }: ProjectDetailClientProps) {
   const [activeTab, setActiveTab] = useState('overview')
   const phases = generatePhases(project.progress)
+  const { user } = useAuth()
+  
+  // Files hook
+  const {
+    files,
+    isLoading: filesLoading,
+    uploadProgress,
+    fetchFiles,
+    uploadFiles,
+    deleteFile,
+    getDownloadUrl,
+  } = useFiles(project.id)
+
+  // Fetch files when tab changes to files
+  useEffect(() => {
+    if (activeTab === 'files') {
+      fetchFiles()
+    }
+  }, [activeTab, fetchFiles])
+
+  const handleUpload = async (fileList: File[]) => {
+    await uploadFiles(fileList)
+  }
 
   const getStatusConfig = (status: string) => {
     const configs = {
@@ -134,8 +179,10 @@ export default function ProjectDetailClient({ project, isAdmin }: ProjectDetailC
   const tabs = [
     { id: 'overview', label: 'Resumen', icon: Activity },
     { id: 'deliverables', label: 'Entregables', icon: FileText, count: project.deliverables.length },
-    { id: 'files', label: 'Archivos', icon: Upload },
+    ...(project.project_type === 'social_media' ? [{ id: 'social', label: 'Publicaciones', icon: Share2 }] : []),
+    { id: 'files', label: 'Archivos', icon: FolderOpen, count: files.length > 0 ? files.length : undefined },
     { id: 'comments', label: 'Comentarios', icon: MessageSquare },
+    ...(isAdmin ? [{ id: 'settings', label: 'Configuración', icon: Settings }] : []),
   ]
 
   const getAvatarColor = (index: number) => {
@@ -403,31 +450,75 @@ export default function ProjectDetailClient({ project, isAdmin }: ProjectDetailC
       )}
 
       {activeTab === 'files' && (
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-foreground">Archivos</h3>
-            <Button size="sm" className="gap-2">
-              <Upload className="w-4 h-4" />
-              Subir archivo
-            </Button>
-          </div>
-          
-          <div className="text-center py-12 border-2 border-dashed border-border rounded-2xl">
-            <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">Arrastra archivos aquí o haz clic para subir</p>
-            <p className="text-sm text-muted-foreground mt-1">Próximamente...</p>
-          </div>
-        </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Upload Section */}
+          <Card className="p-6 lg:col-span-1">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Subir Archivos</h3>
+            <FileUpload
+              onUpload={handleUpload}
+              uploadProgress={uploadProgress}
+              disabled={!isAdmin}
+            />
+            {!isAdmin && (
+              <p className="text-xs text-muted-foreground mt-3 text-center">
+                Solo administradores pueden subir archivos
+              </p>
+            )}
+          </Card>
+
+          {/* Files List */}
+          <Card className="p-6 lg:col-span-2">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-foreground">
+                Archivos del Proyecto
+                {files.length > 0 && (
+                  <span className="ml-2 text-sm font-normal text-muted-foreground">
+                    ({files.length})
+                  </span>
+                )}
+              </h3>
+            </div>
+            
+            <FileList
+              files={files}
+              isLoading={filesLoading}
+              onDelete={deleteFile}
+              onDownload={getDownloadUrl}
+              isAdmin={isAdmin}
+            />
+          </Card>
+        </div>
       )}
 
       {activeTab === 'comments' && (
         <Card className="p-6">
           <h3 className="text-lg font-semibold text-foreground mb-6">Comentarios</h3>
-          <div className="text-center py-12">
-            <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">Sistema de comentarios próximamente...</p>
-          </div>
+          <CommentSection
+            projectId={project.id}
+            currentUserId={user?.id || ''}
+            isAdmin={isAdmin}
+          />
         </Card>
+      )}
+
+      {activeTab === 'social' && project.project_type === 'social_media' && (
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold text-foreground mb-6">Gestión de Publicaciones</h3>
+          <SocialMediaManager
+            projectId={project.id}
+            isAdmin={isAdmin}
+          />
+        </Card>
+      )}
+
+      {activeTab === 'settings' && isAdmin && (
+        <div className="space-y-6">
+          <ReminderSettings
+            projectId={project.id}
+            initialSettings={project.notification_settings}
+            isAdmin={isAdmin}
+          />
+        </div>
       )}
     </div>
   )
