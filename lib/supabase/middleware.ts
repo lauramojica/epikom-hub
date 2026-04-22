@@ -31,8 +31,13 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+  const isProtected =
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/semana") ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/perfil");
 
-  if (!user && pathname.startsWith("/dashboard")) {
+  if (!user && isProtected) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);
@@ -42,6 +47,21 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
+  }
+
+  // Gate /admin/* to admins only.
+  if (user && pathname.startsWith("/admin")) {
+    const { data: me } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (me?.role !== "admin") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
+    }
   }
 
   return response;
