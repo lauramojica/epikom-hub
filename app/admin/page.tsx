@@ -31,6 +31,7 @@ export default async function AdminDashboard() {
     .maybeSingle();
   if (me?.role !== "admin") redirect("/dashboard");
 
+
   const today = todayInPR();
   const admin = createAdminClient(); // bypass RLS for aggregate views
 
@@ -116,22 +117,11 @@ export default async function AdminDashboard() {
   }
 
   return (
-    <main className="min-h-screen px-6 py-10">
+    <main className="px-4 py-6 sm:px-6 sm:py-10">
       <div className="mx-auto max-w-3xl">
-        <div className="mb-8 flex items-start justify-between">
-          <div>
-            <div className="mb-1 text-xs tracking-widest uppercase text-neutral-400">admin</div>
-            <h1 className="text-2xl font-semibold tracking-tight">Vista del crew</h1>
-          </div>
-          <div className="flex items-center gap-3 pt-1 text-xs text-neutral-500">
-            <Link href="/admin/upload" className="underline underline-offset-2 hover:text-neutral-800">
-              Subir semana
-            </Link>
-            <span className="text-neutral-300">·</span>
-            <Link href="/dashboard" className="underline underline-offset-2 hover:text-neutral-800">
-              Dashboard
-            </Link>
-          </div>
+        <div className="mb-8">
+          <div className="mb-1 text-xs tracking-widest uppercase text-neutral-400">admin</div>
+          <h1 className="text-2xl font-semibold tracking-tight">Vista del crew</h1>
         </div>
 
         {!currentWeek && (
@@ -230,8 +220,8 @@ export default async function AdminDashboard() {
                 </div>
               </section>
             )}
-          </>
-        )}
+        </>
+      )}
       </div>
     </main>
   );

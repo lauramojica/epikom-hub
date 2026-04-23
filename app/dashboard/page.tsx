@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { AppShell } from "@/components/AppShell";
 import { TaskCard } from "@/components/TaskCard";
 import { WeeklyContextCard } from "@/components/WeeklyContextCard";
+import { WeekProgress } from "@/components/WeekProgress";
 import {
   formatPrettyDate,
   formatDayName,
@@ -33,7 +35,6 @@ export default async function Dashboard() {
 
   const today = todayInPR();
 
-  // Current week = the one whose start_date ≤ today ≤ end_date, else the most recent.
   const { data: currentWeek } = await supabase
     .from("weeks")
     .select("id, week_start_date, week_end_date, priorities, deadlines, rotation_national, notes")
@@ -42,6 +43,7 @@ export default async function Dashboard() {
     .limit(1)
     .maybeSingle<WeekRow>();
 
+  let allTasks: TaskRow[] = [];
   let todayTasks: TaskRow[] = [];
   let restOfWeek: TaskRow[] = [];
   let crewBySlug = new Map<string, string>();
@@ -58,109 +60,97 @@ export default async function Dashboard() {
       .order("priority", { ascending: true })
       .returns<TaskRow[]>();
 
-    todayTasks = (tasks ?? []).filter((t) => t.due_date === today);
-    restOfWeek = (tasks ?? []).filter((t) => t.due_date !== today && t.due_date >= today);
+    allTasks = tasks ?? [];
+    todayTasks = allTasks.filter((t) => t.due_date === today);
+    restOfWeek = allTasks.filter((t) => t.due_date !== today && t.due_date >= today);
 
-    // Crew map for rotation labels
     const { data: crew } = await supabase.from("users").select("slug, name");
     crewBySlug = new Map((crew ?? []).map((c) => [c.slug, c.name.split(" ")[0]]));
   }
 
   const firstName = profile.name.split(" ")[0];
+  const completedCount = allTasks.filter((t) => t.status === "completada").length;
 
   return (
-    <main className="min-h-screen px-6 py-10">
-      <div className="mx-auto max-w-2xl">
-        <Header name={firstName} role={profile.role} today={formatPrettyDate(today)} />
+    <AppShell role={profile.role} firstName={firstName}>
+      <main className="px-4 py-6 sm:px-6 sm:py-10">
+        <div className="mx-auto max-w-2xl">
+          <Header name={firstName} today={formatPrettyDate(today)} />
 
-        {!currentWeek && (
-          <div className="mt-8 rounded-lg border border-dashed border-neutral-200 p-6 text-center text-sm text-neutral-500">
-            Todavía no hay semana cargada.
-            {profile.role === "admin" && (
-              <>
-                {" "}
-                <Link href="/admin/upload" className="underline underline-offset-2">
-                  Subir una semana
-                </Link>
-                .
-              </>
-            )}
-          </div>
-        )}
-
-        {currentWeek && (
-          <>
-            <div className="mt-8">
-              <WeeklyContextCard week={currentWeek} crewBySlug={crewBySlug} />
+          {!currentWeek && (
+            <div className="mt-8 rounded-lg border border-dashed border-neutral-200 p-6 text-center text-sm text-neutral-500">
+              Todavía no hay semana cargada.
+              {profile.role === "admin" && (
+                <>
+                  {" "}
+                  <Link href="/admin/upload" className="underline underline-offset-2">
+                    Subir una semana
+                  </Link>
+                  .
+                </>
+              )}
             </div>
+          )}
 
-            <Section title="Hoy" count={todayTasks.length}>
-              {todayTasks.length === 0 ? (
-                <EmptyState msg="No tienes tareas para hoy. Disfruta." />
-              ) : (
-                <div className="space-y-2">
-                  {todayTasks.map((t) => (
-                    <TaskCard key={t.id} task={t} />
-                  ))}
-                </div>
-              )}
-            </Section>
+          {currentWeek && (
+            <>
+              <div className="mt-6">
+                <WeekProgress
+                  completed={completedCount}
+                  total={allTasks.length}
+                  weekId={currentWeek.id}
+                />
+              </div>
 
-            <Section title="Resto de la semana" count={restOfWeek.length}>
-              {restOfWeek.length === 0 ? (
-                <EmptyState msg="Nada más programado esta semana." />
-              ) : (
-                <div className="space-y-4">
-                  {groupByDay(restOfWeek).map(([day, items]) => (
-                    <div key={day}>
-                      <div className="mb-2 text-xs font-medium uppercase tracking-widest text-neutral-400">
-                        {formatDayName(day)} · {formatPrettyDate(day)}
+              <div className="mt-6">
+                <WeeklyContextCard week={currentWeek} crewBySlug={crewBySlug} />
+              </div>
+
+              <Section title="Hoy" count={todayTasks.length}>
+                {todayTasks.length === 0 ? (
+                  <EmptyState msg="No tienes tareas para hoy. Disfruta." />
+                ) : (
+                  <div className="space-y-2">
+                    {todayTasks.map((t) => (
+                      <TaskCard key={t.id} task={t} />
+                    ))}
+                  </div>
+                )}
+              </Section>
+
+              <Section title="Resto de la semana" count={restOfWeek.length}>
+                {restOfWeek.length === 0 ? (
+                  <EmptyState msg="Nada más programado esta semana." />
+                ) : (
+                  <div className="space-y-4">
+                    {groupByDay(restOfWeek).map(([day, items]) => (
+                      <div key={day}>
+                        <div className="mb-2 text-xs font-medium uppercase tracking-widest text-neutral-400">
+                          {formatDayName(day)} · {formatPrettyDate(day)}
+                        </div>
+                        <div className="space-y-2">
+                          {items.map((t) => (
+                            <TaskCard key={t.id} task={t} />
+                          ))}
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        {items.map((t) => (
-                          <TaskCard key={t.id} task={t} />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Section>
-          </>
-        )}
-      </div>
-    </main>
+                    ))}
+                  </div>
+                )}
+              </Section>
+            </>
+          )}
+        </div>
+      </main>
+    </AppShell>
   );
 }
 
-function Header({ name, role, today }: { name: string; role: string; today: string }) {
+function Header({ name, today }: { name: string; today: string }) {
   return (
-    <div className="flex items-start justify-between gap-4">
-      <div>
-        <div className="mb-1 text-xs tracking-widest uppercase text-neutral-400">
-          {today}
-        </div>
-        <h1 className="text-2xl font-semibold tracking-tight">Hola, {name}.</h1>
-      </div>
-      <div className="flex items-center gap-3 pt-1 text-xs text-neutral-500">
-        <Link href="/semana" className="hover:text-neutral-800 underline-offset-2 hover:underline">
-          Semana
-        </Link>
-        {role === "admin" && (
-          <>
-            <span className="text-neutral-300">·</span>
-            <Link href="/admin" className="hover:text-neutral-800 underline-offset-2 hover:underline">
-              Admin
-            </Link>
-          </>
-        )}
-        <span className="text-neutral-300">·</span>
-        <form action="/auth/signout" method="post">
-          <button type="submit" className="hover:text-neutral-800 underline-offset-2 hover:underline">
-            Salir
-          </button>
-        </form>
-      </div>
+    <div>
+      <div className="mb-1 text-xs tracking-widest uppercase text-neutral-400">{today}</div>
+      <h1 className="text-2xl font-semibold tracking-tight">Hola, {name}.</h1>
     </div>
   );
 }

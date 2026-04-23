@@ -5,6 +5,19 @@
 :root {
   --brand-turquesa: #31b498;
   --brand-turquesa-ink: #0f5e4e;
+  --brand-violeta: #6c5ce7;
+  --brand-lima: #bce36c;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-in {
+    animation: fade-in 0.4s ease-out;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 html, body { height: 100%; }

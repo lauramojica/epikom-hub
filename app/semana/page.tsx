@@ -1,7 +1,8 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { AppShell } from "@/components/AppShell";
 import { TaskCard } from "@/components/TaskCard";
+import { WeekProgress } from "@/components/WeekProgress";
 import {
   formatPrettyDate,
   formatDayName,
@@ -21,7 +22,7 @@ export default async function SemanaPage() {
 
   const { data: profile } = await supabase
     .from("users")
-    .select("id, name")
+    .select("id, name, role")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -53,12 +54,13 @@ export default async function SemanaPage() {
 
   const completed = tasks.filter((t) => t.status === "completada").length;
   const groups = groupByDay(tasks);
+  const firstName = profile.name.split(" ")[0];
 
   return (
-    <main className="min-h-screen px-6 py-10">
-      <div className="mx-auto max-w-2xl">
-        <div className="mb-6 flex items-start justify-between">
-          <div>
+    <AppShell role={profile.role} firstName={firstName}>
+      <main className="px-4 py-6 sm:px-6 sm:py-10">
+        <div className="mx-auto max-w-2xl">
+          <div className="mb-6">
             <div className="mb-1 text-xs tracking-widest uppercase text-neutral-400">
               Semana completa
             </div>
@@ -70,66 +72,54 @@ export default async function SemanaPage() {
               </p>
             )}
           </div>
-          <div className="pt-1 text-xs text-neutral-500">
-            <Link href="/dashboard" className="underline underline-offset-2">
-              ← dashboard
-            </Link>
-          </div>
+
+          {!currentWeek && (
+            <div className="rounded-lg border border-dashed border-neutral-200 p-6 text-center text-sm text-neutral-500">
+              Sin semana cargada todavía.
+            </div>
+          )}
+
+          {currentWeek && (
+            <>
+              <div className="mb-6">
+                <WeekProgress
+                  completed={completed}
+                  total={tasks.length}
+                  weekId={currentWeek.id}
+                />
+              </div>
+
+              <div className="space-y-6">
+                {groups.map(([day, items]) => (
+                  <section key={day}>
+                    <div className="mb-2 flex items-baseline justify-between">
+                      <h2 className="text-sm font-semibold tracking-tight text-neutral-800 capitalize">
+                        {formatDayName(day)}
+                        <span className="ml-2 text-xs font-normal text-neutral-400">
+                          {formatPrettyDate(day)}
+                        </span>
+                      </h2>
+                      <span className="text-xs text-neutral-400">{items.length}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {items.map((t) => (
+                        <TaskCard key={t.id} task={t} />
+                      ))}
+                    </div>
+                  </section>
+                ))}
+
+                {tasks.length === 0 && (
+                  <div className="rounded-lg border border-dashed border-neutral-200 p-6 text-center text-sm text-neutral-500">
+                    No tienes tareas esta semana.
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
-
-        {!currentWeek && (
-          <div className="rounded-lg border border-dashed border-neutral-200 p-6 text-center text-sm text-neutral-500">
-            Sin semana cargada todavía.
-          </div>
-        )}
-
-        {currentWeek && (
-          <>
-            <div className="mb-6 rounded-lg bg-neutral-50 p-4 text-sm text-neutral-700">
-              <strong>{completed}</strong> de <strong>{tasks.length}</strong> tareas completadas
-              {tasks.length > 0 && (
-                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-neutral-200">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${Math.round((completed / tasks.length) * 100)}%`,
-                      background: "var(--brand-turquesa)",
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-6">
-              {groups.map(([day, items]) => (
-                <section key={day}>
-                  <div className="mb-2 flex items-baseline justify-between">
-                    <h2 className="text-sm font-semibold tracking-tight text-neutral-800 capitalize">
-                      {formatDayName(day)}
-                      <span className="ml-2 text-xs font-normal text-neutral-400">
-                        {formatPrettyDate(day)}
-                      </span>
-                    </h2>
-                    <span className="text-xs text-neutral-400">{items.length}</span>
-                  </div>
-                  <div className="space-y-2">
-                    {items.map((t) => (
-                      <TaskCard key={t.id} task={t} />
-                    ))}
-                  </div>
-                </section>
-              ))}
-
-              {tasks.length === 0 && (
-                <div className="rounded-lg border border-dashed border-neutral-200 p-6 text-center text-sm text-neutral-500">
-                  No tienes tareas esta semana.
-                </div>
-              )}
-            </div>
-          </>
-        )}
-      </div>
-    </main>
+      </main>
+    </AppShell>
   );
 }
 
