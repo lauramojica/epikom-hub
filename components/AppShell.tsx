@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   CalendarRange,
-  Users as UsersIcon,
   ShieldCheck,
   Upload,
   UserCircle2,
