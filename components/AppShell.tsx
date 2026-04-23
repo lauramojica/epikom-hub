@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   CalendarRange,
+  Briefcase,
   ShieldCheck,
   Upload,
   UserCircle2,
@@ -14,6 +15,8 @@ import {
   X,
   ChevronsLeft,
   ChevronsRight,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 type NavItem = {
@@ -26,11 +29,13 @@ type NavItem = {
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", Icon: LayoutDashboard },
   { href: "/semana", label: "Mi semana", Icon: CalendarRange },
+  { href: "/clientes", label: "Cliente por cliente", Icon: Briefcase },
   { href: "/admin", label: "Admin", Icon: ShieldCheck, adminOnly: true },
   { href: "/admin/upload", label: "Subir semana", Icon: Upload, adminOnly: true },
 ];
 
 const SIDEBAR_STATE_KEY = "sidebar-expanded";
+const THEME_KEY = "theme";
 
 export function AppShell({
   role,
@@ -43,18 +48,37 @@ export function AppShell({
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [expanded, setExpanded] = useState(true);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
   const pathname = usePathname();
   const items = navItems.filter((n) => !n.adminOnly || role === "admin");
 
   useEffect(() => {
     const stored = localStorage.getItem(SIDEBAR_STATE_KEY);
     if (stored === "0") setExpanded(false);
+    const storedTheme = localStorage.getItem(THEME_KEY);
+    const initialTheme =
+      storedTheme === "dark" || storedTheme === "light"
+        ? storedTheme
+        : window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light";
+    setTheme(initialTheme);
+    document.documentElement.setAttribute("data-theme", initialTheme);
   }, []);
 
   function toggleExpanded() {
     setExpanded((prev) => {
       const next = !prev;
       localStorage.setItem(SIDEBAR_STATE_KEY, next ? "1" : "0");
+      return next;
+    });
+  }
+
+  function toggleTheme() {
+    setTheme((prev) => {
+      const next = prev === "dark" ? "light" : "dark";
+      localStorage.setItem(THEME_KEY, next);
+      document.documentElement.setAttribute("data-theme", next);
       return next;
     });
   }
@@ -170,12 +194,26 @@ export function AppShell({
             >
               <UserCircle2 className="h-4 w-4" strokeWidth={1.75} />
             </Link>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              title={theme === "dark" ? "Tema claro" : "Tema oscuro"}
+              aria-label="Cambiar tema"
+              className="flex h-8 w-8 items-center justify-center rounded-md transition"
+              style={{ color: "var(--text-2)" }}
+            >
+              {theme === "dark" ? (
+                <Sun className="h-4 w-4" strokeWidth={1.75} />
+              ) : (
+                <Moon className="h-4 w-4" strokeWidth={1.75} />
+              )}
+            </button>
             <form action="/auth/signout" method="post" className="flex">
               <button
                 type="submit"
                 title={expanded ? "Cerrar sesión" : "Salir"}
                 aria-label="Cerrar sesión"
-                className="flex h-8 w-8 items-center justify-center rounded-md transition hover:bg-red-50"
+                className="flex h-8 w-8 items-center justify-center rounded-md transition"
                 style={{ color: "var(--text-2)" }}
               >
                 <LogOut className="h-4 w-4" strokeWidth={1.75} />

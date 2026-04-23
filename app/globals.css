@@ -54,7 +54,12 @@
   --brand-lima-soft: #2E3A10;
   --brand-lima-ink: #DBFA45;
   --lang-en-soft: #1F2A4A;
+  --warn: #E0A94A;
   --warn-soft: #3A2E15;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 html,
