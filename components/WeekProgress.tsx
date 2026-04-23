@@ -34,17 +34,32 @@ export function WeekProgress({
 
   return (
     <>
-      <div className="rounded-lg border border-neutral-200 bg-white p-4">
+      <div
+        className="rounded-lg p-4"
+        style={{
+          background: "var(--bg)",
+          border: "1px solid var(--border)",
+          borderRadius: "var(--r-md)",
+        }}
+      >
         <div className="mb-2 flex items-baseline justify-between">
-          <div className="text-sm">
+          <div className="text-sm" style={{ color: "var(--text)" }}>
             Progreso semanal
-            <span className="ml-2 text-xs text-neutral-500">
+            <span className="ml-2 text-xs" style={{ color: "var(--text-3)" }}>
               {completed}/{total}
             </span>
           </div>
-          <div className="text-xs font-medium text-neutral-700">{pct}%</div>
+          <div
+            className="tnum text-xs font-medium"
+            style={{ color: "var(--text-2)" }}
+          >
+            {pct}%
+          </div>
         </div>
-        <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-100">
+        <div
+          className="h-2 w-full overflow-hidden rounded-full"
+          style={{ background: "var(--bg-3)" }}
+        >
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{
@@ -58,7 +73,13 @@ export function WeekProgress({
       </div>
 
       {isComplete && !dismissed && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-[var(--brand-turquesa)] via-[var(--brand-violeta,#6c5ce7)] to-[var(--brand-turquesa-ink,#0b7a8a)] p-6 text-white animate-in fade-in duration-500">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-6 text-white fade-in"
+          style={{
+            background:
+              "linear-gradient(135deg, var(--brand-turquesa), var(--brand-violeta) 55%, var(--brand-turquesa-ink))",
+          }}
+        >
           <button
             type="button"
             onClick={dismiss}
@@ -84,7 +105,8 @@ export function WeekProgress({
             <button
               type="button"
               onClick={dismiss}
-              className="mt-8 rounded-full bg-white px-6 py-3 text-sm font-semibold text-[var(--brand-turquesa-ink,#0b7a8a)] shadow-lg transition hover:scale-[1.02]"
+              className="mt-8 rounded-full bg-white px-6 py-3 text-sm font-semibold shadow-lg transition hover:scale-[1.02]"
+              style={{ color: "var(--brand-turquesa-ink)" }}
             >
               Gracias, cerrar
             </button>

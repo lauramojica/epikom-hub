@@ -120,12 +120,25 @@ export default async function AdminDashboard() {
     <main className="px-4 py-6 sm:px-6 sm:py-10">
       <div className="mx-auto max-w-3xl">
         <div className="mb-8">
-          <div className="mb-1 text-xs tracking-widest uppercase text-neutral-400">admin</div>
-          <h1 className="text-2xl font-semibold tracking-tight">Vista del crew</h1>
+          <div
+            className="mb-1 text-xs uppercase"
+            style={{ letterSpacing: "0.08em", color: "var(--text-3)" }}
+          >
+            admin
+          </div>
+          <h1
+            className="text-2xl font-semibold"
+            style={{ letterSpacing: "-0.015em", color: "var(--text)" }}
+          >
+            Vista del crew
+          </h1>
         </div>
 
         {!currentWeek && (
-          <div className="rounded-lg border border-dashed border-neutral-200 p-6 text-center text-sm text-neutral-500">
+          <div
+            className="rounded-lg border border-dashed p-6 text-center text-sm"
+            style={{ borderColor: "var(--border)", color: "var(--text-3)" }}
+          >
             No hay semana cargada.{" "}
             <Link href="/admin/upload" className="underline underline-offset-2">
               Subir JSON
@@ -136,28 +149,43 @@ export default async function AdminDashboard() {
 
         {currentWeek && (
           <>
-            <div className="mb-8 rounded-lg border border-neutral-200 bg-white p-4">
-              <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2 text-sm">
+            <div
+              className="mb-8 rounded-lg p-4"
+              style={{
+                background: "var(--bg)",
+                border: "1px solid var(--border)",
+                borderRadius: "var(--r-md)",
+              }}
+            >
+              <div
+                className="flex flex-wrap items-baseline gap-x-6 gap-y-2 text-sm"
+                style={{ color: "var(--text)" }}
+              >
                 <div>
-                  <span className="text-neutral-500">Semana: </span>
+                  <span style={{ color: "var(--text-3)" }}>Semana: </span>
                   <strong>{formatPrettyDate(currentWeek.week_start_date)}</strong> →{" "}
                   <strong>{formatPrettyDate(currentWeek.week_end_date)}</strong>
                 </div>
                 <div>
-                  <span className="text-neutral-500">Tareas: </span>
+                  <span style={{ color: "var(--text-3)" }}>Tareas: </span>
                   <strong>{totalTasks}</strong>
                 </div>
                 <div>
-                  <span className="text-neutral-500">Notifs pendientes: </span>
+                  <span style={{ color: "var(--text-3)" }}>Notifs pendientes: </span>
                   <strong>{pendingNotifs}</strong>
                 </div>
               </div>
-              <div className="mt-2 text-xs text-neutral-400">
+              <div className="mt-2 text-xs" style={{ color: "var(--text-3)" }}>
                 Subida {new Date(currentWeek.uploaded_at).toLocaleString("es-PR")}
               </div>
             </div>
 
-            <h2 className="mb-3 text-sm font-semibold tracking-tight text-neutral-800">Crew</h2>
+            <h2
+              className="mb-3 text-sm font-semibold"
+              style={{ letterSpacing: "-0.01em", color: "var(--text)" }}
+            >
+              Crew
+            </h2>
             <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {stats.map((s) => {
                 const pct = s.total === 0 ? 0 : Math.round((s.completed / s.total) * 100);
@@ -165,17 +193,28 @@ export default async function AdminDashboard() {
                   <Link
                     key={s.id}
                     href={`/admin/crew/${s.slug}`}
-                    className="group rounded-lg border border-neutral-200 bg-white p-4 transition hover:border-neutral-300 hover:shadow-sm"
+                    className="group rounded-lg p-4 transition hover:shadow-sm"
+                    style={{
+                      background: "var(--bg)",
+                      border: "1px solid var(--border)",
+                      borderRadius: "var(--r-md)",
+                    }}
                   >
                     <div className="mb-2 flex items-baseline justify-between">
-                      <div className="text-sm font-medium group-hover:text-[var(--brand-turquesa-ink)]">
+                      <div
+                        className="text-sm font-medium group-hover:text-[var(--brand-turquesa-ink)]"
+                        style={{ color: "var(--text)" }}
+                      >
                         {s.name}
                       </div>
-                      <div className="text-xs text-neutral-500">
+                      <div className="tnum text-xs" style={{ color: "var(--text-3)" }}>
                         {s.completed}/{s.total}
                       </div>
                     </div>
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
+                    <div
+                      className="h-1.5 w-full overflow-hidden rounded-full"
+                      style={{ background: "var(--bg-3)" }}
+                    >
                       <div
                         className="h-full rounded-full transition-all"
                         style={{
@@ -187,10 +226,12 @@ export default async function AdminDashboard() {
                     {(s.overdue > 0 || s.blocked > 0) && (
                       <div className="mt-2 flex gap-3 text-xs">
                         {s.overdue > 0 && (
-                          <span className="text-red-600">{s.overdue} atrasada{s.overdue > 1 ? "s" : ""}</span>
+                          <span style={{ color: "var(--warn)" }}>
+                            {s.overdue} atrasada{s.overdue > 1 ? "s" : ""}
+                          </span>
                         )}
                         {s.blocked > 0 && (
-                          <span className="text-amber-700">
+                          <span style={{ color: "var(--warn)" }}>
                             {s.blocked} bloqueada{s.blocked > 1 ? "s" : ""}
                           </span>
                         )}
@@ -203,15 +244,36 @@ export default async function AdminDashboard() {
 
             {attention.length > 0 && (
               <section className="mb-8">
-                <h2 className="mb-3 text-sm font-semibold tracking-tight text-neutral-800">
+                <h2
+                  className="mb-3 text-sm font-semibold"
+                  style={{ letterSpacing: "-0.01em", color: "var(--text)" }}
+                >
                   Atención ({attention.length})
                 </h2>
-                <div className="rounded-lg border border-amber-200 bg-amber-50 divide-y divide-amber-100">
-                  {attention.map((a) => (
-                    <div key={a.id} className="flex items-center justify-between gap-3 p-3 text-xs">
+                <div
+                  className="rounded-lg"
+                  style={{
+                    background: "var(--warn-soft)",
+                    border: "1px solid var(--warn-soft)",
+                    borderRadius: "var(--r-md)",
+                  }}
+                >
+                  {attention.map((a, i) => (
+                    <div
+                      key={a.id}
+                      className="flex items-center justify-between gap-3 p-3 text-xs"
+                      style={{
+                        borderTop: i === 0 ? "none" : "1px solid rgba(201,138,26,0.15)",
+                      }}
+                    >
                       <div className="min-w-0">
-                        <div className="font-medium text-amber-900 truncate">{a.title}</div>
-                        <div className="text-amber-700">
+                        <div
+                          className="font-medium truncate"
+                          style={{ color: "var(--warn)" }}
+                        >
+                          {a.title}
+                        </div>
+                        <div style={{ color: "var(--warn)" }}>
                           {a.assignee} · {a.status === "bloqueada" ? "bloqueada" : `atrasada (${a.due_date})`}
                         </div>
                       </div>

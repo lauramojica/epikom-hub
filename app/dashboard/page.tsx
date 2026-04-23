@@ -78,7 +78,10 @@ export default async function Dashboard() {
           <Header name={firstName} today={formatPrettyDate(today)} />
 
           {!currentWeek && (
-            <div className="mt-8 rounded-lg border border-dashed border-neutral-200 p-6 text-center text-sm text-neutral-500">
+            <div
+              className="mt-8 rounded-lg border border-dashed p-6 text-center text-sm"
+              style={{ borderColor: "var(--border)", color: "var(--text-3)" }}
+            >
               Todavía no hay semana cargada.
               {profile.role === "admin" && (
                 <>
@@ -125,7 +128,10 @@ export default async function Dashboard() {
                   <div className="space-y-4">
                     {groupByDay(restOfWeek).map(([day, items]) => (
                       <div key={day}>
-                        <div className="mb-2 text-xs font-medium uppercase tracking-widest text-neutral-400">
+                        <div
+                          className="mb-2 text-xs font-medium uppercase"
+                          style={{ letterSpacing: "0.08em", color: "var(--text-3)" }}
+                        >
                           {formatDayName(day)} · {formatPrettyDate(day)}
                         </div>
                         <div className="space-y-2">
@@ -147,10 +153,23 @@ export default async function Dashboard() {
 }
 
 function Header({ name, today }: { name: string; today: string }) {
+  const hour = new Date().getHours();
+  const greet =
+    hour < 12 ? "Buenos días" : hour < 19 ? "Buenas tardes" : "Buenas noches";
   return (
     <div>
-      <div className="mb-1 text-xs tracking-widest uppercase text-neutral-400">{today}</div>
-      <h1 className="text-2xl font-semibold tracking-tight">Hola, {name}.</h1>
+      <div
+        className="mb-1 text-xs uppercase"
+        style={{ letterSpacing: "0.08em", color: "var(--text-3)" }}
+      >
+        {today}
+      </div>
+      <h1
+        className="text-2xl font-semibold"
+        style={{ letterSpacing: "-0.015em", color: "var(--text)" }}
+      >
+        {greet}, {name}.
+      </h1>
     </div>
   );
 }
@@ -159,8 +178,15 @@ function Section({ title, count, children }: { title: string; count: number; chi
   return (
     <section className="mt-8">
       <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold tracking-tight text-neutral-800">{title}</h2>
-        <span className="text-xs text-neutral-400">{count}</span>
+        <h2
+          className="text-sm font-semibold"
+          style={{ letterSpacing: "-0.01em", color: "var(--text)" }}
+        >
+          {title}
+        </h2>
+        <span className="text-xs" style={{ color: "var(--text-3)" }}>
+          {count}
+        </span>
       </div>
       {children}
     </section>
@@ -169,7 +195,10 @@ function Section({ title, count, children }: { title: string; count: number; chi
 
 function EmptyState({ msg }: { msg: string }) {
   return (
-    <div className="rounded-lg border border-dashed border-neutral-200 p-5 text-center text-sm text-neutral-500">
+    <div
+      className="rounded-lg border border-dashed p-5 text-center text-sm"
+      style={{ borderColor: "var(--border)", color: "var(--text-3)" }}
+    >
       {msg}
     </div>
   );

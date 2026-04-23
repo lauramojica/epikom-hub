@@ -2,19 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { PRIORITY_LABEL, STATUS_LABEL, type TaskRow } from "@/lib/tasks";
+import { Check, AlertTriangle, Clock3, StickyNote } from "lucide-react";
+import { PRIORITY_LABEL, type TaskRow } from "@/lib/tasks";
 
-const priorityStyle: Record<TaskRow["priority"], string> = {
-  HIGH: "bg-red-50 text-red-700 border-red-200",
-  MEDIUM: "bg-amber-50 text-amber-700 border-amber-200",
-  LOW: "bg-neutral-50 text-neutral-600 border-neutral-200",
-};
-
-const statusStyle: Record<TaskRow["status"], string> = {
-  pendiente: "text-neutral-500",
-  en_progreso: "text-[var(--brand-turquesa-ink)]",
-  completada: "text-emerald-700 line-through decoration-neutral-300",
-  bloqueada: "text-red-600",
+const priorityBadge: Record<TaskRow["priority"], { bg: string; fg: string }> = {
+  HIGH: { bg: "var(--warn-soft)", fg: "var(--warn)" },
+  MEDIUM: { bg: "var(--brand-turquesa-soft)", fg: "var(--brand-turquesa-ink)" },
+  LOW: { bg: "var(--bg-3)", fg: "var(--text-2)" },
 };
 
 export function TaskCard({ task }: { task: TaskRow }) {
@@ -23,12 +17,21 @@ export function TaskCard({ task }: { task: TaskRow }) {
   const [optimisticStatus, setOptimisticStatus] = useState<TaskRow["status"]>(task.status);
   const [showNote, setShowNote] = useState(false);
   const [note, setNote] = useState(task.user_note ?? "");
+  const [hover, setHover] = useState(false);
 
-  const isDone = optimisticStatus === "completada";
+  const completed = optimisticStatus === "completada";
+  const blocked = optimisticStatus === "bloqueada";
   const clients = task.task_clients.map((c) => c.client_name).join(" · ");
 
+  const bg = completed
+    ? "var(--brand-lima-soft)"
+    : blocked
+      ? "var(--warn-soft)"
+      : "var(--bg)";
+  const borderColor = hover && !completed ? "var(--border-strong)" : "var(--border)";
+
   function toggleComplete() {
-    const next: TaskRow["status"] = isDone ? "pendiente" : "completada";
+    const next: TaskRow["status"] = completed ? "pendiente" : "completada";
     setOptimisticStatus(next);
     startTransition(async () => {
       const res = await fetch(`/api/tasks/${task.id}/complete`, {
@@ -56,88 +59,131 @@ export function TaskCard({ task }: { task: TaskRow }) {
     }
   }
 
+  const badgeStyle = priorityBadge[task.priority];
+
   return (
     <article
-      className={`group rounded-lg border border-neutral-200 bg-white p-4 transition ${
-        isDone ? "opacity-70" : ""
-      } ${isPending ? "scale-[0.995]" : ""}`}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      className={isPending ? "opacity-80" : ""}
+      style={{
+        background: bg,
+        border: `1px solid ${borderColor}`,
+        borderRadius: "var(--r-md)",
+        padding: "14px 16px",
+        transition: "border-color 120ms, background 120ms",
+      }}
     >
-      <div className="flex items-start gap-3">
+      <div className="grid" style={{ gridTemplateColumns: "auto 1fr auto", gap: 12, alignItems: "flex-start" }}>
+        {/* Checkbox */}
         <button
           type="button"
           onClick={toggleComplete}
-          aria-label={isDone ? "Marcar pendiente" : "Marcar completada"}
-          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition ${
-            isDone
-              ? "border-emerald-500 bg-emerald-500 text-white"
-              : "border-neutral-300 hover:border-[var(--brand-turquesa)]"
-          }`}
+          aria-label={completed ? "Marcar pendiente" : "Marcar completada"}
+          className="grid place-items-center"
+          style={{
+            width: 18,
+            height: 18,
+            marginTop: 2,
+            borderRadius: 5,
+            border: `1.5px solid ${
+              completed ? "var(--brand-turquesa)" : blocked ? "var(--warn)" : "var(--border-strong)"
+            }`,
+            background: completed ? "var(--brand-turquesa)" : "transparent",
+            color: "#fff",
+            flexShrink: 0,
+            transition: "all 180ms",
+          }}
         >
-          {isDone && (
-            <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-              <path
-                fillRule="evenodd"
-                d="M16.7 5.3a1 1 0 010 1.4l-8 8a1 1 0 01-1.4 0l-4-4a1 1 0 111.4-1.4L8 12.6l7.3-7.3a1 1 0 011.4 0z"
-                clipRule="evenodd"
-              />
-            </svg>
-          )}
+          {completed && <Check size={12} strokeWidth={2.8} />}
         </button>
 
-        <div className="min-w-0 flex-1">
-          <div className="mb-1 flex flex-wrap items-center gap-2">
-            <span
-              className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${priorityStyle[task.priority]}`}
-            >
-              {PRIORITY_LABEL[task.priority]}
-            </span>
-            <span className="text-xs text-neutral-500">{clients}</span>
-            <span className="text-xs text-neutral-400">· {task.task_type}</span>
-          </div>
-          <h3 className={`text-sm font-medium leading-snug ${statusStyle[optimisticStatus]}`}>
+        {/* Body */}
+        <div className="min-w-0">
+          <div
+            className="text-sm font-medium leading-snug"
+            style={{
+              textDecoration: completed ? "line-through" : "none",
+              color: completed ? "var(--text-3)" : "var(--text)",
+              overflowWrap: "anywhere",
+            }}
+          >
             {task.title}
-          </h3>
-          {task.description && (
-            <p className="mt-1 text-xs text-neutral-500 leading-relaxed">
-              {task.description}
-            </p>
+          </div>
+
+          <div
+            className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px]"
+            style={{ color: "var(--text-2)" }}
+          >
+            {clients && <span style={{ fontWeight: 500 }}>{clients}</span>}
+            {clients && <span style={{ color: "var(--text-3)" }}>·</span>}
+            <span>{task.task_type}</span>
+            {task.description && (
+              <>
+                <span style={{ color: "var(--text-3)" }}>·</span>
+                <span style={{ color: "var(--text-3)" }}>{task.description}</span>
+              </>
+            )}
+          </div>
+
+          {blocked && (
+            <div
+              className="mt-2.5 flex items-center gap-1.5 text-xs font-medium"
+              style={{ color: "var(--warn)" }}
+            >
+              <AlertTriangle size={13} /> Bloqueada
+            </div>
           )}
 
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-neutral-400">
-            <span>{STATUS_LABEL[optimisticStatus]}</span>
+          <div
+            className="mt-2.5 flex flex-wrap items-center gap-3 text-xs"
+            style={{ color: "var(--text-3)" }}
+          >
+            <button
+              type="button"
+              onClick={() => setShowNote((s) => !s)}
+              className="inline-flex items-center gap-1 hover:underline underline-offset-2"
+              style={{ color: "var(--text-2)" }}
+            >
+              <StickyNote size={12} />
+              {task.user_note ? "Editar nota" : "Añadir nota"}
+            </button>
             {task.notion_url && (
               <a
                 href={task.notion_url}
                 target="_blank"
                 rel="noreferrer"
-                className="text-neutral-500 underline underline-offset-2 hover:text-neutral-700"
+                className="underline underline-offset-2"
+                style={{ color: "var(--text-2)" }}
               >
                 Notion ↗
               </a>
             )}
-            <button
-              type="button"
-              onClick={() => setShowNote((s) => !s)}
-              className="text-neutral-500 underline underline-offset-2 hover:text-neutral-700"
-            >
-              {task.user_note ? "Editar nota" : "Añadir nota"}
-            </button>
           </div>
 
           {showNote && (
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 space-y-2 fade-in">
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 rows={2}
-                placeholder="Nota interna (solo tú la ves)"
-                className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--brand-turquesa)]"
+                placeholder="Nota para esta tarea…"
+                className="w-full resize-y text-[13px]"
+                style={{
+                  background: "var(--bg-2)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "var(--r-md)",
+                  padding: "8px 10px",
+                  color: "var(--text)",
+                  minHeight: 60,
+                  fontFamily: "inherit",
+                }}
               />
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={saveNote}
-                  className="rounded-md px-2.5 py-1 text-xs font-medium text-white"
+                  className="rounded-md px-3 py-1.5 text-xs font-medium text-white"
                   style={{ background: "var(--brand-turquesa)" }}
                 >
                   Guardar
@@ -148,7 +194,8 @@ export function TaskCard({ task }: { task: TaskRow }) {
                     setNote(task.user_note ?? "");
                     setShowNote(false);
                   }}
-                  className="rounded-md px-2.5 py-1 text-xs text-neutral-500 hover:bg-neutral-100"
+                  className="rounded-md px-3 py-1.5 text-xs"
+                  style={{ color: "var(--text-2)" }}
                 >
                   Cancelar
                 </button>
@@ -157,12 +204,40 @@ export function TaskCard({ task }: { task: TaskRow }) {
           )}
 
           {!showNote && task.user_note && (
-            <p className="mt-2 rounded-md bg-neutral-50 p-2 text-xs text-neutral-600">
+            <p
+              className="mt-2 rounded-md p-2 text-[13px]"
+              style={{ background: "var(--bg-2)", color: "var(--text-2)" }}
+            >
               {task.user_note}
             </p>
           )}
         </div>
+
+        {/* Meta right */}
+        <div className="flex flex-col items-end gap-1.5 shrink-0">
+          <span
+            className="inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-medium"
+            style={{
+              background: badgeStyle.bg,
+              color: badgeStyle.fg,
+              letterSpacing: "0.02em",
+            }}
+          >
+            {PRIORITY_LABEL[task.priority]}
+          </span>
+          <div
+            className="tnum flex items-center gap-1 text-[12px] whitespace-nowrap"
+            style={{ color: "var(--text-3)" }}
+          >
+            <Clock3 size={12} /> {formatDay(task.due_date)}
+          </div>
+        </div>
       </div>
     </article>
   );
+}
+
+function formatDay(iso: string): string {
+  const [, m, d] = iso.split("-").map(Number);
+  return `${d}/${m}`;
 }
