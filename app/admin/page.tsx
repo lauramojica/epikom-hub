@@ -172,9 +172,15 @@ export default async function AdminDashboard() {
               {stats.map((s) => {
                 const pct = s.total === 0 ? 0 : Math.round((s.completed / s.total) * 100);
                 return (
-                  <div key={s.id} className="rounded-lg border border-neutral-200 bg-white p-4">
+                  <Link
+                    key={s.id}
+                    href={`/admin/crew/${s.slug}`}
+                    className="group rounded-lg border border-neutral-200 bg-white p-4 transition hover:border-neutral-300 hover:shadow-sm"
+                  >
                     <div className="mb-2 flex items-baseline justify-between">
-                      <div className="text-sm font-medium">{s.name}</div>
+                      <div className="text-sm font-medium group-hover:text-[var(--brand-turquesa-ink)]">
+                        {s.name}
+                      </div>
                       <div className="text-xs text-neutral-500">
                         {s.completed}/{s.total}
                       </div>
@@ -200,7 +206,7 @@ export default async function AdminDashboard() {
                         )}
                       </div>
                     )}
-                  </div>
+                  </Link>
                 );
               })}
             </div>
