@@ -15,17 +15,13 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const priorityStyle: Record<TaskRow["priority"], string> = {
-  HIGH: "bg-red-50 text-red-700 border-red-200",
-  MEDIUM: "bg-amber-50 text-amber-700 border-amber-200",
-  LOW: "bg-neutral-50 text-neutral-600 border-neutral-200",
-};
-
-const statusStyle: Record<TaskRow["status"], string> = {
-  pendiente: "text-neutral-500",
-  en_progreso: "text-[var(--brand-turquesa-ink)]",
-  completada: "text-emerald-700 line-through decoration-neutral-300",
-  bloqueada: "text-red-600",
+const priorityTone: Record<
+  TaskRow["priority"],
+  { bg: string; fg: string }
+> = {
+  HIGH: { bg: "var(--brand-violeta-soft)", fg: "var(--brand-violeta-ink)" },
+  MEDIUM: { bg: "var(--brand-turquesa-soft)", fg: "var(--brand-turquesa-ink)" },
+  LOW: { bg: "var(--bg-3)", fg: "var(--text-2)" },
 };
 
 export default async function AdminCrewDetail({
@@ -95,16 +91,24 @@ export default async function AdminCrewDetail({
   const groups = groupByDay(tasks);
 
   return (
-    <main className="min-h-screen px-6 py-10">
+    <main className="min-h-screen px-6 py-10" style={{ color: "var(--text)" }}>
       <div className="mx-auto max-w-2xl">
         <div className="mb-6 flex items-start justify-between">
           <div>
-            <div className="mb-1 text-xs tracking-widest uppercase text-neutral-400">
+            <div
+              className="mb-1 text-xs uppercase"
+              style={{ letterSpacing: "0.08em", color: "var(--text-3)" }}
+            >
               {member.role} · {member.email}
             </div>
-            <h1 className="text-2xl font-semibold tracking-tight">{member.name}</h1>
+            <h1
+              className="text-2xl font-semibold tracking-tight"
+              style={{ color: "var(--text)" }}
+            >
+              {member.name}
+            </h1>
             {currentWeek && (
-              <p className="mt-1 text-xs text-neutral-500">
+              <p className="mt-1 text-xs" style={{ color: "var(--text-3)" }}>
                 {formatPrettyDate(currentWeek.week_start_date)} →{" "}
                 {formatPrettyDate(currentWeek.week_end_date)}
               </p>
@@ -133,21 +137,36 @@ export default async function AdminCrewDetail({
         </div>
 
         {!currentWeek && (
-          <div className="rounded-lg border border-dashed border-neutral-200 p-6 text-center text-sm text-neutral-500">
+          <div
+            className="rounded-lg border border-dashed p-6 text-center text-sm"
+            style={{ borderColor: "var(--border)", color: "var(--text-3)" }}
+          >
             No hay semana cargada.
           </div>
         )}
 
         {currentWeek && (
           <>
-            <div className="mb-6 rounded-lg border border-neutral-200 bg-white p-4">
+            <div
+              className="mb-6 rounded-lg p-4"
+              style={{
+                border: "1px solid var(--border)",
+                background: "var(--bg)",
+              }}
+            >
               <div className="mb-2 flex items-baseline justify-between">
-                <div className="text-sm">
-                  <strong>{completed}</strong> de <strong>{tasks.length}</strong> completadas
+                <div className="text-sm" style={{ color: "var(--text)" }}>
+                  <strong>{completed}</strong> de <strong>{tasks.length}</strong>{" "}
+                  completadas
                 </div>
-                <div className="text-xs text-neutral-500">{pct}%</div>
+                <div className="text-xs" style={{ color: "var(--text-3)" }}>
+                  {pct}%
+                </div>
               </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
+              <div
+                className="h-1.5 w-full overflow-hidden rounded-full"
+                style={{ background: "var(--bg-3)" }}
+              >
                 <div
                   className="h-full rounded-full transition-all"
                   style={{
@@ -159,12 +178,12 @@ export default async function AdminCrewDetail({
               {(overdue > 0 || blocked > 0) && (
                 <div className="mt-3 flex gap-4 text-xs">
                   {overdue > 0 && (
-                    <span className="text-red-600">
+                    <span style={{ color: "var(--warn)" }}>
                       {overdue} atrasada{overdue > 1 ? "s" : ""}
                     </span>
                   )}
                   {blocked > 0 && (
-                    <span className="text-amber-700">
+                    <span style={{ color: "var(--warn)" }}>
                       {blocked} bloqueada{blocked > 1 ? "s" : ""}
                     </span>
                   )}
@@ -176,13 +195,24 @@ export default async function AdminCrewDetail({
               {groups.map(([day, items]) => (
                 <section key={day}>
                   <div className="mb-2 flex items-baseline justify-between">
-                    <h2 className="text-sm font-semibold tracking-tight text-neutral-800 capitalize">
+                    <h2
+                      className="text-sm font-semibold tracking-tight capitalize"
+                      style={{ color: "var(--text)" }}
+                    >
                       {formatDayName(day)}
-                      <span className="ml-2 text-xs font-normal text-neutral-400">
+                      <span
+                        className="ml-2 text-xs font-normal"
+                        style={{ color: "var(--text-3)" }}
+                      >
                         {formatPrettyDate(day)}
                       </span>
                     </h2>
-                    <span className="text-xs text-neutral-400">{items.length}</span>
+                    <span
+                      className="text-xs"
+                      style={{ color: "var(--text-3)" }}
+                    >
+                      {items.length}
+                    </span>
                   </div>
                   <div className="space-y-2">
                     {items.map((t) => (
@@ -193,7 +223,13 @@ export default async function AdminCrewDetail({
               ))}
 
               {tasks.length === 0 && (
-                <div className="rounded-lg border border-dashed border-neutral-200 p-6 text-center text-sm text-neutral-500">
+                <div
+                  className="rounded-lg border border-dashed p-6 text-center text-sm"
+                  style={{
+                    borderColor: "var(--border)",
+                    color: "var(--text-3)",
+                  }}
+                >
                   Sin tareas asignadas esta semana.
                 </div>
               )}
@@ -216,36 +252,66 @@ function ReadOnlyTask({ task, today }: { task: TaskRow; today: string }) {
         minute: "2-digit",
       })
     : null;
+  const tone = priorityTone[task.priority];
+  const isDone = task.status === "completada";
 
   return (
-    <article className="rounded-lg border border-neutral-200 bg-white p-4">
+    <article
+      className="rounded-lg p-4"
+      style={{
+        border: "1px solid var(--border)",
+        background: "var(--bg)",
+      }}
+    >
       <div className="mb-1 flex flex-wrap items-center gap-2">
         <span
-          className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${priorityStyle[task.priority]}`}
+          className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium uppercase"
+          style={{
+            background: tone.bg,
+            color: tone.fg,
+            letterSpacing: "0.04em",
+          }}
         >
           {PRIORITY_LABEL[task.priority]}
         </span>
-        <span className="text-xs text-neutral-500">{clients}</span>
-        <span className="text-xs text-neutral-400">· {task.task_type}</span>
+        <span className="text-xs" style={{ color: "var(--text-2)" }}>
+          {clients}
+        </span>
+        <span className="text-xs" style={{ color: "var(--text-3)" }}>
+          · {task.task_type}
+        </span>
       </div>
-      <h3 className={`text-sm font-medium leading-snug ${statusStyle[task.status]}`}>
+      <h3
+        className="text-sm font-medium leading-snug"
+        style={{
+          color: isDone ? "var(--text-3)" : "var(--text)",
+          textDecoration: isDone ? "line-through" : "none",
+        }}
+      >
         {task.title}
       </h3>
       {task.description && (
-        <p className="mt-1 text-xs text-neutral-500 leading-relaxed">{task.description}</p>
+        <p
+          className="mt-1 text-xs leading-relaxed"
+          style={{ color: "var(--text-2)" }}
+        >
+          {task.description}
+        </p>
       )}
 
-      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-neutral-400">
+      <div
+        className="mt-3 flex flex-wrap items-center gap-3 text-xs"
+        style={{ color: "var(--text-3)" }}
+      >
         <span
-          className={
-            task.status === "bloqueada"
-              ? "text-red-600"
-              : isOverdue
-                ? "text-red-600"
+          style={{
+            color:
+              task.status === "bloqueada" || isOverdue
+                ? "var(--warn)"
                 : task.status === "completada"
-                  ? "text-emerald-700"
-                  : ""
-          }
+                  ? "var(--brand-turquesa-ink)"
+                  : "var(--text-3)",
+          }}
         >
           {STATUS_LABEL[task.status]}
           {isOverdue && task.status !== "completada" && " · atrasada"}
@@ -256,7 +322,8 @@ function ReadOnlyTask({ task, today }: { task: TaskRow; today: string }) {
             href={task.notion_url}
             target="_blank"
             rel="noreferrer"
-            className="text-neutral-500 underline underline-offset-2 hover:text-neutral-700"
+            className="underline underline-offset-2"
+            style={{ color: "var(--text-2)" }}
           >
             Notion ↗
           </a>
@@ -264,8 +331,11 @@ function ReadOnlyTask({ task, today }: { task: TaskRow; today: string }) {
       </div>
 
       {task.user_note && (
-        <p className="mt-2 rounded-md bg-neutral-50 p-2 text-xs text-neutral-600">
-          <span className="font-medium text-neutral-700">Nota: </span>
+        <p
+          className="mt-2 rounded-md p-2 text-xs"
+          style={{ background: "var(--bg-2)", color: "var(--text-2)" }}
+        >
+          <span style={{ fontWeight: 500, color: "var(--text)" }}>Nota: </span>
           {task.user_note}
         </p>
       )}

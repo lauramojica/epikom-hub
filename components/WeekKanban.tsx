@@ -2,12 +2,13 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, AlertTriangle, Sparkles } from "lucide-react";
+import { Check, AlertTriangle, Sparkles, Pencil } from "lucide-react";
 import {
   PRIORITY_LABEL,
   type TaskRow,
   formatPrettyDate,
 } from "@/lib/tasks";
+import { EditTaskModal } from "./EditTaskModal";
 
 type Props = {
   tasks: TaskRow[];
@@ -15,7 +16,7 @@ type Props = {
   weekEnd: string;
   today: string;
   rotationBlock?: string | null;
-  rotationLabel?: string; // e.g. "Semana del 20 al 24 abril"
+  rotationLabel?: string;
 };
 
 const DAY_LABELS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
@@ -28,8 +29,12 @@ export function WeekKanban({
   rotationBlock,
   rotationLabel,
 }: Props) {
+  const router = useRouter();
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [clientFilter, setClientFilter] = useState<string>("all");
+  const [editing, setEditing] = useState<TaskRow | null>(null);
+  const [dragTaskId, setDragTaskId] = useState<string | null>(null);
+  const [dragOverDay, setDragOverDay] = useState<string | null>(null);
 
   const types = useMemo(
     () => Array.from(new Set(tasks.map((t) => t.task_type))).sort(),
@@ -56,7 +61,6 @@ export function WeekKanban({
     [tasks, typeFilter, clientFilter]
   );
 
-  // Build the 5 weekday dates
   const dayDates = useMemo(() => {
     const [y, m, d] = weekStart.split("-").map(Number);
     const start = new Date(Date.UTC(y, m - 1, d));
@@ -83,6 +87,17 @@ export function WeekKanban({
       ),
     [filtered, today]
   );
+
+  async function moveTaskToDay(taskId: string, newDate: string) {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task || task.due_date === newDate) return;
+    const res = await fetch(`/api/tasks/${taskId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ due_date: newDate }),
+    });
+    if (res.ok) router.refresh();
+  }
 
   return (
     <>
@@ -125,7 +140,7 @@ export function WeekKanban({
           <div className="flex items-center gap-3">
             <div
               className="flex h-8 w-8 items-center justify-center rounded-full"
-              style={{ background: "rgba(255,255,255,0.5)" }}
+              style={{ background: "rgba(255,255,255,0.35)" }}
             >
               <Sparkles
                 size={14}
@@ -182,22 +197,50 @@ export function WeekKanban({
           </div>
           <div className="space-y-2">
             {overdue.map((t) => (
-              <OverdueRow key={t.id} task={t} />
+              <OverdueRow key={t.id} task={t} onEdit={() => setEditing(t)} />
             ))}
           </div>
         </div>
       )}
 
       {/* Kanban columns */}
-      <div className="grid gap-4 overflow-x-auto" style={{ gridTemplateColumns: "repeat(5, minmax(180px, 1fr))" }}>
+      <div
+        className="grid gap-4 overflow-x-auto"
+        style={{ gridTemplateColumns: "repeat(5, minmax(180px, 1fr))" }}
+      >
         {dayDates.map((date, i) => {
           const items = byDay.get(date) ?? [];
           const done = items.filter((t) => t.status === "completada").length;
           const pct = items.length === 0 ? 0 : Math.round((done / items.length) * 100);
           const isToday = date === today;
+          const isDropTarget = dragOverDay === date;
           const dayNum = Number(date.split("-")[2]);
           return (
-            <section key={date}>
+            <section
+              key={date}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (dragOverDay !== date) setDragOverDay(date);
+              }}
+              onDragLeave={() => {
+                if (dragOverDay === date) setDragOverDay(null);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOverDay(null);
+                const id = e.dataTransfer.getData("text/plain") || dragTaskId;
+                if (id) moveTaskToDay(id, date);
+                setDragTaskId(null);
+              }}
+              style={{
+                borderRadius: "var(--r-md)",
+                transition: "background 120ms",
+                background: isDropTarget
+                  ? "var(--brand-turquesa-soft)"
+                  : "transparent",
+                padding: isDropTarget ? 6 : 0,
+              }}
+            >
               <div className="mb-2 flex items-baseline gap-2">
                 <h3
                   className="text-sm font-semibold"
@@ -241,7 +284,14 @@ export function WeekKanban({
               </div>
               <div className="space-y-2">
                 {items.map((t) => (
-                  <MiniCard key={t.id} task={t} />
+                  <MiniCard
+                    key={t.id}
+                    task={t}
+                    onEdit={() => setEditing(t)}
+                    onDragStart={() => setDragTaskId(t.id)}
+                    onDragEnd={() => setDragTaskId(null)}
+                    isDragging={dragTaskId === t.id}
+                  />
                 ))}
                 {items.length === 0 && (
                   <div
@@ -263,6 +313,16 @@ export function WeekKanban({
       <div className="mt-6 text-center text-[11px]" style={{ color: "var(--text-3)" }}>
         {formatPrettyDate(weekStart)} → {formatPrettyDate(weekEnd)}
       </div>
+
+      {editing && (
+        <EditTaskModal
+          task={editing}
+          weekStart={weekStart}
+          weekEnd={weekEnd}
+          open={true}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </>
   );
 }
@@ -299,7 +359,19 @@ function Select({
   );
 }
 
-function MiniCard({ task }: { task: TaskRow }) {
+function MiniCard({
+  task,
+  onEdit,
+  onDragStart,
+  onDragEnd,
+  isDragging,
+}: {
+  task: TaskRow;
+  onEdit: () => void;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  isDragging: boolean;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [optStatus, setOptStatus] = useState(task.status);
@@ -334,12 +406,21 @@ function MiniCard({ task }: { task: TaskRow }) {
 
   return (
     <article
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/plain", task.id);
+        e.dataTransfer.effectAllowed = "move";
+        onDragStart();
+      }}
+      onDragEnd={onDragEnd}
       className={isPending ? "opacity-80" : ""}
       style={{
         background: bg,
         border: "1px solid var(--border)",
         borderRadius: "var(--r-md)",
         padding: "10px 12px",
+        opacity: isDragging ? 0.4 : 1,
+        cursor: "grab",
       }}
     >
       <div className="flex items-start gap-2">
@@ -363,7 +444,7 @@ function MiniCard({ task }: { task: TaskRow }) {
           {completed && <Check size={10} strokeWidth={3} />}
         </button>
         <div
-          className="text-[13px] font-medium leading-snug"
+          className="flex-1 text-[13px] font-medium leading-snug"
           style={{
             textDecoration: completed ? "line-through" : "none",
             color: completed ? "var(--text-3)" : "var(--text)",
@@ -372,6 +453,18 @@ function MiniCard({ task }: { task: TaskRow }) {
         >
           {task.title}
         </div>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit();
+          }}
+          aria-label="Editar tarea"
+          className="shrink-0 rounded p-0.5 transition hover:opacity-100"
+          style={{ color: "var(--text-3)", opacity: 0.6 }}
+        >
+          <Pencil size={12} />
+        </button>
       </div>
       {clients && (
         <div
@@ -413,14 +506,20 @@ function MiniCard({ task }: { task: TaskRow }) {
   );
 }
 
-function OverdueRow({ task }: { task: TaskRow }) {
+function OverdueRow({
+  task,
+  onEdit,
+}: {
+  task: TaskRow;
+  onEdit: () => void;
+}) {
   const clients = task.task_clients.map((c) => c.client_name).join(" · ");
   return (
     <div
       className="flex items-center justify-between gap-3 rounded-md p-2.5"
       style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
     >
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <div
           className="text-sm font-medium leading-tight"
           style={{ color: "var(--text)" }}
@@ -431,6 +530,15 @@ function OverdueRow({ task }: { task: TaskRow }) {
           {clients && <>{clients} · </>}vencida {formatPrettyDate(task.due_date)}
         </div>
       </div>
+      <button
+        type="button"
+        onClick={onEdit}
+        aria-label="Editar tarea"
+        className="shrink-0 rounded p-1"
+        style={{ color: "var(--text-3)" }}
+      >
+        <Pencil size={13} />
+      </button>
       <span
         className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium"
         style={{

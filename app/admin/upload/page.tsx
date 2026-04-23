@@ -66,14 +66,25 @@ export default function AdminUploadPage() {
   }
 
   return (
-    <main className="min-h-screen px-6 py-16">
+    <main
+      className="min-h-screen px-6 py-16"
+      style={{ color: "var(--text)" }}
+    >
       <div className="mx-auto max-w-xl">
         <div className="mb-8">
-          <div className="text-xs tracking-widest uppercase text-neutral-400 mb-1">
+          <div
+            className="mb-1 text-xs uppercase"
+            style={{ letterSpacing: "0.08em", color: "var(--text-3)" }}
+          >
             admin · upload
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight">Subir semana</h1>
-          <p className="mt-2 text-sm text-neutral-500">
+          <h1
+            className="text-2xl font-semibold tracking-tight"
+            style={{ color: "var(--text)" }}
+          >
+            Subir semana
+          </h1>
+          <p className="mt-2 text-sm" style={{ color: "var(--text-3)" }}>
             Arrastra o selecciona el JSON generado con Claude. Crea la semana,
             las tareas y sus clientes en una sola operación.
           </p>
@@ -91,11 +102,13 @@ export default function AdminUploadPage() {
             const f = e.dataTransfer.files?.[0];
             if (f) setFile(f);
           }}
-          className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-6 py-12 text-center cursor-pointer transition ${
-            dragOver
-              ? "border-[var(--brand-turquesa)] bg-[var(--brand-turquesa-soft)]/30"
-              : "border-neutral-200 hover:border-neutral-300"
-          }`}
+          className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-6 py-12 text-center cursor-pointer transition"
+          style={{
+            borderColor: dragOver
+              ? "var(--brand-turquesa)"
+              : "var(--border)",
+            background: dragOver ? "var(--brand-turquesa-soft)" : "transparent",
+          }}
         >
           <input
             type="file"
@@ -103,17 +116,19 @@ export default function AdminUploadPage() {
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             className="hidden"
           />
-          <div className="text-sm text-neutral-600">
+          <div className="text-sm" style={{ color: "var(--text-2)" }}>
             {file ? (
               <>
-                <strong>{file.name}</strong>{" "}
-                <span className="text-neutral-400">({(file.size / 1024).toFixed(1)} KB)</span>
+                <strong style={{ color: "var(--text)" }}>{file.name}</strong>{" "}
+                <span style={{ color: "var(--text-3)" }}>
+                  ({(file.size / 1024).toFixed(1)} KB)
+                </span>
               </>
             ) : (
               "Suelta el JSON aquí o haz click para elegir"
             )}
           </div>
-          <div className="text-xs text-neutral-400">
+          <div className="text-xs" style={{ color: "var(--text-3)" }}>
             Debe cumplir el formato de <code>semana-YYYY-MM-DD.json</code>
           </div>
         </label>
@@ -135,7 +150,8 @@ export default function AdminUploadPage() {
                 setFile(null);
                 setResult(null);
               }}
-              className="rounded-md px-4 py-2 text-sm text-neutral-600 hover:bg-neutral-100"
+              className="rounded-md px-4 py-2 text-sm"
+              style={{ color: "var(--text-2)" }}
             >
               Limpiar
             </button>
@@ -206,7 +222,7 @@ export default function AdminUploadPage() {
           </div>
         )}
 
-        <div className="mt-10 text-xs text-neutral-400">
+        <div className="mt-10 text-xs" style={{ color: "var(--text-3)" }}>
           <a href="/dashboard" className="underline underline-offset-2">
             ← volver al dashboard
           </a>

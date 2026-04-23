@@ -31,7 +31,10 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen grid place-items-center px-6">
+    <main
+      className="min-h-screen grid place-items-center px-6"
+      style={{ color: "var(--text)" }}
+    >
       <div className="w-full max-w-sm text-center">
         <div className="inline-flex items-center gap-2 mb-8">
           <span
@@ -39,19 +42,29 @@ export default function Home() {
             style={{ background: "var(--brand-turquesa)" }}
           />
           <span className="text-lg font-semibold tracking-tight">
-            epikom <span className="text-neutral-500 text-xs tracking-widest uppercase">hub</span>
+            epikom{" "}
+            <span
+              className="text-xs uppercase"
+              style={{ letterSpacing: "0.12em", color: "var(--text-3)" }}
+            >
+              hub
+            </span>
           </span>
         </div>
 
         {status === "sent" ? (
           <>
-            <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 mb-2">
+            <h1
+              className="text-2xl font-semibold tracking-tight mb-2"
+              style={{ color: "var(--text)" }}
+            >
               Revisa tu correo
             </h1>
-            <p className="text-sm text-neutral-500 mb-2">
-              Te enviamos un enlace a <strong className="text-neutral-700">{email}</strong>.
+            <p className="text-sm mb-2" style={{ color: "var(--text-3)" }}>
+              Te enviamos un enlace a{" "}
+              <strong style={{ color: "var(--text)" }}>{email}</strong>.
             </p>
-            <p className="text-sm text-neutral-500">
+            <p className="text-sm" style={{ color: "var(--text-3)" }}>
               Haz click en el enlace para firmar sesión.
             </p>
             <button
@@ -60,17 +73,21 @@ export default function Home() {
                 setStatus("idle");
                 setEmail("");
               }}
-              className="mt-6 text-xs text-neutral-400 underline underline-offset-2"
+              className="mt-6 text-xs underline underline-offset-2"
+              style={{ color: "var(--text-3)" }}
             >
               Usar otro correo
             </button>
           </>
         ) : (
           <>
-            <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 mb-2">
+            <h1
+              className="text-2xl font-semibold tracking-tight mb-2"
+              style={{ color: "var(--text)" }}
+            >
               Entra con tu correo
             </h1>
-            <p className="text-sm text-neutral-500 mb-8">
+            <p className="text-sm mb-8" style={{ color: "var(--text-3)" }}>
               Te enviamos un enlace mágico para firmar sesión.
             </p>
 
@@ -82,7 +99,12 @@ export default function Home() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="tu@epikom.com"
                 disabled={status === "sending"}
-                className="w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-neutral-50 disabled:opacity-60"
+                className="w-full rounded-md px-3 py-2 text-sm focus:outline-none disabled:opacity-60"
+                style={{
+                  background: "var(--bg)",
+                  border: "1px solid var(--border)",
+                  color: "var(--text)",
+                }}
               />
               <button
                 type="submit"
@@ -95,12 +117,15 @@ export default function Home() {
             </form>
 
             {error && (
-              <p className="mt-4 text-xs text-red-600">
+              <p className="mt-4 text-xs" style={{ color: "var(--warn)" }}>
                 {error}
               </p>
             )}
 
-            <p className="mt-8 text-xs text-neutral-400">
+            <p
+              className="mt-8 text-xs"
+              style={{ color: "var(--text-3)" }}
+            >
               Solo crew de Epikom Interactive.
             </p>
           </>

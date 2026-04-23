@@ -299,7 +299,7 @@ function NoProfile({ email }: { email: string }) {
     <main className="min-h-screen grid place-items-center px-6">
       <div className="max-w-sm text-center">
         <h1 className="text-xl font-semibold tracking-tight">Falta tu perfil</h1>
-        <p className="mt-2 text-sm text-neutral-500">
+        <p className="mt-2 text-sm" style={{ color: "var(--text-3)" }}>
           Tu cuenta <strong>{email}</strong> existe en Auth pero todavía no hay fila en
           <code> public.users</code>. Pídele a Lau que te seedee.
         </p>
