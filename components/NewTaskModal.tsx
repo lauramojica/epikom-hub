@@ -14,6 +14,7 @@ type Props = {
   defaultAssigneeId?: string;
   defaultDueDate?: string;
   label?: string;
+  variant?: "solid" | "outline";
 };
 
 const TASK_TYPES = [
@@ -35,6 +36,7 @@ export function NewTaskModal({
   defaultAssigneeId,
   defaultDueDate,
   label = "Nueva tarea",
+  variant = "outline",
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -111,8 +113,16 @@ export function NewTaskModal({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-white transition hover:opacity-90"
-        style={{ background: "var(--brand-turquesa)" }}
+        className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition"
+        style={
+          variant === "solid"
+            ? { background: "var(--brand-turquesa)", color: "#fff" }
+            : {
+                background: "var(--bg)",
+                color: "var(--text)",
+                border: "1px solid var(--border)",
+              }
+        }
       >
         <Plus size={14} strokeWidth={2.5} />
         {label}

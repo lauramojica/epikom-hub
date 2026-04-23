@@ -6,7 +6,7 @@ import { Check, AlertTriangle, Clock3, StickyNote } from "lucide-react";
 import { PRIORITY_LABEL, type TaskRow } from "@/lib/tasks";
 
 const priorityBadge: Record<TaskRow["priority"], { bg: string; fg: string }> = {
-  HIGH: { bg: "var(--warn-soft)", fg: "var(--warn)" },
+  HIGH: { bg: "var(--brand-violeta-soft)", fg: "var(--brand-violeta-ink)" },
   MEDIUM: { bg: "var(--brand-turquesa-soft)", fg: "var(--brand-turquesa-ink)" },
   LOW: { bg: "var(--bg-3)", fg: "var(--text-2)" },
 };
