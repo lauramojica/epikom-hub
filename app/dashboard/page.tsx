@@ -5,6 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { TaskCard } from "@/components/TaskCard";
 import { WeeklyContextCard } from "@/components/WeeklyContextCard";
 import { WeekProgress } from "@/components/WeekProgress";
+import { NewTaskModal } from "@/components/NewTaskModal";
 import {
   formatPrettyDate,
   formatDayName,
@@ -47,6 +48,7 @@ export default async function Dashboard() {
   let todayTasks: TaskRow[] = [];
   let restOfWeek: TaskRow[] = [];
   let crewBySlug = new Map<string, string>();
+  let crewList: { id: string; name: string; slug: string }[] = [];
 
   if (currentWeek) {
     const { data: tasks } = await supabase
@@ -64,8 +66,12 @@ export default async function Dashboard() {
     todayTasks = allTasks.filter((t) => t.due_date === today);
     restOfWeek = allTasks.filter((t) => t.due_date !== today && t.due_date >= today);
 
-    const { data: crew } = await supabase.from("users").select("slug, name");
+    const { data: crew } = await supabase
+      .from("users")
+      .select("id, slug, name")
+      .order("name", { ascending: true });
     crewBySlug = new Map((crew ?? []).map((c) => [c.slug, c.name.split(" ")[0]]));
+    crewList = crew ?? [];
   }
 
   const firstName = profile.name.split(" ")[0];
@@ -97,7 +103,18 @@ export default async function Dashboard() {
 
           {currentWeek && (
             <>
-              <div className="mt-6">
+              <div className="mt-5 flex justify-end">
+                <NewTaskModal
+                  weekId={currentWeek.id}
+                  weekStart={currentWeek.week_start_date}
+                  weekEnd={currentWeek.week_end_date}
+                  crew={crewList}
+                  defaultAssigneeId={profile.id}
+                  defaultDueDate={today}
+                />
+              </div>
+
+              <div className="mt-4">
                 <WeekProgress
                   completed={completedCount}
                   total={allTasks.length}

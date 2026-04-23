@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { NewTaskModal } from "@/components/NewTaskModal";
 import {
   formatPrettyDate,
   formatDayName,
@@ -64,6 +65,12 @@ export default async function AdminCrewDetail({
     .limit(1)
     .maybeSingle<WeekRow>();
 
+  const { data: crew } = await admin
+    .from("users")
+    .select("id, slug, name")
+    .order("name", { ascending: true });
+  const crewList = crew ?? [];
+
   let tasks: TaskRow[] = [];
   if (currentWeek) {
     const { data } = await admin
@@ -103,10 +110,25 @@ export default async function AdminCrewDetail({
               </p>
             )}
           </div>
-          <div className="pt-1 text-xs text-neutral-500">
-            <Link href="/admin" className="underline underline-offset-2">
+          <div className="flex flex-col items-end gap-2 pt-1">
+            <Link
+              href="/admin"
+              className="text-xs underline underline-offset-2"
+              style={{ color: "var(--text-3)" }}
+            >
               ← admin
             </Link>
+            {currentWeek && (
+              <NewTaskModal
+                weekId={currentWeek.id}
+                weekStart={currentWeek.week_start_date}
+                weekEnd={currentWeek.week_end_date}
+                crew={crewList}
+                defaultAssigneeId={member.id}
+                defaultDueDate={today}
+                label="Asignar tarea"
+              />
+            )}
           </div>
         </div>
 

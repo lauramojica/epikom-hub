@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS public.tasks (
   title TEXT NOT NULL,
   description TEXT,
   assigned_to UUID NOT NULL REFERENCES public.users(id),
+  created_by UUID REFERENCES public.users(id),
   due_date DATE NOT NULL,
   task_type TEXT NOT NULL,
   priority TEXT NOT NULL CHECK (priority IN ('HIGH', 'MEDIUM', 'LOW')),
@@ -72,6 +73,7 @@ CREATE TABLE IF NOT EXISTS public.tasks (
 CREATE INDEX idx_tasks_assigned_due ON public.tasks(assigned_to, due_date);
 CREATE INDEX idx_tasks_week ON public.tasks(week_id);
 CREATE INDEX idx_tasks_status ON public.tasks(status);
+CREATE INDEX idx_tasks_created_by ON public.tasks(created_by);
 
 -- ========================================
 -- TABLE: task_clients (many-to-many)
@@ -182,8 +184,8 @@ CREATE POLICY "tasks_read" ON public.tasks
 CREATE POLICY "tasks_update_own" ON public.tasks
   FOR UPDATE USING (auth.uid() = assigned_to);
 
-CREATE POLICY "tasks_admin_insert" ON public.tasks
-  FOR INSERT WITH CHECK (public.is_admin());
+CREATE POLICY "tasks_authenticated_insert" ON public.tasks
+  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
 
 CREATE POLICY "tasks_admin_delete" ON public.tasks
   FOR DELETE USING (public.is_admin());
@@ -201,8 +203,23 @@ CREATE POLICY "task_clients_read" ON public.task_clients
     )
   );
 
-CREATE POLICY "task_clients_admin_write" ON public.task_clients
-  FOR ALL USING (public.is_admin());
+CREATE POLICY "task_clients_write" ON public.task_clients
+  FOR ALL USING (
+    public.is_admin()
+    OR EXISTS (
+      SELECT 1 FROM public.tasks t
+      WHERE t.id = task_clients.task_id
+        AND (t.assigned_to = auth.uid() OR t.created_by = auth.uid())
+    )
+  )
+  WITH CHECK (
+    public.is_admin()
+    OR EXISTS (
+      SELECT 1 FROM public.tasks t
+      WHERE t.id = task_clients.task_id
+        AND (t.assigned_to = auth.uid() OR t.created_by = auth.uid())
+    )
+  );
 
 -- ========================================
 -- POLICIES: scheduled_notifications
