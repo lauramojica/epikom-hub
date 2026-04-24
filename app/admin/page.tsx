@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
@@ -16,7 +17,11 @@ type CrewStats = {
   overdue: number;
 };
 
-export default async function AdminDashboard() {
+export default async function AdminDashboard({
+  searchParams,
+}: {
+  searchParams?: { week?: string };
+}) {
   const supabase = createClient();
   const {
     data: { user },
@@ -35,13 +40,58 @@ export default async function AdminDashboard() {
   const today = todayInPR();
   const admin = createAdminClient(); // bypass RLS for aggregate views
 
-  const { data: currentWeek } = await admin
-    .from("weeks")
-    .select("id, week_start_date, week_end_date, priorities, deadlines, rotation_national, notes, uploaded_at")
-    .lte("week_start_date", today)
-    .order("week_start_date", { ascending: false })
-    .limit(1)
-    .maybeSingle<WeekRow & { uploaded_at: string }>();
+  const requestedWeek =
+    searchParams?.week && /^\d{4}-\d{2}-\d{2}$/.test(searchParams.week)
+      ? searchParams.week
+      : null;
+
+  let currentWeek: (WeekRow & { uploaded_at: string }) | null = null;
+  if (requestedWeek) {
+    const { data } = await admin
+      .from("weeks")
+      .select("id, week_start_date, week_end_date, priorities, deadlines, rotation_national, notes, uploaded_at")
+      .eq("week_start_date", requestedWeek)
+      .maybeSingle<WeekRow & { uploaded_at: string }>();
+    currentWeek = data ?? null;
+  }
+  if (!currentWeek) {
+    const { data } = await admin
+      .from("weeks")
+      .select("id, week_start_date, week_end_date, priorities, deadlines, rotation_national, notes, uploaded_at")
+      .lte("week_start_date", today)
+      .order("week_start_date", { ascending: false })
+      .limit(1)
+      .maybeSingle<WeekRow & { uploaded_at: string }>();
+    currentWeek = data ?? null;
+  }
+
+  let prevWeekStart: string | null = null;
+  let nextWeekStart: string | null = null;
+  if (currentWeek) {
+    const [{ data: prev }, { data: next }] = await Promise.all([
+      admin
+        .from("weeks")
+        .select("week_start_date")
+        .lt("week_start_date", currentWeek.week_start_date)
+        .order("week_start_date", { ascending: false })
+        .limit(1)
+        .maybeSingle<{ week_start_date: string }>(),
+      admin
+        .from("weeks")
+        .select("week_start_date")
+        .gt("week_start_date", currentWeek.week_start_date)
+        .order("week_start_date", { ascending: true })
+        .limit(1)
+        .maybeSingle<{ week_start_date: string }>(),
+    ]);
+    prevWeekStart = prev?.week_start_date ?? null;
+    nextWeekStart = next?.week_start_date ?? null;
+  }
+
+  const isLive =
+    !!currentWeek &&
+    currentWeek.week_start_date <= today &&
+    today <= currentWeek.week_end_date;
 
   const { data: crew } = await admin
     .from("users")
@@ -119,19 +169,58 @@ export default async function AdminDashboard() {
   return (
     <main className="px-4 py-6 sm:px-6 sm:py-10">
       <div className="mx-auto max-w-3xl">
-        <div className="mb-8">
-          <div
-            className="mb-1 text-xs uppercase"
-            style={{ letterSpacing: "0.08em", color: "var(--text-3)" }}
-          >
-            admin
+        <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <div
+              className="mb-1 text-xs uppercase"
+              style={{ letterSpacing: "0.08em", color: "var(--text-3)" }}
+            >
+              admin
+            </div>
+            <h1
+              className="text-2xl font-semibold"
+              style={{ letterSpacing: "-0.015em", color: "var(--text)" }}
+            >
+              Vista del crew
+            </h1>
           </div>
-          <h1
-            className="text-2xl font-semibold"
-            style={{ letterSpacing: "-0.015em", color: "var(--text)" }}
-          >
-            Vista del crew
-          </h1>
+          <div className="flex items-center gap-2">
+            <NavArrow
+              href={prevWeekStart ? `/admin?week=${prevWeekStart}` : null}
+              label="Semana anterior"
+              dir="prev"
+            />
+            {isLive ? (
+              <span
+                className="rounded-md px-3 py-1.5 text-xs font-medium"
+                style={{
+                  background: "var(--brand-turquesa-soft)",
+                  color: "var(--brand-turquesa-ink)",
+                  letterSpacing: "0.02em",
+                }}
+              >
+                Esta semana
+              </span>
+            ) : (
+              <Link
+                href="/admin"
+                className="rounded-md px-3 py-1.5 text-xs font-medium"
+                style={{
+                  background: "var(--bg-2)",
+                  color: "var(--text-2)",
+                  border: "1px solid var(--border)",
+                  letterSpacing: "0.02em",
+                }}
+              >
+                Hoy
+              </Link>
+            )}
+            <NavArrow
+              href={nextWeekStart ? `/admin?week=${nextWeekStart}` : null}
+              label="Semana siguiente"
+              dir="next"
+            />
+          </div>
         </div>
 
         {!currentWeek && (
@@ -286,5 +375,50 @@ export default async function AdminDashboard() {
       )}
       </div>
     </main>
+  );
+}
+
+function NavArrow({
+  href,
+  label,
+  dir,
+}: {
+  href: string | null;
+  label: string;
+  dir: "prev" | "next";
+}) {
+  const Icon = dir === "prev" ? ChevronLeft : ChevronRight;
+  if (!href) {
+    return (
+      <button
+        type="button"
+        disabled
+        aria-label={label}
+        className="grid h-9 w-9 place-items-center rounded-md"
+        style={{
+          border: "1px solid var(--border)",
+          background: "var(--bg)",
+          color: "var(--text-3)",
+          opacity: 0.4,
+          cursor: "not-allowed",
+        }}
+      >
+        <Icon size={16} />
+      </button>
+    );
+  }
+  return (
+    <Link
+      href={href}
+      aria-label={label}
+      className="grid h-9 w-9 place-items-center rounded-md transition"
+      style={{
+        border: "1px solid var(--border)",
+        background: "var(--bg)",
+        color: "var(--text-2)",
+      }}
+    >
+      <Icon size={16} />
+    </Link>
   );
 }
