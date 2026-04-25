@@ -6,10 +6,12 @@ export type TaskRow = {
   title: string;
   description: string | null;
   due_date: string;
+  due_time: string | null;
   task_type: string;
   priority: TaskPriority;
   status: TaskStatus;
   notion_url: string | null;
+  context: string | null;
   completed_at: string | null;
   user_note: string | null;
   task_clients: { client_name: string }[];

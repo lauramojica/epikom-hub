@@ -49,8 +49,10 @@ export function NewTaskModal({
   const [dueDate, setDueDate] = useState(defaultDueDate ?? weekStart);
   const [taskType, setTaskType] = useState("General");
   const [priority, setPriority] = useState<"HIGH" | "MEDIUM" | "LOW">("MEDIUM");
+  const [dueTime, setDueTime] = useState("");
   const [clientsInput, setClientsInput] = useState("");
   const [notionUrl, setNotionUrl] = useState("");
+  const [context, setContext] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -68,8 +70,10 @@ export function NewTaskModal({
     setDueDate(defaultDueDate ?? weekStart);
     setTaskType("General");
     setPriority("MEDIUM");
+    setDueTime("");
     setClientsInput("");
     setNotionUrl("");
+    setContext("");
     setError(null);
   }
 
@@ -86,9 +90,11 @@ export function NewTaskModal({
           description,
           assigned_to: assignedTo,
           due_date: dueDate,
+          due_time: dueTime || null,
           task_type: taskType,
           priority,
           notion_url: notionUrl,
+          context: context || null,
           clients: clientsInput
             .split(",")
             .map((c) => c.trim())
@@ -216,7 +222,15 @@ export function NewTaskModal({
                 </Field>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
+                <Field label="Hora (opcional)">
+                  <input
+                    type="time"
+                    value={dueTime}
+                    onChange={(e) => setDueTime(e.target.value)}
+                    style={inputStyle}
+                  />
+                </Field>
                 <Field label="Tipo">
                   <select
                     value={taskType}
@@ -252,6 +266,16 @@ export function NewTaskModal({
                   onChange={(e) => setClientsInput(e.target.value)}
                   placeholder="National, Shops@Caguas"
                   style={inputStyle}
+                />
+              </Field>
+
+              <Field label="Contexto (opcional)">
+                <textarea
+                  value={context}
+                  onChange={(e) => setContext(e.target.value)}
+                  rows={2}
+                  placeholder="Historia previa, quién pidió qué, dependencias…"
+                  style={{ ...inputStyle, resize: "vertical", minHeight: 60 }}
                 />
               </Field>
 

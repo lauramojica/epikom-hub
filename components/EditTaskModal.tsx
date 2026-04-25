@@ -33,12 +33,14 @@ export function EditTaskModal({ task, weekStart, weekEnd, open, onClose }: Props
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? "");
   const [dueDate, setDueDate] = useState(task.due_date);
+  const [dueTime, setDueTime] = useState(task.due_time?.slice(0, 5) ?? "");
   const [taskType, setTaskType] = useState(task.task_type);
   const [priority, setPriority] = useState<TaskRow["priority"]>(task.priority);
   const [clientsInput, setClientsInput] = useState(
     task.task_clients.map((c) => c.client_name).join(", ")
   );
   const [notionUrl, setNotionUrl] = useState(task.notion_url ?? "");
+  const [context, setContext] = useState(task.context ?? "");
 
   useEffect(() => {
     if (!open) return;
@@ -46,10 +48,12 @@ export function EditTaskModal({ task, weekStart, weekEnd, open, onClose }: Props
     setTitle(task.title);
     setDescription(task.description ?? "");
     setDueDate(task.due_date);
+    setDueTime(task.due_time?.slice(0, 5) ?? "");
     setTaskType(task.task_type);
     setPriority(task.priority);
     setClientsInput(task.task_clients.map((c) => c.client_name).join(", "));
     setNotionUrl(task.notion_url ?? "");
+    setContext(task.context ?? "");
     setError(null);
 
     function onKey(e: KeyboardEvent) {
@@ -71,9 +75,11 @@ export function EditTaskModal({ task, weekStart, weekEnd, open, onClose }: Props
           title,
           description,
           due_date: dueDate,
+          due_time: dueTime || null,
           task_type: taskType,
           priority,
           notion_url: notionUrl,
+          context: context || null,
           clients: clientsInput
             .split(",")
             .map((c) => c.trim())
@@ -166,7 +172,7 @@ export function EditTaskModal({ task, weekStart, weekEnd, open, onClose }: Props
             />
           </Field>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <Field label="Fecha">
               <input
                 type="date"
@@ -175,6 +181,14 @@ export function EditTaskModal({ task, weekStart, weekEnd, open, onClose }: Props
                 min={weekStart}
                 max={weekEnd}
                 onChange={(e) => setDueDate(e.target.value)}
+                style={inputStyle}
+              />
+            </Field>
+            <Field label="Hora">
+              <input
+                type="time"
+                value={dueTime}
+                onChange={(e) => setDueTime(e.target.value)}
                 style={inputStyle}
               />
             </Field>
@@ -213,6 +227,16 @@ export function EditTaskModal({ task, weekStart, weekEnd, open, onClose }: Props
               onChange={(e) => setClientsInput(e.target.value)}
               placeholder="National, Shops@Caguas"
               style={inputStyle}
+            />
+          </Field>
+
+          <Field label="Contexto">
+            <textarea
+              value={context}
+              onChange={(e) => setContext(e.target.value)}
+              rows={2}
+              placeholder="Historia previa, quién pidió qué, dependencias…"
+              style={{ ...inputStyle, resize: "vertical", minHeight: 60 }}
             />
           </Field>
 

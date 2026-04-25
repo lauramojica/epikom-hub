@@ -7,9 +7,11 @@ type Body = {
   description?: string | null;
   assigned_to?: string;
   due_date?: string; // YYYY-MM-DD
+  due_time?: string | null; // HH:MM or HH:MM:SS
   task_type?: string;
   priority?: "HIGH" | "MEDIUM" | "LOW";
   notion_url?: string | null;
+  context?: string | null;
   clients?: string[];
   week_id?: string;
 };
@@ -57,6 +59,15 @@ export async function POST(request: NextRequest) {
   if (!week) return NextResponse.json({ error: "Semana no existe" }, { status: 400 });
   if (!assignee) return NextResponse.json({ error: "Usuario asignado no existe" }, { status: 400 });
 
+  let due_time: string | null = null;
+  if (body.due_time) {
+    const v = body.due_time.trim();
+    if (!/^\d{2}:\d{2}(:\d{2})?$/.test(v)) {
+      return NextResponse.json({ error: "Hora inválida" }, { status: 400 });
+    }
+    due_time = v.length === 5 ? `${v}:00` : v;
+  }
+
   const { data: inserted, error } = await admin
     .from("tasks")
     .insert({
@@ -64,10 +75,12 @@ export async function POST(request: NextRequest) {
       description: body.description?.trim() || null,
       assigned_to,
       due_date,
+      due_time,
       task_type,
       priority,
       status: "pendiente",
       notion_url: body.notion_url?.trim() || null,
+      context: body.context?.trim() || null,
       week_id,
       created_by: user.id,
     })
@@ -91,6 +104,23 @@ export async function POST(request: NextRequest) {
       client_name,
     }));
     await admin.from("task_clients").insert(rows);
+  }
+
+  // Notify assignee if not self-assigned
+  if (assigned_to !== user.id) {
+    const { data: creator } = await admin
+      .from("users")
+      .select("name")
+      .eq("id", user.id)
+      .maybeSingle();
+    const creatorName = creator?.name?.split(" ")[0] ?? "Alguien";
+    await admin.from("notifications").insert({
+      user_id: assigned_to,
+      kind: "assign",
+      title: `${creatorName} te asignó: ${title}`,
+      body: clients.length > 0 ? clients.join(" · ") : null,
+      link: "/semana",
+    });
   }
 
   return NextResponse.json({ ok: true, id: inserted.id });

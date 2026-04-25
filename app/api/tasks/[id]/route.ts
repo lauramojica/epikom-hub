@@ -6,10 +6,14 @@ type Body = {
   title?: string;
   description?: string | null;
   due_date?: string;
+  due_time?: string | null;
   task_type?: string;
   priority?: "HIGH" | "MEDIUM" | "LOW";
   notion_url?: string | null;
+  context?: string | null;
+  user_note?: string | null;
   assigned_to?: string;
+  week_id?: string;
   clients?: string[];
 };
 
@@ -71,6 +75,27 @@ export async function PATCH(
     }
     updates.due_date = body.due_date;
   }
+  if (body.due_time !== undefined) {
+    if (body.due_time === null || body.due_time === "") {
+      updates.due_time = null;
+    } else if (/^\d{2}:\d{2}(:\d{2})?$/.test(body.due_time)) {
+      updates.due_time = body.due_time.length === 5 ? `${body.due_time}:00` : body.due_time;
+    } else {
+      return NextResponse.json({ error: "Hora inválida" }, { status: 400 });
+    }
+  }
+  if (body.context !== undefined) {
+    updates.context =
+      typeof body.context === "string" && body.context.trim()
+        ? body.context.trim()
+        : null;
+  }
+  if (body.user_note !== undefined) {
+    updates.user_note =
+      typeof body.user_note === "string" && body.user_note.trim()
+        ? body.user_note.trim()
+        : null;
+  }
   if (typeof body.task_type === "string" && body.task_type.trim()) {
     updates.task_type = body.task_type.trim();
   }
@@ -85,6 +110,9 @@ export async function PATCH(
   }
   if (typeof body.assigned_to === "string" && body.assigned_to.trim()) {
     updates.assigned_to = body.assigned_to.trim();
+  }
+  if (typeof body.week_id === "string" && body.week_id.trim()) {
+    updates.week_id = body.week_id.trim();
   }
 
   if (Object.keys(updates).length > 0) {

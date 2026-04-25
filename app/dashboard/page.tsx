@@ -7,6 +7,9 @@ import { TaskCard } from "@/components/TaskCard";
 import { WeeklyContextCard } from "@/components/WeeklyContextCard";
 import { WeekProgress } from "@/components/WeekProgress";
 import { NewTaskModal } from "@/components/NewTaskModal";
+import { NotificationsBell } from "@/components/NotificationsBell";
+import { DailyBriefing } from "@/components/DailyBriefing";
+import type { NotificationRow } from "@/app/api/notifications/route";
 import {
   formatPrettyDate,
   formatDayName,
@@ -101,6 +104,14 @@ export default async function Dashboard({
   let crewBySlug = new Map<string, string>();
   let crewList: { id: string; name: string; slug: string }[] = [];
 
+  const { data: notifData } = await supabase
+    .from("notifications")
+    .select("id, kind, title, body, link, unread, created_at")
+    .eq("user_id", profile.id)
+    .order("created_at", { ascending: false })
+    .limit(30);
+  const notifications = (notifData ?? []) as NotificationRow[];
+
   if (currentWeek) {
     const { data: tasks } = await supabase
       .from("tasks")
@@ -152,6 +163,7 @@ export default async function Dashboard({
           <Header
             name={firstName}
             today={formatPrettyDate(today)}
+            notifications={notifications}
             prevWeekStart={prevWeekStart}
             nextWeekStart={nextWeekStart}
             isLive={isLive}
@@ -171,6 +183,8 @@ export default async function Dashboard({
                 : `Estás viendo la semana del ${formatPrettyDate(currentWeek.week_start_date)} → ${formatPrettyDate(currentWeek.week_end_date)}. Todavía no ha llegado.`}
             </div>
           )}
+
+          {isLive && <DailyBriefing notifications={notifications} />}
 
           {!currentWeek && (
             <div
@@ -262,12 +276,14 @@ export default async function Dashboard({
 function Header({
   name,
   today,
+  notifications,
   prevWeekStart,
   nextWeekStart,
   isLive,
 }: {
   name: string;
   today: string;
+  notifications: NotificationRow[];
   prevWeekStart: string | null;
   nextWeekStart: string | null;
   isLive: boolean;
@@ -346,6 +362,7 @@ function Header({
               ⌘K
             </kbd>
           </div>
+          <NotificationsBell initial={notifications} />
         </div>
       </div>
     </div>

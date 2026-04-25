@@ -2,6 +2,10 @@ import { z } from "zod";
 
 const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Debe ser YYYY-MM-DD");
 
+const timeString = z
+  .string()
+  .regex(/^\d{2}:\d{2}(:\d{2})?$/, "Debe ser HH:MM o HH:MM:SS");
+
 export const taskSchema = z.object({
   id_externo: z.string().optional(),
   clientes: z.array(z.string().min(1)).min(1, "Al menos un cliente"),
@@ -10,7 +14,9 @@ export const taskSchema = z.object({
   descripcion: z.string().optional().default(""),
   tipo: z.string().min(1),
   fecha: dateString,
+  hora: timeString.optional(),
   prioridad: z.enum(["HIGH", "MEDIUM", "LOW"]),
+  contexto: z.string().optional(),
   origen_notion: z.string().url().optional(),
 });
 

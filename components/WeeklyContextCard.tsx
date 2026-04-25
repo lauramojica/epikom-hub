@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { type WeekRow } from "@/lib/tasks";
 
 export function WeeklyContextCard({
@@ -53,11 +55,21 @@ export function WeeklyContextCard({
 
       {Object.keys(rotation).length > 0 && (
         <div className="mb-2">
-          <div
-            className="mb-1 text-xs font-medium"
-            style={{ color: "var(--text-2)" }}
-          >
-            Rotación National
+          <div className="mb-1 flex items-center justify-between">
+            <div
+              className="text-xs font-medium"
+              style={{ color: "var(--text-2)" }}
+            >
+              Rotación National
+            </div>
+            <Link
+              href="/semana"
+              className="inline-flex items-center gap-0.5 text-[11px]"
+              style={{ color: "var(--brand-turquesa-ink)" }}
+            >
+              Ver rotación completa
+              <ArrowRight size={11} />
+            </Link>
           </div>
           <dl className="grid grid-cols-1 gap-x-4 gap-y-1 text-xs sm:grid-cols-2">
             {Object.entries(rotation).map(([slot, slug]) => (

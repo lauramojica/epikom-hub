@@ -1,0 +1,389 @@
+{
+  "semana_inicio": "2026-04-27",
+  "semana_fin": "2026-05-03",
+  "generado_por": "Laura Mojica",
+  "generado_at": "2026-04-24T14:00:00-04:00",
+  "prioridades": [
+    "Cerrar proforma Digo mayo con Chantall (1 de mayo)",
+    "Entregar reels Tu Vecino Experto Kevin + Harris Paint (30 abril)",
+    "Cerrar arte Día de las Madres National — Un Rincón Verde Para Mamá (1 mayo arranque)"
+  ],
+  "deadlines": [
+    { "fecha": "2026-04-28", "entregable": "Reunión Kimco: cierre Conejito + plan Día de las Madres" },
+    { "fecha": "2026-04-30", "entregable": "Reels National: Tu Vecino Experto Kevin + Harris Paint" },
+    { "fecha": "2026-05-01", "entregable": "Proforma Digo mayo aprobada + arranque Día de las Madres jardinería" },
+    { "fecha": "2026-05-02", "entregable": "Post contratistas Rebotec Concrete" }
+  ],
+  "rotacion_national": {
+    "onasis": "Publicaciones FB+IG (estático + stories)",
+    "christopher": "Reels AE + pieza premium",
+    "alexander": "Productos / Retoque / Gain",
+    "elissa": "Canales secundarios (LinkedIn, email, billboard, web)"
+  },
+  "notas": "Semana con feriado lunes 27 (media jornada) por reunión Kimco el 28. Elissa no trabaja lunes. Faltan por cargar manualmente los posts de 28-abr, 30-abr y 1-3 may de clientes fuera de National (el view de Notion se cortó en 29-abr).",
+  "tareas": [
+    {
+      "clientes": ["Epikom"],
+      "asignado_a": "lau",
+      "titulo": "Standup semanal crew",
+      "descripcion": "Revisión de prioridades, carga, rotación National de la semana.",
+      "tipo": "Reunión",
+      "fecha": "2026-04-27",
+      "hora": "09:00",
+      "prioridad": "HIGH"
+    },
+    {
+      "clientes": ["National"],
+      "asignado_a": "lau",
+      "titulo": "Revisar shopper semanal de Sandra y enviar feedback",
+      "descripcion": "Sandra Pulliza envía shopper lunes AM. Consolidar ajustes y devolver.",
+      "tipo": "RRSS",
+      "fecha": "2026-04-27",
+      "hora": "10:00",
+      "prioridad": "HIGH",
+      "contexto": "Priorizar ofertas destacadas de la semana."
+    },
+    {
+      "clientes": ["National"],
+      "asignado_a": "christopher",
+      "titulo": "Reel Rust-Oleum Mold Killing Primer",
+      "descripcion": "Reel pintura · tratamiento pared con humedad. Segmentación DIY. Boost FB $120 / IG $80.",
+      "tipo": "Reel",
+      "fecha": "2026-04-27",
+      "prioridad": "HIGH",
+      "notion_url": "https://www.notion.so/31bcfb7ad4bf8066a87ad8271c45f940"
+    },
+    {
+      "clientes": ["National"],
+      "asignado_a": "onasis",
+      "titulo": "Post Enco Primeless (Producto Nuevo)",
+      "descripcion": "Post estático pintura, producto nuevo. Segmentación Homeowner. Boost FB $120 / IG $80.",
+      "tipo": "RRSS",
+      "fecha": "2026-04-27",
+      "prioridad": "HIGH",
+      "notion_url": "https://www.notion.so/317cfb7ad4bf8168927af11f3e4f68ef"
+    },
+    {
+      "clientes": ["Drouyn and Co"],
+      "asignado_a": "onasis",
+      "titulo": "Post Drouyn and Co — 27 abril",
+      "descripcion": "Publicación FB+IG programada. Confirmar tarea exacta en Notion (sin título en DB).",
+      "tipo": "RRSS",
+      "fecha": "2026-04-27",
+      "prioridad": "MEDIUM",
+      "notion_url": "https://www.notion.so/34bcfb7ad4bf807d89e8c8f024b43955"
+    },
+    {
+      "clientes": ["misResultados"],
+      "asignado_a": "onasis",
+      "titulo": "Arte misResultados — Síncope",
+      "descripcion": "Arte Oscuro. FB+IG. Post educativo sobre síncope.",
+      "tipo": "RRSS",
+      "fecha": "2026-04-27",
+      "prioridad": "MEDIUM",
+      "notion_url": "https://www.notion.so/34bcfb7ad4bf802e87ddf1f3eafa1f5e"
+    },
+    {
+      "clientes": ["Shops@Caguas"],
+      "asignado_a": "elissa",
+      "titulo": "Bath & Body Works — Fragancias de primavera",
+      "descripcion": "Arte Claro FB+IG.",
+      "tipo": "RRSS",
+      "fecha": "2026-04-27",
+      "prioridad": "MEDIUM",
+      "notion_url": "https://www.notion.so/345cfb7ad4bf8133ad40c0bb4751bbfc"
+    },
+    {
+      "clientes": ["The Outlets at Montehiedra"],
+      "asignado_a": "elissa",
+      "titulo": "Food Court — Opciones para toda la familia",
+      "descripcion": "Carrusel FB+IG: Chili's, Romano's, IHOP, Johnny Rockets, Cayo Caribe.",
+      "tipo": "RRSS",
+      "fecha": "2026-04-27",
+      "prioridad": "MEDIUM",
+      "notion_url": "https://www.notion.so/345cfb7ad4bf813ba3f7f237f016df54"
+    },
+    {
+      "clientes": ["ACHA Trading"],
+      "asignado_a": "alexander",
+      "titulo": "ClarkDietrich — Perfiles de alta resistencia",
+      "descripcion": "Arte Claro FB+IG.",
+      "tipo": "Diseño",
+      "fecha": "2026-04-27",
+      "prioridad": "MEDIUM",
+      "notion_url": "https://www.notion.so/345cfb7ad4bf81488a15eeb3b1c58f64"
+    },
+    {
+      "clientes": ["IG Sports Academy"],
+      "asignado_a": "christopher",
+      "titulo": "Schedule — Weekly Training Sessions",
+      "descripcion": "Arte Claro FB+IG. English only — Nebraska audience.",
+      "tipo": "RRSS",
+      "fecha": "2026-04-27",
+      "prioridad": "MEDIUM"
+    },
+    {
+      "clientes": ["Epikom"],
+      "asignado_a": "lau",
+      "titulo": "Reunión Kimco — cierre Conejito + plan Día de las Madres",
+      "descripcion": "Call con Aracelis Cintrón + María Cintrón.",
+      "tipo": "Reunión",
+      "fecha": "2026-04-28",
+      "hora": "15:00",
+      "prioridad": "HIGH"
+    },
+    {
+      "clientes": ["National"],
+      "asignado_a": "onasis",
+      "titulo": "Post Stiebel Eltron — Calentador",
+      "descripcion": "Post estático Plomería FB+IG. Estado Notion: Sent for approval.",
+      "tipo": "RRSS",
+      "fecha": "2026-04-28",
+      "prioridad": "MEDIUM",
+      "notion_url": "https://www.notion.so/33bcfb7ad4bf81bc9a49fe46995fdaf3"
+    },
+    {
+      "clientes": ["National"],
+      "asignado_a": "onasis",
+      "titulo": "Post Rapid Set",
+      "descripcion": "Post estático pintura FB+IG.",
+      "tipo": "RRSS",
+      "fecha": "2026-04-28",
+      "prioridad": "MEDIUM",
+      "notion_url": "https://www.notion.so/317cfb7ad4bf81998162de8c108a892b"
+    },
+    {
+      "clientes": ["National"],
+      "asignado_a": "onasis",
+      "titulo": "Post Carmelo — Bloques Decorativos",
+      "descripcion": "Pintura + Construcción.",
+      "tipo": "RRSS",
+      "fecha": "2026-04-29",
+      "prioridad": "MEDIUM",
+      "notion_url": "https://www.notion.so/348cfb7ad4bf80b5b08efa2eed455764"
+    },
+    {
+      "clientes": ["National"],
+      "asignado_a": "onasis",
+      "titulo": "Story Kids at Work — Promo 9 mayo",
+      "descripcion": "Story promocional para la actividad del 9 de mayo.",
+      "tipo": "RRSS",
+      "fecha": "2026-04-29",
+      "prioridad": "MEDIUM",
+      "notion_url": "https://www.notion.so/34ccfb7ad4bf8083b05cdc79df0a6da6"
+    },
+    {
+      "clientes": ["National"],
+      "asignado_a": "elissa",
+      "titulo": "Post Kids At Work — LinkedIn",
+      "descripcion": "Canal secundario LinkedIn.",
+      "tipo": "RRSS",
+      "fecha": "2026-04-29",
+      "prioridad": "MEDIUM",
+      "notion_url": "https://www.notion.so/34ccfb7ad4bf80b2b1e5d02e586cb354"
+    },
+    {
+      "clientes": ["Mesalve"],
+      "asignado_a": "lau",
+      "titulo": "Aprobar shopper Mesalve mayo con Nicolle",
+      "descripcion": "Llamada 20 min para cerrar plan mensual.",
+      "tipo": "Reunión",
+      "fecha": "2026-04-29",
+      "hora": "10:30",
+      "prioridad": "MEDIUM"
+    },
+    {
+      "clientes": ["Priority 1 Sign"],
+      "asignado_a": "lau",
+      "titulo": "Seguimiento Bill — propuesta priority1print.com",
+      "descripcion": "Retomar hilo del ecommerce. Enviar scope preliminar.",
+      "tipo": "Web",
+      "fecha": "2026-04-29",
+      "prioridad": "LOW"
+    },
+    {
+      "clientes": ["misResultados"],
+      "asignado_a": "onasis",
+      "titulo": "Post misResultados — 29 abril",
+      "descripcion": "Publicación FB+IG. Confirmar tarea exacta en Notion (sin título en DB).",
+      "tipo": "RRSS",
+      "fecha": "2026-04-29",
+      "prioridad": "MEDIUM",
+      "notion_url": "https://www.notion.so/34bcfb7ad4bf80a9a034d0ff20757719"
+    },
+    {
+      "clientes": ["Shops@Caguas"],
+      "asignado_a": "elissa",
+      "titulo": "Este fin de semana en Shops at Caguas",
+      "descripcion": "Arte Claro institucional FB+IG.",
+      "tipo": "RRSS",
+      "fecha": "2026-04-29",
+      "prioridad": "MEDIUM",
+      "notion_url": "https://www.notion.so/345cfb7ad4bf81158ef4fe89a3fa8f42"
+    },
+    {
+      "clientes": ["The Outlets at Montehiedra"],
+      "asignado_a": "elissa",
+      "titulo": "Polo Ralph Lauren Factory — Clásico a precio outlet",
+      "descripcion": "Arte Claro FB+IG.",
+      "tipo": "RRSS",
+      "fecha": "2026-04-29",
+      "prioridad": "MEDIUM",
+      "notion_url": "https://www.notion.so/345cfb7ad4bf812e869af0a2cc702412"
+    },
+    {
+      "clientes": ["ACHA Trading"],
+      "asignado_a": "alexander",
+      "titulo": "Reel Armstrong — Antes/Después techo acústico",
+      "descripcion": "Reel de instalación FB+IG.",
+      "tipo": "Reel",
+      "fecha": "2026-04-29",
+      "prioridad": "MEDIUM",
+      "notion_url": "https://www.notion.so/345cfb7ad4bf81da9fd0cbbc0709f657"
+    },
+    {
+      "clientes": ["Panadería El Alamo"],
+      "asignado_a": "alexander",
+      "titulo": "Post Álamo Santa Mónica — Pan de maíz",
+      "descripcion": "Foto FB+IG.",
+      "tipo": "RRSS",
+      "fecha": "2026-04-29",
+      "prioridad": "LOW",
+      "notion_url": "https://www.notion.so/333cfb7ad4bf80558826ddd78640f903"
+    },
+    {
+      "clientes": ["Panadería El Alamo"],
+      "asignado_a": "alexander",
+      "titulo": "Post Álamo — Sandwich Medianoche",
+      "descripcion": "Arte Claro FB+IG.",
+      "tipo": "RRSS",
+      "fecha": "2026-04-29",
+      "prioridad": "LOW",
+      "notion_url": "https://www.notion.so/333cfb7ad4bf8006ae8ac83b96260a54"
+    },
+    {
+      "clientes": ["IG Sports Academy"],
+      "asignado_a": "christopher",
+      "titulo": "Training — Strength Work for Young Athletes",
+      "descripcion": "Reel FB+IG. English only.",
+      "tipo": "Reel",
+      "fecha": "2026-04-30",
+      "prioridad": "MEDIUM"
+    },
+    {
+      "clientes": ["National"],
+      "asignado_a": "christopher",
+      "titulo": "Reel Harris Paint",
+      "descripcion": "Reel pintura FB+IG. Segmentación Homeowner. Boost FB $150 / IG $90.",
+      "tipo": "Reel",
+      "fecha": "2026-04-30",
+      "prioridad": "HIGH",
+      "notion_url": "https://www.notion.so/31acfb7ad4bf80ae815ceafd8c102298"
+    },
+    {
+      "clientes": ["National"],
+      "asignado_a": "christopher",
+      "titulo": "Reel Tu Vecino Experto — Kevin",
+      "descripcion": "Corte Reel 15ss. Entrega a Digo.",
+      "tipo": "Reel",
+      "fecha": "2026-04-30",
+      "prioridad": "HIGH",
+      "notion_url": "https://www.notion.so/317cfb7ad4bf81b8b384e3aa6bdac2f5"
+    },
+    {
+      "clientes": ["National"],
+      "asignado_a": "onasis",
+      "titulo": "Un Rincón Verde Para Mamá — arte Día de las Madres",
+      "descripcion": "Campaña estacional Día de las Madres (Jardinería/Hogar). Arranque 1 de mayo para llegar al 10. ⚠️ Fecha pendiente de confirmar con National.",
+      "tipo": "Campaña",
+      "fecha": "2026-05-01",
+      "prioridad": "HIGH",
+      "notion_url": "https://www.notion.so/345cfb7ad4bf81fd8b3fca95f6a3cc05"
+    },
+    {
+      "clientes": ["National"],
+      "asignado_a": "onasis",
+      "titulo": "Feria del Ferretero — NAT Villalba (story + post)",
+      "descripcion": "Post + Story anunciando Feria del Ferretero en NAT Villalba (sábado 23 mayo, 9am-5pm). Incluye foto con Super Handy para niños.",
+      "tipo": "RRSS",
+      "fecha": "2026-05-01",
+      "prioridad": "MEDIUM",
+      "notion_url": "https://www.notion.so/2dacfb7ad4bf807296a9d40ce6e43dd7"
+    },
+    {
+      "clientes": ["ACHA Trading"],
+      "asignado_a": "alexander",
+      "titulo": "Tip Técnico — Aplicación de Bio Fireshield",
+      "descripcion": "Tip visual FB+IG.",
+      "tipo": "Diseño",
+      "fecha": "2026-05-01",
+      "prioridad": "MEDIUM"
+    },
+    {
+      "clientes": ["Shops@Caguas"],
+      "asignado_a": "elissa",
+      "titulo": "Día del Trabajo — Abiertos para ti",
+      "descripcion": "Arte Claro FB+IG. Evento Día del Trabajo.",
+      "tipo": "RRSS",
+      "fecha": "2026-05-01",
+      "prioridad": "MEDIUM"
+    },
+    {
+      "clientes": ["The Outlets at Montehiedra"],
+      "asignado_a": "elissa",
+      "titulo": "Día del Trabajo — Abiertos para ti",
+      "descripcion": "Arte Claro FB+IG. Evento Día del Trabajo.",
+      "tipo": "RRSS",
+      "fecha": "2026-05-01",
+      "prioridad": "MEDIUM"
+    },
+    {
+      "clientes": ["misResultados"],
+      "asignado_a": "onasis",
+      "titulo": "Post misResultados — 1 mayo",
+      "descripcion": "Publicación FB+IG. Confirmar tarea exacta en Notion (sin título en DB).",
+      "tipo": "RRSS",
+      "fecha": "2026-05-01",
+      "prioridad": "MEDIUM"
+    },
+    {
+      "clientes": ["National"],
+      "asignado_a": "lau",
+      "titulo": "Cerrar proforma Digo mayo",
+      "descripcion": "Revisar presupuesto digital con Chantall y enviar aprobado.",
+      "tipo": "Campaña",
+      "fecha": "2026-05-01",
+      "hora": "11:00",
+      "prioridad": "HIGH"
+    },
+    {
+      "clientes": ["National"],
+      "asignado_a": "onasis",
+      "titulo": "Post Rebotec Concrete",
+      "descripcion": "Publicación con la imagen del envase. Segmentación Contratistas. Boost FB $150 / IG $90. PDF técnico adjunto en Notion.",
+      "tipo": "RRSS",
+      "fecha": "2026-05-02",
+      "prioridad": "MEDIUM",
+      "notion_url": "https://www.notion.so/34ccfb7ad4bf80b7bbbae2b05f181179"
+    },
+    {
+      "clientes": ["National"],
+      "asignado_a": "onasis",
+      "titulo": "Post Kids at Work",
+      "descripcion": "Post promocional Kids at Work.",
+      "tipo": "RRSS",
+      "fecha": "2026-05-03",
+      "prioridad": "MEDIUM",
+      "notion_url": "https://www.notion.so/34ccfb7ad4bf802ab23eeb0110d1f0ad"
+    },
+    {
+      "clientes": ["Plaza Centro"],
+      "asignado_a": "elissa",
+      "titulo": "Día de las Madres — Post principal (10 mayo)",
+      "descripcion": "Arte Claro FB+IG. Pieza principal Día de las Madres (10 mayo).",
+      "tipo": "RRSS",
+      "fecha": "2026-05-03",
+      "prioridad": "MEDIUM"
+    }
+  ]
+}

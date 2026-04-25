@@ -2,14 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, AlertTriangle, Clock3, StickyNote } from "lucide-react";
-import { PRIORITY_LABEL, type TaskRow } from "@/lib/tasks";
-
-const priorityBadge: Record<TaskRow["priority"], { bg: string; fg: string }> = {
-  HIGH: { bg: "var(--brand-violeta-soft)", fg: "var(--brand-violeta-ink)" },
-  MEDIUM: { bg: "var(--brand-turquesa-soft)", fg: "var(--brand-turquesa-ink)" },
-  LOW: { bg: "var(--bg-3)", fg: "var(--text-2)" },
-};
+import { Check, AlertTriangle, Clock3, StickyNote, Clock } from "lucide-react";
+import { type TaskRow } from "@/lib/tasks";
+import { clientMeta } from "@/lib/clients";
+import { TierBadge } from "./TierBadge";
+import { LangBadge } from "./LangBadge";
 
 export function TaskCard({ task }: { task: TaskRow }) {
   const router = useRouter();
@@ -22,6 +19,8 @@ export function TaskCard({ task }: { task: TaskRow }) {
   const completed = optimisticStatus === "completada";
   const blocked = optimisticStatus === "bloqueada";
   const clients = task.task_clients.map((c) => c.client_name).join(" · ");
+  const firstClient = task.task_clients[0]?.client_name ?? null;
+  const meta = firstClient ? clientMeta(firstClient) : null;
 
   const bg = completed
     ? "var(--brand-lima-soft)"
@@ -58,8 +57,6 @@ export function TaskCard({ task }: { task: TaskRow }) {
       router.refresh();
     }
   }
-
-  const badgeStyle = priorityBadge[task.priority];
 
   return (
     <article
@@ -215,22 +212,24 @@ export function TaskCard({ task }: { task: TaskRow }) {
 
         {/* Meta right */}
         <div className="flex flex-col items-end gap-1.5 shrink-0">
-          <span
-            className="inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-medium"
-            style={{
-              background: badgeStyle.bg,
-              color: badgeStyle.fg,
-              letterSpacing: "0.02em",
-            }}
-          >
-            {PRIORITY_LABEL[task.priority]}
-          </span>
+          <div className="flex items-center gap-1">
+            {meta && <TierBadge tier={meta.tier} />}
+            {meta && <LangBadge lang={meta.lang} />}
+          </div>
           <div
             className="tnum flex items-center gap-1 text-[12px] whitespace-nowrap"
             style={{ color: "var(--text-3)" }}
           >
             <Clock3 size={12} /> {formatDay(task.due_date)}
           </div>
+          {task.due_time && (
+            <div
+              className="tnum flex items-center gap-1 text-[11px] whitespace-nowrap"
+              style={{ color: "var(--text-2)" }}
+            >
+              <Clock size={11} /> {task.due_time.slice(0, 5)}
+            </div>
+          )}
         </div>
       </div>
     </article>

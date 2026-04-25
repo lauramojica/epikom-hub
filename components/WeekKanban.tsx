@@ -2,16 +2,28 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, AlertTriangle, Sparkles, Pencil } from "lucide-react";
 import {
-  PRIORITY_LABEL,
+  Check,
+  AlertTriangle,
+  Sparkles,
+  Pencil,
+  Clock,
+  CalendarClock,
+} from "lucide-react";
+import {
   type TaskRow,
   formatPrettyDate,
 } from "@/lib/tasks";
+import { clientMeta } from "@/lib/clients";
+import { TierBadge } from "./TierBadge";
+import { LangBadge } from "./LangBadge";
 import { EditTaskModal } from "./EditTaskModal";
+import { TaskDrawer } from "./TaskDrawer";
 
 type Props = {
   tasks: TaskRow[];
+  priorPending?: TaskRow[];
+  weekId: string;
   weekStart: string; // YYYY-MM-DD (Monday)
   weekEnd: string;
   today: string;
@@ -23,6 +35,8 @@ const DAY_LABELS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
 
 export function WeekKanban({
   tasks,
+  priorPending = [],
+  weekId,
   weekStart,
   weekEnd,
   today,
@@ -33,6 +47,7 @@ export function WeekKanban({
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [clientFilter, setClientFilter] = useState<string>("all");
   const [editing, setEditing] = useState<TaskRow | null>(null);
+  const [drawer, setDrawer] = useState<TaskRow | null>(null);
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const [dragOverDay, setDragOverDay] = useState<string | null>(null);
 
@@ -60,6 +75,8 @@ export function WeekKanban({
       }),
     [tasks, typeFilter, clientFilter]
   );
+
+  const filtersActive = typeFilter !== "all" || clientFilter !== "all";
 
   const dayDates = useMemo(() => {
     const [y, m, d] = weekStart.split("-").map(Number);
@@ -89,12 +106,18 @@ export function WeekKanban({
   );
 
   async function moveTaskToDay(taskId: string, newDate: string) {
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task || task.due_date === newDate) return;
+    const task =
+      tasks.find((t) => t.id === taskId) ??
+      priorPending.find((t) => t.id === taskId);
+    if (!task) return;
+    const isPrior = priorPending.some((t) => t.id === taskId);
+    if (!isPrior && task.due_date === newDate) return;
+    const body: Record<string, string> = { due_date: newDate };
+    if (isPrior) body.week_id = weekId;
     const res = await fetch(`/api/tasks/${taskId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ due_date: newDate }),
+      body: JSON.stringify(body),
     });
     if (res.ok) router.refresh();
   }
@@ -102,7 +125,7 @@ export function WeekKanban({
   return (
     <>
       {/* Filters row */}
-      <div className="mb-6 flex flex-wrap items-center gap-3">
+      <div className="mb-3 flex flex-wrap items-center gap-3">
         <div
           className="text-[11px] font-medium uppercase"
           style={{ letterSpacing: "0.08em", color: "var(--text-3)" }}
@@ -125,6 +148,28 @@ export function WeekKanban({
             ...clients.map((c) => ({ value: c, label: c })),
           ]}
         />
+        {filtersActive && (
+          <button
+            type="button"
+            onClick={() => {
+              setTypeFilter("all");
+              setClientFilter("all");
+            }}
+            className="text-xs underline underline-offset-2"
+            style={{ color: "var(--text-3)" }}
+          >
+            Limpiar
+          </button>
+        )}
+      </div>
+
+      {/* DnD hint */}
+      <div
+        className="mb-5 inline-flex items-center gap-1.5 text-[11px]"
+        style={{ color: "var(--text-3)" }}
+      >
+        <Sparkles size={11} />
+        Arrastra una tarea a otro día para reprogramar
       </div>
 
       {/* Rotation block */}
@@ -176,6 +221,48 @@ export function WeekKanban({
         </div>
       )}
 
+      {/* Prior-weeks pending */}
+      {priorPending.length > 0 && (
+        <div
+          className="mb-5 rounded-lg p-4"
+          style={{
+            background: "var(--bg-2)",
+            border: "1px dashed var(--border-strong)",
+            borderRadius: "var(--r-md)",
+          }}
+        >
+          <div className="mb-2 flex items-center gap-2">
+            <CalendarClock size={14} style={{ color: "var(--text-2)" }} />
+            <div
+              className="text-[11px] font-semibold uppercase"
+              style={{ letterSpacing: "0.08em", color: "var(--text-2)" }}
+            >
+              Vienen arrastrando · {priorPending.length}
+            </div>
+          </div>
+          <div
+            className="mb-3 text-[11px]"
+            style={{ color: "var(--text-3)" }}
+          >
+            Tareas sin completar de semanas anteriores. Arrástralas a un día de esta semana para retomarlas.
+          </div>
+          <div className="space-y-2">
+            {priorPending.map((t) => (
+              <OverdueRow
+                key={t.id}
+                task={t}
+                onEdit={() => setEditing(t)}
+                onReprogramToday={() => moveTaskToDay(t.id, today)}
+                onDragStart={() => setDragTaskId(t.id)}
+                onDragEnd={() => setDragTaskId(null)}
+                isDragging={dragTaskId === t.id}
+                variant="prior"
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Overdue banner */}
       {overdue.length > 0 && (
         <div
@@ -186,7 +273,7 @@ export function WeekKanban({
             borderRadius: "var(--r-md)",
           }}
         >
-          <div className="mb-3 flex items-center gap-2">
+          <div className="mb-2 flex items-center gap-2">
             <AlertTriangle size={14} style={{ color: "var(--warn)" }} />
             <div
               className="text-[11px] font-semibold uppercase"
@@ -195,9 +282,24 @@ export function WeekKanban({
               Atrasadas · {overdue.length}
             </div>
           </div>
+          <div
+            className="mb-3 text-[11px]"
+            style={{ color: "var(--warn)", opacity: 0.85 }}
+          >
+            Arrastra a un día para reprogramar
+          </div>
           <div className="space-y-2">
             {overdue.map((t) => (
-              <OverdueRow key={t.id} task={t} onEdit={() => setEditing(t)} />
+              <OverdueRow
+                key={t.id}
+                task={t}
+                onEdit={() => setEditing(t)}
+                onReprogramToday={() => moveTaskToDay(t.id, today)}
+                onDragStart={() => setDragTaskId(t.id)}
+                onDragEnd={() => setDragTaskId(null)}
+                isDragging={dragTaskId === t.id}
+                variant="overdue"
+              />
             ))}
           </div>
         </div>
@@ -206,11 +308,12 @@ export function WeekKanban({
       {/* Kanban columns */}
       <div
         className="grid gap-4 overflow-x-auto"
-        style={{ gridTemplateColumns: "repeat(5, minmax(180px, 1fr))" }}
+        style={{ gridTemplateColumns: "repeat(5, minmax(200px, 1fr))" }}
       >
         {dayDates.map((date, i) => {
           const items = byDay.get(date) ?? [];
           const done = items.filter((t) => t.status === "completada").length;
+          const anyBlocked = items.some((t) => t.status === "bloqueada");
           const pct = items.length === 0 ? 0 : Math.round((done / items.length) * 100);
           const isToday = date === today;
           const isDropTarget = dragOverDay === date;
@@ -278,7 +381,9 @@ export function WeekKanban({
                   className="h-full rounded-full transition-all"
                   style={{
                     width: `${pct}%`,
-                    background: "var(--brand-turquesa)",
+                    background: anyBlocked
+                      ? "var(--warn)"
+                      : "var(--brand-turquesa)",
                   }}
                 />
               </div>
@@ -288,6 +393,7 @@ export function WeekKanban({
                     key={t.id}
                     task={t}
                     onEdit={() => setEditing(t)}
+                    onOpen={() => setDrawer(t)}
                     onDragStart={() => setDragTaskId(t.id)}
                     onDragEnd={() => setDragTaskId(null)}
                     isDragging={dragTaskId === t.id}
@@ -323,6 +429,15 @@ export function WeekKanban({
           onClose={() => setEditing(null)}
         />
       )}
+
+      <TaskDrawer
+        task={drawer}
+        onClose={() => setDrawer(null)}
+        onEdit={(t) => {
+          setDrawer(null);
+          setEditing(t);
+        }}
+      />
     </>
   );
 }
@@ -362,12 +477,14 @@ function Select({
 function MiniCard({
   task,
   onEdit,
+  onOpen,
   onDragStart,
   onDragEnd,
   isDragging,
 }: {
   task: TaskRow;
   onEdit: () => void;
+  onOpen: () => void;
   onDragStart: () => void;
   onDragEnd: () => void;
   isDragging: boolean;
@@ -378,7 +495,9 @@ function MiniCard({
 
   const completed = optStatus === "completada";
   const blocked = optStatus === "bloqueada";
-  const clients = task.task_clients.map((c) => c.client_name).join(" · ");
+  const firstClient = task.task_clients[0]?.client_name ?? null;
+  const meta = firstClient ? clientMeta(firstClient) : null;
+  const clientsLabel = task.task_clients.map((c) => c.client_name).join(" · ");
 
   const bg = completed
     ? "var(--brand-lima-soft)"
@@ -413,6 +532,7 @@ function MiniCard({
         onDragStart();
       }}
       onDragEnd={onDragEnd}
+      onClick={onOpen}
       className={isPending ? "opacity-80" : ""}
       style={{
         background: bg,
@@ -423,6 +543,20 @@ function MiniCard({
         cursor: "grab",
       }}
     >
+      {/* Client row */}
+      {clientsLabel && (
+        <div className="mb-1.5 flex items-center gap-1.5">
+          <span
+            className="truncate text-[11px] font-medium"
+            style={{ color: "var(--text-2)" }}
+          >
+            {clientsLabel}
+          </span>
+          {meta && <LangBadge lang={meta.lang} />}
+        </div>
+      )}
+
+      {/* Title + actions */}
       <div className="flex items-start gap-2">
         <button
           type="button"
@@ -466,41 +600,37 @@ function MiniCard({
           <Pencil size={12} />
         </button>
       </div>
-      {clients && (
-        <div
-          className="mt-1.5 text-[11px]"
-          style={{ color: "var(--text-3)", paddingLeft: 24 }}
-        >
-          {clients}
-        </div>
-      )}
-      <div className="mt-2 flex items-center gap-1.5" style={{ paddingLeft: 24 }}>
-        <span
-          className="rounded px-1.5 py-0.5 text-[10px] font-medium"
-          style={{
-            background:
-              task.priority === "HIGH"
-                ? "var(--brand-violeta-soft)"
-                : task.priority === "MEDIUM"
-                  ? "var(--brand-turquesa-soft)"
-                  : "var(--bg-3)",
-            color:
-              task.priority === "HIGH"
-                ? "var(--brand-violeta-ink)"
-                : task.priority === "MEDIUM"
-                  ? "var(--brand-turquesa-ink)"
-                  : "var(--text-2)",
-            letterSpacing: "0.02em",
-          }}
-        >
-          {PRIORITY_LABEL[task.priority]}
-        </span>
+
+      {/* Footer: tier + type + dueTime */}
+      <div
+        className="mt-2 flex flex-wrap items-center gap-1.5"
+        style={{ paddingLeft: 24 }}
+      >
+        {meta && <TierBadge tier={meta.tier} />}
         <span
           className="text-[10px] uppercase"
           style={{ letterSpacing: "0.04em", color: "var(--text-3)" }}
         >
           {task.task_type}
         </span>
+        {task.due_time && (
+          <span
+            className="inline-flex items-center gap-1 text-[10px] tnum"
+            style={{ color: "var(--text-3)" }}
+          >
+            <Clock size={10} />
+            {task.due_time.slice(0, 5)}
+          </span>
+        )}
+        {blocked && (
+          <span
+            className="ml-auto inline-flex items-center gap-1 text-[10px] font-medium"
+            style={{ color: "var(--warn)" }}
+          >
+            <AlertTriangle size={10} />
+            Bloqueada
+          </span>
+        )}
       </div>
     </article>
   );
@@ -509,17 +639,51 @@ function MiniCard({
 function OverdueRow({
   task,
   onEdit,
+  onReprogramToday,
+  onDragStart,
+  onDragEnd,
+  isDragging,
+  variant = "overdue",
 }: {
   task: TaskRow;
   onEdit: () => void;
+  onReprogramToday: () => void;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  isDragging: boolean;
+  variant?: "overdue" | "prior";
 }) {
+  const firstClient = task.task_clients[0]?.client_name ?? null;
+  const meta = firstClient ? clientMeta(firstClient) : null;
   const clients = task.task_clients.map((c) => c.client_name).join(" · ");
   return (
     <div
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/plain", task.id);
+        e.dataTransfer.effectAllowed = "move";
+        onDragStart();
+      }}
+      onDragEnd={onDragEnd}
       className="flex items-center justify-between gap-3 rounded-md p-2.5"
-      style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
+      style={{
+        background: "var(--bg)",
+        border: "1px solid var(--border)",
+        opacity: isDragging ? 0.4 : 1,
+        cursor: "grab",
+      }}
     >
       <div className="min-w-0 flex-1">
+        <div className="mb-0.5 flex flex-wrap items-center gap-1.5">
+          {meta && <TierBadge tier={meta.tier} />}
+          {meta && <LangBadge lang={meta.lang} />}
+          <span
+            className="text-[10px] uppercase"
+            style={{ letterSpacing: "0.04em", color: "var(--text-3)" }}
+          >
+            {task.task_type}
+          </span>
+        </div>
         <div
           className="text-sm font-medium leading-tight"
           style={{ color: "var(--text)" }}
@@ -527,33 +691,34 @@ function OverdueRow({
           {task.title}
         </div>
         <div className="mt-0.5 text-[11px]" style={{ color: "var(--text-3)" }}>
-          {clients && <>{clients} · </>}vencida {formatPrettyDate(task.due_date)}
+          {clients && <>{clients} · </>}
+          {variant === "prior" ? "de" : "vencida"} {formatPrettyDate(task.due_date)}
         </div>
       </div>
-      <button
-        type="button"
-        onClick={onEdit}
-        aria-label="Editar tarea"
-        className="shrink-0 rounded p-1"
-        style={{ color: "var(--text-3)" }}
-      >
-        <Pencil size={13} />
-      </button>
-      <span
-        className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium"
-        style={{
-          background:
-            task.priority === "HIGH"
-              ? "var(--brand-violeta-soft)"
-              : "var(--brand-turquesa-soft)",
-          color:
-            task.priority === "HIGH"
-              ? "var(--brand-violeta-ink)"
-              : "var(--brand-turquesa-ink)",
-        }}
-      >
-        {PRIORITY_LABEL[task.priority]}
-      </span>
+      <div className="flex shrink-0 items-center gap-1">
+        <button
+          type="button"
+          onClick={onReprogramToday}
+          className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-[11px] font-medium"
+          style={{
+            background:
+              variant === "prior" ? "var(--brand-turquesa)" : "var(--warn)",
+            color: "#fff",
+          }}
+        >
+          <CalendarClock size={11} />
+          Hoy
+        </button>
+        <button
+          type="button"
+          onClick={onEdit}
+          aria-label="Editar tarea"
+          className="rounded p-1"
+          style={{ color: "var(--text-3)" }}
+        >
+          <Pencil size={13} />
+        </button>
+      </div>
     </div>
   );
 }

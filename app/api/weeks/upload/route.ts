@@ -138,8 +138,14 @@ export async function POST(request: NextRequest) {
     description: t.descripcion ?? null,
     assigned_to: slugToId.get(t.asignado_a)!,
     due_date: t.fecha,
+    due_time: t.hora
+      ? t.hora.length === 5
+        ? `${t.hora}:00`
+        : t.hora
+      : null,
     task_type: t.tipo,
     priority: t.prioridad,
+    context: t.contexto ?? null,
     notion_url: t.origen_notion ?? null,
   }));
 
