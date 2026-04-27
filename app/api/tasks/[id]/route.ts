@@ -13,6 +13,7 @@ type Body = {
   context?: string | null;
   user_note?: string | null;
   assigned_to?: string;
+  assignees?: string[]; // si presente, reemplaza la lista completa
   week_id?: string;
   clients?: string[];
 };
@@ -108,7 +109,31 @@ export async function PATCH(
         ? body.notion_url.trim()
         : null;
   }
-  if (typeof body.assigned_to === "string" && body.assigned_to.trim()) {
+  // Multi-asignados: si llega `assignees`, gana sobre `assigned_to`
+  let newAssigneeIds: string[] | null = null;
+  if (Array.isArray(body.assignees)) {
+    newAssigneeIds = Array.from(
+      new Set(
+        body.assignees
+          .map((a) => (typeof a === "string" ? a.trim() : ""))
+          .filter((a) => a.length > 0)
+      )
+    );
+    if (newAssigneeIds.length > 0) {
+      // Validar que existen
+      const { data: rows } = await admin
+        .from("users")
+        .select("id")
+        .in("id", newAssigneeIds);
+      if (!rows || rows.length !== newAssigneeIds.length) {
+        return NextResponse.json(
+          { error: "Algún asignado no existe" },
+          { status: 400 }
+        );
+      }
+      updates.assigned_to = newAssigneeIds[0];
+    }
+  } else if (typeof body.assigned_to === "string" && body.assigned_to.trim()) {
     updates.assigned_to = body.assigned_to.trim();
   }
   if (typeof body.week_id === "string" && body.week_id.trim()) {
@@ -134,6 +159,48 @@ export async function PATCH(
       .map((client_name) => ({ task_id: params.id, client_name }));
     if (rows.length > 0) {
       await admin.from("task_clients").insert(rows);
+    }
+  }
+
+  // Replace assignees + notify newly added ones
+  if (newAssigneeIds && newAssigneeIds.length > 0) {
+    const { data: existing } = await admin
+      .from("task_assignees")
+      .select("user_id")
+      .eq("task_id", params.id);
+    const existingIds = new Set((existing ?? []).map((r) => r.user_id));
+    const newlyAdded = newAssigneeIds.filter((id) => !existingIds.has(id));
+
+    await admin.from("task_assignees").delete().eq("task_id", params.id);
+    await admin.from("task_assignees").insert(
+      newAssigneeIds.map((user_id, idx) => ({
+        task_id: params.id,
+        user_id,
+        is_primary: idx === 0,
+      }))
+    );
+
+    const toNotify = newlyAdded.filter((id) => id !== user.id);
+    if (toNotify.length > 0) {
+      const { data: taskInfo } = await admin
+        .from("tasks")
+        .select("title")
+        .eq("id", params.id)
+        .maybeSingle();
+      const { data: actor } = await admin
+        .from("users")
+        .select("name")
+        .eq("id", user.id)
+        .maybeSingle();
+      const actorName = actor?.name?.split(" ")[0] ?? "Alguien";
+      await admin.from("notifications").insert(
+        toNotify.map((uid) => ({
+          user_id: uid,
+          kind: "assign",
+          title: `${actorName} te asignó: ${taskInfo?.title ?? "una tarea"}`,
+          link: "/semana",
+        }))
+      );
     }
   }
 

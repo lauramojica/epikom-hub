@@ -12,6 +12,7 @@ type Props = {
   weekEnd: string;   // YYYY-MM-DD
   crew: CrewMember[];
   defaultAssigneeId?: string;
+  defaultAssigneeIds?: string[];
   defaultDueDate?: string;
   label?: string;
   variant?: "solid" | "outline";
@@ -34,6 +35,7 @@ export function NewTaskModal({
   weekEnd,
   crew,
   defaultAssigneeId,
+  defaultAssigneeIds,
   defaultDueDate,
   label = "Nueva tarea",
   variant = "outline",
@@ -45,7 +47,15 @@ export function NewTaskModal({
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [assignedTo, setAssignedTo] = useState(defaultAssigneeId ?? crew[0]?.id ?? "");
+  const [assignedIds, setAssignedIds] = useState<string[]>(
+    defaultAssigneeIds && defaultAssigneeIds.length > 0
+      ? defaultAssigneeIds
+      : defaultAssigneeId
+      ? [defaultAssigneeId]
+      : crew[0]?.id
+      ? [crew[0].id]
+      : []
+  );
   const [dueDate, setDueDate] = useState(defaultDueDate ?? weekStart);
   const [taskType, setTaskType] = useState("General");
   const [priority, setPriority] = useState<"HIGH" | "MEDIUM" | "LOW">("MEDIUM");
@@ -66,7 +76,15 @@ export function NewTaskModal({
   function reset() {
     setTitle("");
     setDescription("");
-    setAssignedTo(defaultAssigneeId ?? crew[0]?.id ?? "");
+    setAssignedIds(
+      defaultAssigneeIds && defaultAssigneeIds.length > 0
+        ? defaultAssigneeIds
+        : defaultAssigneeId
+        ? [defaultAssigneeId]
+        : crew[0]?.id
+        ? [crew[0].id]
+        : []
+    );
     setDueDate(defaultDueDate ?? weekStart);
     setTaskType("General");
     setPriority("MEDIUM");
@@ -88,7 +106,8 @@ export function NewTaskModal({
         body: JSON.stringify({
           title,
           description,
-          assigned_to: assignedTo,
+          assigned_to: assignedIds[0] ?? "",
+          assignees: assignedIds,
           due_date: dueDate,
           due_time: dueTime || null,
           task_type: taskType,
@@ -193,22 +212,15 @@ export function NewTaskModal({
                 />
               </Field>
 
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Asignar a">
-                  <select
-                    required
-                    value={assignedTo}
-                    onChange={(e) => setAssignedTo(e.target.value)}
-                    style={inputStyle}
-                  >
-                    {crew.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
+              <Field label="Asignar a (puede ser más de uno)">
+                <AssigneeMultiSelect
+                  crew={crew}
+                  value={assignedIds}
+                  onChange={setAssignedIds}
+                />
+              </Field>
 
+              <div className="grid grid-cols-1 gap-3">
                 <Field label="Fecha">
                   <input
                     type="date"
@@ -321,6 +333,83 @@ export function NewTaskModal({
         </div>
       )}
     </>
+  );
+}
+
+function AssigneeMultiSelect({
+  crew,
+  value,
+  onChange,
+}: {
+  crew: CrewMember[];
+  value: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const selected = crew.filter((c) => value.includes(c.id));
+  const available = crew.filter((c) => !value.includes(c.id));
+
+  function add(id: string) {
+    if (!id) return;
+    onChange([...value, id]);
+  }
+  function remove(id: string) {
+    onChange(value.filter((v) => v !== id));
+  }
+
+  return (
+    <div
+      className="flex flex-wrap items-center gap-1.5 rounded-md p-1.5"
+      style={{
+        background: "var(--bg-2)",
+        border: "1px solid var(--border)",
+        minHeight: 36,
+      }}
+    >
+      {selected.map((c, i) => (
+        <span
+          key={c.id}
+          className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[12px]"
+          style={{
+            background: i === 0 ? "var(--brand-turquesa-soft)" : "var(--bg)",
+            color: i === 0 ? "var(--brand-turquesa-ink)" : "var(--text)",
+            border: "1px solid var(--border)",
+          }}
+          title={i === 0 ? "Asignado principal" : undefined}
+        >
+          {c.name.split(" ")[0]}
+          <button
+            type="button"
+            onClick={() => remove(c.id)}
+            aria-label={`Quitar ${c.name}`}
+            style={{ color: "var(--text-3)", lineHeight: 1 }}
+          >
+            ×
+          </button>
+        </span>
+      ))}
+      {available.length > 0 && (
+        <select
+          value=""
+          onChange={(e) => add(e.target.value)}
+          className="text-[12px]"
+          style={{
+            background: "transparent",
+            border: "none",
+            outline: "none",
+            color: "var(--text-3)",
+            fontFamily: "inherit",
+            padding: "2px 4px",
+          }}
+        >
+          <option value="">+ Añadir…</option>
+          {available.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      )}
+    </div>
   );
 }
 

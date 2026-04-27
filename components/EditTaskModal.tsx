@@ -44,7 +44,15 @@ export function EditTaskModal({ task, weekStart, weekEnd, open, onClose, crew }:
   );
   const [notionUrl, setNotionUrl] = useState(task.notion_url ?? "");
   const [context, setContext] = useState(task.context ?? "");
-  const [assignedTo, setAssignedTo] = useState(task.assigned_to ?? "");
+  const initialAssignees = (() => {
+    const fromJunction = (task.task_assignees ?? [])
+      .slice()
+      .sort((a, b) => Number(b.is_primary) - Number(a.is_primary))
+      .map((r) => r.user_id);
+    if (fromJunction.length > 0) return fromJunction;
+    return task.assigned_to ? [task.assigned_to] : [];
+  })();
+  const [assignedIds, setAssignedIds] = useState<string[]>(initialAssignees);
 
   useEffect(() => {
     if (!open) return;
@@ -58,7 +66,19 @@ export function EditTaskModal({ task, weekStart, weekEnd, open, onClose, crew }:
     setClientsInput(task.task_clients.map((c) => c.client_name).join(", "));
     setNotionUrl(task.notion_url ?? "");
     setContext(task.context ?? "");
-    setAssignedTo(task.assigned_to ?? "");
+    {
+      const fromJunction = (task.task_assignees ?? [])
+        .slice()
+        .sort((a, b) => Number(b.is_primary) - Number(a.is_primary))
+        .map((r) => r.user_id);
+      setAssignedIds(
+        fromJunction.length > 0
+          ? fromJunction
+          : task.assigned_to
+          ? [task.assigned_to]
+          : []
+      );
+    }
     setError(null);
 
     function onKey(e: KeyboardEvent) {
@@ -85,8 +105,8 @@ export function EditTaskModal({ task, weekStart, weekEnd, open, onClose, crew }:
           priority,
           notion_url: notionUrl,
           context: context || null,
-          ...(crew && assignedTo && assignedTo !== task.assigned_to
-            ? { assigned_to: assignedTo }
+          ...(crew && assignedIds.length > 0
+            ? { assignees: assignedIds }
             : {}),
           clients: clientsInput
             .split(",")
@@ -230,19 +250,12 @@ export function EditTaskModal({ task, weekStart, weekEnd, open, onClose, crew }:
           </Field>
 
           {crew && crew.length > 0 && (
-            <Field label="Asignar a">
-              <select
-                value={assignedTo}
-                onChange={(e) => setAssignedTo(e.target.value)}
-                style={inputStyle}
-              >
-                {!task.assigned_to && <option value="">—</option>}
-                {crew.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+            <Field label="Asignados (puede ser más de uno)">
+              <AssigneeMultiSelect
+                crew={crew}
+                value={assignedIds}
+                onChange={setAssignedIds}
+              />
             </Field>
           )}
 
@@ -320,6 +333,76 @@ export function EditTaskModal({ task, weekStart, weekEnd, open, onClose, crew }:
           </div>
         </form>
       </div>
+    </div>
+  );
+}
+
+function AssigneeMultiSelect({
+  crew,
+  value,
+  onChange,
+}: {
+  crew: CrewMember[];
+  value: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const selected = crew.filter((c) => value.includes(c.id));
+  const available = crew.filter((c) => !value.includes(c.id));
+  return (
+    <div
+      className="flex flex-wrap items-center gap-1.5 rounded-md p-1.5"
+      style={{
+        background: "var(--bg-2)",
+        border: "1px solid var(--border)",
+        minHeight: 36,
+      }}
+    >
+      {selected.map((c, i) => (
+        <span
+          key={c.id}
+          className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[12px]"
+          style={{
+            background: i === 0 ? "var(--brand-turquesa-soft)" : "var(--bg)",
+            color: i === 0 ? "var(--brand-turquesa-ink)" : "var(--text)",
+            border: "1px solid var(--border)",
+          }}
+          title={i === 0 ? "Asignado principal" : undefined}
+        >
+          {c.name.split(" ")[0]}
+          <button
+            type="button"
+            onClick={() => onChange(value.filter((v) => v !== c.id))}
+            aria-label={`Quitar ${c.name}`}
+            style={{ color: "var(--text-3)", lineHeight: 1 }}
+          >
+            ×
+          </button>
+        </span>
+      ))}
+      {available.length > 0 && (
+        <select
+          value=""
+          onChange={(e) => {
+            if (e.target.value) onChange([...value, e.target.value]);
+          }}
+          className="text-[12px]"
+          style={{
+            background: "transparent",
+            border: "none",
+            outline: "none",
+            color: "var(--text-3)",
+            fontFamily: "inherit",
+            padding: "2px 4px",
+          }}
+        >
+          <option value="">+ Añadir…</option>
+          {available.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      )}
     </div>
   );
 }

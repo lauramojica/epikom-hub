@@ -6,6 +6,7 @@ type Body = {
   title?: string;
   description?: string | null;
   assigned_to?: string;
+  assignees?: string[]; // multi-asignados; primero = primary; si se pasa, gana sobre assigned_to
   due_date?: string; // YYYY-MM-DD
   due_time?: string | null; // HH:MM or HH:MM:SS
   task_type?: string;
@@ -33,7 +34,20 @@ export async function POST(request: NextRequest) {
   }
 
   const title = (body.title ?? "").trim();
-  const assigned_to = (body.assigned_to ?? "").trim();
+  // Multi-asignados: si llega `assignees`, usar eso. Si no, fallback a assigned_to.
+  const assigneeIds = Array.from(
+    new Set(
+      (Array.isArray(body.assignees) ? body.assignees : [])
+        .map((a) => (typeof a === "string" ? a.trim() : ""))
+        .filter((a) => a.length > 0)
+    )
+  );
+  const assigned_to = (
+    assigneeIds[0] ?? body.assigned_to ?? ""
+  ).trim();
+  if (assigneeIds.length === 0 && assigned_to) {
+    assigneeIds.push(assigned_to);
+  }
   const due_date = (body.due_date ?? "").trim();
   const task_type = (body.task_type ?? "").trim() || "General";
   const priority = body.priority ?? "MEDIUM";
@@ -51,13 +65,15 @@ export async function POST(request: NextRequest) {
 
   const admin = createAdminClient();
 
-  // Validate week + assignee exist
-  const [{ data: week }, { data: assignee }] = await Promise.all([
+  // Validate week + todos los asignados existen
+  const [{ data: week }, { data: assigneeRows }] = await Promise.all([
     admin.from("weeks").select("id").eq("id", week_id).maybeSingle(),
-    admin.from("users").select("id").eq("id", assigned_to).maybeSingle(),
+    admin.from("users").select("id, name").in("id", assigneeIds),
   ]);
   if (!week) return NextResponse.json({ error: "Semana no existe" }, { status: 400 });
-  if (!assignee) return NextResponse.json({ error: "Usuario asignado no existe" }, { status: 400 });
+  if (!assigneeRows || assigneeRows.length !== assigneeIds.length) {
+    return NextResponse.json({ error: "Algún asignado no existe" }, { status: 400 });
+  }
 
   let due_time: string | null = null;
   if (body.due_time) {
@@ -106,21 +122,34 @@ export async function POST(request: NextRequest) {
     await admin.from("task_clients").insert(rows);
   }
 
-  // Notify assignee if not self-assigned
-  if (assigned_to !== user.id) {
+  // Insertar todos los asignados en task_assignees (primero = primary)
+  const assigneeRowsToInsert = assigneeIds.map((user_id, idx) => ({
+    task_id: inserted.id,
+    user_id,
+    is_primary: idx === 0,
+  }));
+  if (assigneeRowsToInsert.length > 0) {
+    await admin.from("task_assignees").insert(assigneeRowsToInsert);
+  }
+
+  // Notify cada asignado distinto del creador
+  const toNotify = assigneeIds.filter((id) => id !== user.id);
+  if (toNotify.length > 0) {
     const { data: creator } = await admin
       .from("users")
       .select("name")
       .eq("id", user.id)
       .maybeSingle();
     const creatorName = creator?.name?.split(" ")[0] ?? "Alguien";
-    await admin.from("notifications").insert({
-      user_id: assigned_to,
-      kind: "assign",
-      title: `${creatorName} te asignó: ${title}`,
-      body: clients.length > 0 ? clients.join(" · ") : null,
-      link: "/semana",
-    });
+    await admin.from("notifications").insert(
+      toNotify.map((uid) => ({
+        user_id: uid,
+        kind: "assign",
+        title: `${creatorName} te asignó: ${title}`,
+        body: clients.length > 0 ? clients.join(" · ") : null,
+        link: "/semana",
+      }))
+    );
   }
 
   return NextResponse.json({ ok: true, id: inserted.id });

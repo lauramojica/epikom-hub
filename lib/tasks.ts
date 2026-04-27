@@ -16,6 +16,11 @@ export type TaskRow = {
   user_note: string | null;
   assigned_to?: string;
   task_clients: { client_name: string }[];
+  task_assignees?: {
+    user_id: string;
+    is_primary: boolean;
+    users: { id: string; name: string; slug: string } | null;
+  }[];
 };
 
 export type WeekRow = {

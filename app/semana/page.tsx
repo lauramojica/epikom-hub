@@ -129,29 +129,40 @@ export default async function SemanaPage({
   let tasks: TaskRow[] = [];
   let priorPending: TaskRow[] = [];
   if (currentWeek) {
-    const { data } = await taskDb
-      .from("tasks")
-      .select(
-        "id, title, description, due_date, due_time, task_type, priority, status, notion_url, context, completed_at, user_note, assigned_to, task_clients(client_name)"
-      )
-      .eq("assigned_to", viewing.id)
-      .eq("week_id", currentWeek.id)
-      .order("due_date", { ascending: true })
-      .order("priority", { ascending: true })
-      .returns<TaskRow[]>();
-    tasks = data ?? [];
+    // El user ve toda tarea donde está asignado (primary o co-asignado).
+    const { data: assignmentRows } = await taskDb
+      .from("task_assignees")
+      .select("task_id")
+      .eq("user_id", viewing.id);
+    const myTaskIds = (assignmentRows ?? []).map(
+      (r: { task_id: string }) => r.task_id
+    );
+
+    if (myTaskIds.length > 0) {
+      const { data } = await taskDb
+        .from("tasks")
+        .select(
+          "id, title, description, due_date, due_time, task_type, priority, status, notion_url, context, completed_at, user_note, assigned_to, task_clients(client_name), task_assignees(user_id, is_primary, users(id, name, slug))"
+        )
+        .in("id", myTaskIds)
+        .eq("week_id", currentWeek.id)
+        .order("due_date", { ascending: true })
+        .order("priority", { ascending: true })
+        .returns<TaskRow[]>();
+      tasks = data ?? [];
+    }
 
     // Roll-over strip only makes sense when looking at the live week.
     const isLiveWeek =
       currentWeek.week_start_date <= today &&
       today <= currentWeek.week_end_date;
-    if (isLiveWeek) {
+    if (isLiveWeek && myTaskIds.length > 0) {
       const { data: prior } = await taskDb
         .from("tasks")
         .select(
-          "id, title, description, due_date, due_time, task_type, priority, status, notion_url, context, completed_at, user_note, assigned_to, task_clients(client_name)"
+          "id, title, description, due_date, due_time, task_type, priority, status, notion_url, context, completed_at, user_note, assigned_to, task_clients(client_name), task_assignees(user_id, is_primary, users(id, name, slug))"
         )
-        .eq("assigned_to", viewing.id)
+        .in("id", myTaskIds)
         .neq("week_id", currentWeek.id)
         .neq("status", "completada")
         .lt("due_date", currentWeek.week_start_date)

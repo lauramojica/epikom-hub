@@ -69,17 +69,27 @@ export default async function AdminCrewDetail({
 
   let tasks: TaskRow[] = [];
   if (currentWeek) {
-    const { data } = await admin
-      .from("tasks")
-      .select(
-        "id, title, description, due_date, due_time, task_type, priority, status, notion_url, context, completed_at, user_note, assigned_to, task_clients(client_name)"
-      )
-      .eq("assigned_to", member.id)
-      .eq("week_id", currentWeek.id)
-      .order("due_date", { ascending: true })
-      .order("priority", { ascending: true })
-      .returns<TaskRow[]>();
-    tasks = data ?? [];
+    // Multi-asignados: traer cualquier tarea donde el member esté asignado.
+    const { data: assignmentRows } = await admin
+      .from("task_assignees")
+      .select("task_id")
+      .eq("user_id", member.id);
+    const memberTaskIds = (assignmentRows ?? []).map(
+      (r: { task_id: string }) => r.task_id
+    );
+    if (memberTaskIds.length > 0) {
+      const { data } = await admin
+        .from("tasks")
+        .select(
+          "id, title, description, due_date, due_time, task_type, priority, status, notion_url, context, completed_at, user_note, assigned_to, task_clients(client_name), task_assignees(user_id, is_primary, users(id, name, slug))"
+        )
+        .in("id", memberTaskIds)
+        .eq("week_id", currentWeek.id)
+        .order("due_date", { ascending: true })
+        .order("priority", { ascending: true })
+        .returns<TaskRow[]>();
+      tasks = data ?? [];
+    }
   }
 
   const completed = tasks.filter((t) => t.status === "completada").length;

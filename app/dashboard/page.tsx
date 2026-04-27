@@ -113,16 +113,29 @@ export default async function Dashboard({
   const notifications = (notifData ?? []) as NotificationRow[];
 
   if (currentWeek) {
-    const { data: tasks } = await supabase
-      .from("tasks")
-      .select(
-        "id, title, description, due_date, due_time, task_type, priority, status, notion_url, context, completed_at, user_note, assigned_to, task_clients(client_name)"
-      )
-      .eq("assigned_to", profile.id)
-      .eq("week_id", currentWeek.id)
-      .order("due_date", { ascending: true })
-      .order("priority", { ascending: true })
-      .returns<TaskRow[]>();
+    // Multi-asignados: traer toda tarea donde el user esté en task_assignees.
+    const { data: assignmentRows } = await supabase
+      .from("task_assignees")
+      .select("task_id")
+      .eq("user_id", profile.id);
+    const myTaskIds = (assignmentRows ?? []).map(
+      (r: { task_id: string }) => r.task_id
+    );
+
+    let tasks: TaskRow[] | null = null;
+    if (myTaskIds.length > 0) {
+      const res = await supabase
+        .from("tasks")
+        .select(
+          "id, title, description, due_date, due_time, task_type, priority, status, notion_url, context, completed_at, user_note, assigned_to, task_clients(client_name), task_assignees(user_id, is_primary, users(id, name, slug))"
+        )
+        .in("id", myTaskIds)
+        .eq("week_id", currentWeek.id)
+        .order("due_date", { ascending: true })
+        .order("priority", { ascending: true })
+        .returns<TaskRow[]>();
+      tasks = res.data;
+    }
 
     allTasks = tasks ?? [];
     if (isLive) {

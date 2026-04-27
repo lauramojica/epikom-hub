@@ -503,6 +503,9 @@ function MiniCard({
   const firstClient = task.task_clients[0]?.client_name ?? null;
   const meta = firstClient ? clientMeta(firstClient) : null;
   const clientsLabel = task.task_clients.map((c) => c.client_name).join(" · ");
+  const assigneesSorted = (task.task_assignees ?? [])
+    .slice()
+    .sort((a, b) => Number(b.is_primary) - Number(a.is_primary));
 
   const bg = completed
     ? "var(--brand-lima-soft)"
@@ -636,8 +639,54 @@ function MiniCard({
             Bloqueada
           </span>
         )}
+        {assigneesSorted.length > 1 && (
+          <AssigneeStack assignees={assigneesSorted} />
+        )}
       </div>
     </article>
+  );
+}
+
+function AssigneeStack({
+  assignees,
+}: {
+  assignees: NonNullable<TaskRow["task_assignees"]>;
+}) {
+  return (
+    <span className="ml-auto inline-flex items-center -space-x-1">
+      {assignees.slice(0, 3).map((a) => {
+        const name = a.users?.name ?? "?";
+        const initial = name[0]?.toUpperCase() ?? "?";
+        return (
+          <span
+            key={a.user_id}
+            title={name}
+            className="grid h-4 w-4 place-items-center rounded-full text-[8px] font-semibold"
+            style={{
+              background: a.is_primary
+                ? "var(--brand-turquesa)"
+                : "var(--bg-3)",
+              color: a.is_primary ? "#fff" : "var(--text)",
+              border: "1.5px solid var(--bg)",
+            }}
+          >
+            {initial}
+          </span>
+        );
+      })}
+      {assignees.length > 3 && (
+        <span
+          className="grid h-4 w-4 place-items-center rounded-full text-[8px] font-semibold"
+          style={{
+            background: "var(--bg-3)",
+            color: "var(--text-2)",
+            border: "1.5px solid var(--bg)",
+          }}
+        >
+          +{assignees.length - 3}
+        </span>
+      )}
+    </span>
   );
 }
 
