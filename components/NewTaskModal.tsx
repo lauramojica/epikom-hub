@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
+import { TagInput } from "./TagInput";
 
 type CrewMember = { id: string; name: string; slug: string };
 
@@ -57,7 +58,8 @@ export function NewTaskModal({
       : []
   );
   const [dueDate, setDueDate] = useState(defaultDueDate ?? weekStart);
-  const [taskType, setTaskType] = useState("General");
+  const [taskTypes, setTaskTypes] = useState<string[]>(["General"]);
+  const [typeSuggestions, setTypeSuggestions] = useState<string[]>([]);
   const [priority, setPriority] = useState<"HIGH" | "MEDIUM" | "LOW">("MEDIUM");
   const [dueTime, setDueTime] = useState("");
   const [clientsInput, setClientsInput] = useState("");
@@ -73,6 +75,22 @@ export function NewTaskModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    fetch("/api/task-types")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!cancelled && Array.isArray(d.types)) {
+          setTypeSuggestions(d.types);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
   function reset() {
     setTitle("");
     setDescription("");
@@ -86,7 +104,7 @@ export function NewTaskModal({
         : []
     );
     setDueDate(defaultDueDate ?? weekStart);
-    setTaskType("General");
+    setTaskTypes(["General"]);
     setPriority("MEDIUM");
     setDueTime("");
     setClientsInput("");
@@ -110,7 +128,8 @@ export function NewTaskModal({
           assignees: assignedIds,
           due_date: dueDate,
           due_time: dueTime || null,
-          task_type: taskType,
+          task_type: taskTypes[0] ?? "General",
+          task_types: taskTypes,
           priority,
           notion_url: notionUrl,
           context: context || null,
@@ -220,7 +239,7 @@ export function NewTaskModal({
                 />
               </Field>
 
-              <div className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <Field label="Fecha">
                   <input
                     type="date"
@@ -232,9 +251,6 @@ export function NewTaskModal({
                     style={inputStyle}
                   />
                 </Field>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
                 <Field label="Hora (opcional)">
                   <input
                     type="time"
@@ -243,20 +259,6 @@ export function NewTaskModal({
                     style={inputStyle}
                   />
                 </Field>
-                <Field label="Tipo">
-                  <select
-                    value={taskType}
-                    onChange={(e) => setTaskType(e.target.value)}
-                    style={inputStyle}
-                  >
-                    {TASK_TYPES.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-
                 <Field label="Prioridad">
                   <select
                     value={priority}
@@ -271,6 +273,17 @@ export function NewTaskModal({
                   </select>
                 </Field>
               </div>
+
+              <Field label="Tipo (puede ser más de uno)">
+                <TagInput
+                  value={taskTypes}
+                  onChange={setTaskTypes}
+                  suggestions={
+                    typeSuggestions.length > 0 ? typeSuggestions : TASK_TYPES
+                  }
+                  placeholder="Reel, Google Ads, Diseño…"
+                />
+              </Field>
 
               <Field label="Clientes (separa con comas)">
                 <input

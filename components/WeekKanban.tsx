@@ -55,10 +55,19 @@ export function WeekKanban({
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const [dragOverDay, setDragOverDay] = useState<string | null>(null);
 
-  const types = useMemo(
-    () => Array.from(new Set(tasks.map((t) => t.task_type))).sort(),
-    [tasks]
-  );
+  const types = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of tasks) {
+      const list =
+        t.task_types && t.task_types.length > 0
+          ? t.task_types
+          : t.task_type
+          ? [t.task_type]
+          : [];
+      for (const tt of list) set.add(tt);
+    }
+    return Array.from(set).sort();
+  }, [tasks]);
   const clients = useMemo(() => {
     const set = new Set<string>();
     for (const t of tasks)
@@ -69,7 +78,15 @@ export function WeekKanban({
   const filtered = useMemo(
     () =>
       tasks.filter((t) => {
-        if (typeFilter !== "all" && t.task_type !== typeFilter) return false;
+        if (typeFilter !== "all") {
+          const list =
+            t.task_types && t.task_types.length > 0
+              ? t.task_types
+              : t.task_type
+              ? [t.task_type]
+              : [];
+          if (!list.includes(typeFilter)) return false;
+        }
         if (
           clientFilter !== "all" &&
           !t.task_clients.some((c) => c.client_name === clientFilter)
@@ -615,12 +632,18 @@ function MiniCard({
         style={{ paddingLeft: 24 }}
       >
         {meta && <TierBadge tier={meta.tier} />}
-        <span
-          className="text-[10px] uppercase"
-          style={{ letterSpacing: "0.04em", color: "var(--text-3)" }}
-        >
-          {task.task_type}
-        </span>
+        {(task.task_types && task.task_types.length > 0
+          ? task.task_types
+          : [task.task_type]
+        ).map((t) => (
+          <span
+            key={t}
+            className="text-[10px] uppercase"
+            style={{ letterSpacing: "0.04em", color: "var(--text-3)" }}
+          >
+            {t}
+          </span>
+        ))}
         {task.due_time && (
           <span
             className="inline-flex items-center gap-1 text-[10px] tnum"

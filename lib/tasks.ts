@@ -8,6 +8,7 @@ export type TaskRow = {
   due_date: string;
   due_time: string | null;
   task_type: string;
+  task_types?: string[];
   priority: TaskPriority;
   status: TaskStatus;
   notion_url: string | null;

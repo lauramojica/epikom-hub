@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { X, Trash2 } from "lucide-react";
 import type { TaskRow } from "@/lib/tasks";
+import { TagInput } from "./TagInput";
 
 type CrewMember = { id: string; name: string; slug: string };
 
@@ -37,7 +38,14 @@ export function EditTaskModal({ task, weekStart, weekEnd, open, onClose, crew }:
   const [description, setDescription] = useState(task.description ?? "");
   const [dueDate, setDueDate] = useState(task.due_date);
   const [dueTime, setDueTime] = useState(task.due_time?.slice(0, 5) ?? "");
-  const [taskType, setTaskType] = useState(task.task_type);
+  const initialTypes =
+    task.task_types && task.task_types.length > 0
+      ? task.task_types
+      : task.task_type
+      ? [task.task_type]
+      : [];
+  const [taskTypes, setTaskTypes] = useState<string[]>(initialTypes);
+  const [typeSuggestions, setTypeSuggestions] = useState<string[]>([]);
   const [priority, setPriority] = useState<TaskRow["priority"]>(task.priority);
   const [clientsInput, setClientsInput] = useState(
     task.task_clients.map((c) => c.client_name).join(", ")
@@ -61,7 +69,13 @@ export function EditTaskModal({ task, weekStart, weekEnd, open, onClose, crew }:
     setDescription(task.description ?? "");
     setDueDate(task.due_date);
     setDueTime(task.due_time?.slice(0, 5) ?? "");
-    setTaskType(task.task_type);
+    setTaskTypes(
+      task.task_types && task.task_types.length > 0
+        ? task.task_types
+        : task.task_type
+        ? [task.task_type]
+        : []
+    );
     setPriority(task.priority);
     setClientsInput(task.task_clients.map((c) => c.client_name).join(", "));
     setNotionUrl(task.notion_url ?? "");
@@ -88,6 +102,20 @@ export function EditTaskModal({ task, weekStart, weekEnd, open, onClose, crew }:
     return () => window.removeEventListener("keydown", onKey);
   }, [open, task, onClose]);
 
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    fetch("/api/task-types")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!cancelled && Array.isArray(d.types)) setTypeSuggestions(d.types);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -101,7 +129,8 @@ export function EditTaskModal({ task, weekStart, weekEnd, open, onClose, crew }:
           description,
           due_date: dueDate,
           due_time: dueTime || null,
-          task_type: taskType,
+          task_type: taskTypes[0] ?? task.task_type,
+          task_types: taskTypes,
           priority,
           notion_url: notionUrl,
           context: context || null,
@@ -235,18 +264,15 @@ export function EditTaskModal({ task, weekStart, weekEnd, open, onClose, crew }:
             </Field>
           </div>
 
-          <Field label="Tipo">
-            <select
-              value={taskType}
-              onChange={(e) => setTaskType(e.target.value)}
-              style={inputStyle}
-            >
-              {Array.from(new Set([taskType, ...TASK_TYPES])).map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
+          <Field label="Tipo (puede ser más de uno)">
+            <TagInput
+              value={taskTypes}
+              onChange={setTaskTypes}
+              suggestions={
+                typeSuggestions.length > 0 ? typeSuggestions : TASK_TYPES
+              }
+              placeholder="Reel, Google Ads, Diseño…"
+            />
           </Field>
 
           {crew && crew.length > 0 && (

@@ -8,6 +8,7 @@ type Body = {
   due_date?: string;
   due_time?: string | null;
   task_type?: string;
+  task_types?: string[];
   priority?: "HIGH" | "MEDIUM" | "LOW";
   notion_url?: string | null;
   context?: string | null;
@@ -97,8 +98,21 @@ export async function PATCH(
         ? body.user_note.trim()
         : null;
   }
-  if (typeof body.task_type === "string" && body.task_type.trim()) {
+  if (Array.isArray(body.task_types)) {
+    const cleaned = Array.from(
+      new Set(
+        body.task_types
+          .map((t) => (typeof t === "string" ? t.trim() : ""))
+          .filter((t) => t.length > 0 && t.length <= 40)
+      )
+    );
+    if (cleaned.length > 0) {
+      updates.task_types = cleaned;
+      updates.task_type = cleaned[0]; // mantener compat
+    }
+  } else if (typeof body.task_type === "string" && body.task_type.trim()) {
     updates.task_type = body.task_type.trim();
+    updates.task_types = [body.task_type.trim()];
   }
   if (body.priority && ["HIGH", "MEDIUM", "LOW"].includes(body.priority)) {
     updates.priority = body.priority;

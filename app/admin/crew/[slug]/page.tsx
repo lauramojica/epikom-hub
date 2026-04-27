@@ -81,7 +81,7 @@ export default async function AdminCrewDetail({
       const { data } = await admin
         .from("tasks")
         .select(
-          "id, title, description, due_date, due_time, task_type, priority, status, notion_url, context, completed_at, user_note, assigned_to, task_clients(client_name), task_assignees(user_id, is_primary, users(id, name, slug))"
+          "id, title, description, due_date, due_time, task_type, task_types, priority, status, notion_url, context, completed_at, user_note, assigned_to, task_clients(client_name), task_assignees(user_id, is_primary, users(id, name, slug))"
         )
         .in("id", memberTaskIds)
         .eq("week_id", currentWeek.id)

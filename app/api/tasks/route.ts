@@ -10,6 +10,7 @@ type Body = {
   due_date?: string; // YYYY-MM-DD
   due_time?: string | null; // HH:MM or HH:MM:SS
   task_type?: string;
+  task_types?: string[]; // multi-tipo / tags free-form
   priority?: "HIGH" | "MEDIUM" | "LOW";
   notion_url?: string | null;
   context?: string | null;
@@ -49,7 +50,17 @@ export async function POST(request: NextRequest) {
     assigneeIds.push(assigned_to);
   }
   const due_date = (body.due_date ?? "").trim();
-  const task_type = (body.task_type ?? "").trim() || "General";
+  // Multi-tipo / tags free-form
+  const taskTypes = Array.from(
+    new Set(
+      (Array.isArray(body.task_types) ? body.task_types : [])
+        .map((t) => (typeof t === "string" ? t.trim() : ""))
+        .filter((t) => t.length > 0 && t.length <= 40)
+    )
+  );
+  const task_type =
+    taskTypes[0] ?? ((body.task_type ?? "").trim() || "General");
+  if (taskTypes.length === 0) taskTypes.push(task_type);
   const priority = body.priority ?? "MEDIUM";
   const week_id = (body.week_id ?? "").trim();
 
@@ -93,6 +104,7 @@ export async function POST(request: NextRequest) {
       due_date,
       due_time,
       task_type,
+      task_types: taskTypes,
       priority,
       status: "pendiente",
       notion_url: body.notion_url?.trim() || null,
