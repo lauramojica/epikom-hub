@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendSms, smsTrim } from "@/lib/sms";
 
 type Body = {
   title?: string;
@@ -198,7 +199,7 @@ export async function PATCH(
     if (toNotify.length > 0) {
       const { data: taskInfo } = await admin
         .from("tasks")
-        .select("title")
+        .select("title, due_date, due_time")
         .eq("id", params.id)
         .maybeSingle();
       const { data: actor } = await admin
@@ -214,6 +215,29 @@ export async function PATCH(
           title: `${actorName} te asignó: ${taskInfo?.title ?? "una tarea"}`,
           link: "/semana",
         }))
+      );
+
+      const { data: phoneRows } = await admin
+        .from("users")
+        .select("id, phone, sms_on_assign")
+        .in("id", toNotify);
+      const dueDateStr = (taskInfo?.due_date ?? "")
+        .split("-")
+        .slice(1)
+        .reverse()
+        .join("/");
+      const dueTimeStr = taskInfo?.due_time
+        ? ` ${taskInfo.due_time.slice(0, 5)}`
+        : "";
+      const smsBody = smsTrim(
+        `Epikom Hub · ${actorName} te asignó "${
+          taskInfo?.title ?? "una tarea"
+        }" para ${dueDateStr}${dueTimeStr}.`
+      );
+      await Promise.all(
+        (phoneRows ?? [])
+          .filter((u) => u.sms_on_assign && u.phone)
+          .map((u) => sendSms(u.phone, smsBody))
       );
     }
   }

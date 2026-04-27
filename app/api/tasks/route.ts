@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendSms, smsTrim } from "@/lib/sms";
 
 type Body = {
   title?: string;
@@ -153,6 +154,7 @@ export async function POST(request: NextRequest) {
       .eq("id", user.id)
       .maybeSingle();
     const creatorName = creator?.name?.split(" ")[0] ?? "Alguien";
+
     await admin.from("notifications").insert(
       toNotify.map((uid) => ({
         user_id: uid,
@@ -161,6 +163,23 @@ export async function POST(request: NextRequest) {
         body: clients.length > 0 ? clients.join(" · ") : null,
         link: "/semana",
       }))
+    );
+
+    // SMS (best-effort, no rompe la respuesta si Twilio falla)
+    const { data: phoneRows } = await admin
+      .from("users")
+      .select("id, phone, sms_on_assign")
+      .in("id", toNotify);
+    const dueDateStr = due_date.split("-").slice(1).reverse().join("/"); // DD/MM
+    const dueTimeStr = due_time ? ` ${due_time.slice(0, 5)}` : "";
+    const clientsStr = clients.length > 0 ? ` (${clients.join(", ")})` : "";
+    const smsBody = smsTrim(
+      `Epikom Hub · ${creatorName} te asignó "${title}"${clientsStr} para ${dueDateStr}${dueTimeStr}.`
+    );
+    await Promise.all(
+      (phoneRows ?? [])
+        .filter((u) => u.sms_on_assign && u.phone)
+        .map((u) => sendSms(u.phone, smsBody))
     );
   }
 
