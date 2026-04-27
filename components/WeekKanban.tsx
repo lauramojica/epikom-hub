@@ -20,6 +20,8 @@ import { LangBadge } from "./LangBadge";
 import { EditTaskModal } from "./EditTaskModal";
 import { TaskDrawer } from "./TaskDrawer";
 
+type CrewMember = { id: string; name: string; slug: string };
+
 type Props = {
   tasks: TaskRow[];
   priorPending?: TaskRow[];
@@ -29,6 +31,7 @@ type Props = {
   today: string;
   rotationBlock?: string | null;
   rotationLabel?: string;
+  crew?: CrewMember[]; // admin only — enables reassignment dropdown
 };
 
 const DAY_LABELS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
@@ -42,6 +45,7 @@ export function WeekKanban({
   today,
   rotationBlock,
   rotationLabel,
+  crew,
 }: Props) {
   const router = useRouter();
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -427,6 +431,7 @@ export function WeekKanban({
           weekEnd={weekEnd}
           open={true}
           onClose={() => setEditing(null)}
+          crew={crew}
         />
       )}
 

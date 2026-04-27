@@ -14,6 +14,7 @@ export type TaskRow = {
   context: string | null;
   completed_at: string | null;
   user_note: string | null;
+  assigned_to?: string;
   task_clients: { client_name: string }[];
 };
 

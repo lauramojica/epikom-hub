@@ -5,12 +5,15 @@ import { useRouter } from "next/navigation";
 import { X, Trash2 } from "lucide-react";
 import type { TaskRow } from "@/lib/tasks";
 
+type CrewMember = { id: string; name: string; slug: string };
+
 type Props = {
   task: TaskRow;
   weekStart: string;
   weekEnd: string;
   open: boolean;
   onClose: () => void;
+  crew?: CrewMember[]; // admin only — enables reassignment
 };
 
 const TASK_TYPES = [
@@ -24,7 +27,7 @@ const TASK_TYPES = [
   "Reporte",
 ];
 
-export function EditTaskModal({ task, weekStart, weekEnd, open, onClose }: Props) {
+export function EditTaskModal({ task, weekStart, weekEnd, open, onClose, crew }: Props) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -41,6 +44,7 @@ export function EditTaskModal({ task, weekStart, weekEnd, open, onClose }: Props
   );
   const [notionUrl, setNotionUrl] = useState(task.notion_url ?? "");
   const [context, setContext] = useState(task.context ?? "");
+  const [assignedTo, setAssignedTo] = useState(task.assigned_to ?? "");
 
   useEffect(() => {
     if (!open) return;
@@ -54,6 +58,7 @@ export function EditTaskModal({ task, weekStart, weekEnd, open, onClose }: Props
     setClientsInput(task.task_clients.map((c) => c.client_name).join(", "));
     setNotionUrl(task.notion_url ?? "");
     setContext(task.context ?? "");
+    setAssignedTo(task.assigned_to ?? "");
     setError(null);
 
     function onKey(e: KeyboardEvent) {
@@ -80,6 +85,9 @@ export function EditTaskModal({ task, weekStart, weekEnd, open, onClose }: Props
           priority,
           notion_url: notionUrl,
           context: context || null,
+          ...(crew && assignedTo && assignedTo !== task.assigned_to
+            ? { assigned_to: assignedTo }
+            : {}),
           clients: clientsInput
             .split(",")
             .map((c) => c.trim())
@@ -220,6 +228,23 @@ export function EditTaskModal({ task, weekStart, weekEnd, open, onClose }: Props
               ))}
             </select>
           </Field>
+
+          {crew && crew.length > 0 && (
+            <Field label="Asignar a">
+              <select
+                value={assignedTo}
+                onChange={(e) => setAssignedTo(e.target.value)}
+                style={inputStyle}
+              >
+                {!task.assigned_to && <option value="">—</option>}
+                {crew.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
 
           <Field label="Clientes (separa con comas)">
             <input
