@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { pushToUsers } from "@/lib/push";
 
 type Body = {
   title?: string;
@@ -215,6 +216,13 @@ export async function PATCH(
           link: "/semana",
         }))
       );
+
+      await pushToUsers(toNotify, {
+        title: `${actorName} te asignó una tarea`,
+        body: taskInfo?.title ?? "Abre el hub para ver detalles.",
+        url: "/semana",
+        tag: `assign-${params.id}`,
+      });
     }
   }
 

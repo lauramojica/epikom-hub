@@ -347,6 +347,7 @@ export default async function SemanaPage({
               rotationBlock={rotationBlock}
               rotationLabel={rangeLabel}
               crew={isAdmin ? crewList : undefined}
+              isAdmin={isAdmin}
             />
           )}
         </div>

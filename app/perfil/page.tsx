@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { ProfileForm } from "@/components/ProfileForm";
+import { EnablePushButton } from "@/components/EnablePushButton";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,27 @@ export default async function PerfilPage() {
             <p className="mt-2 text-sm" style={{ color: "var(--text-3)" }}>
               {profile.email} · {profile.role}
             </p>
+          </div>
+
+          <div
+            className="mb-6 rounded-lg p-4"
+            style={{
+              background: "var(--bg)",
+              border: "1px solid var(--border)",
+            }}
+          >
+            <div
+              className="mb-1 text-[11px] font-medium uppercase"
+              style={{ letterSpacing: "0.08em", color: "var(--text-3)" }}
+            >
+              Notificaciones del navegador
+            </div>
+            <p className="mb-3 text-xs" style={{ color: "var(--text-3)" }}>
+              Te avisa cuando te asignan una tarea o cuando alguien te recuerda
+              algo. Funciona aunque tengas el hub cerrado, mientras el navegador
+              esté abierto.
+            </p>
+            <EnablePushButton />
           </div>
 
           <ProfileForm

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { pushToUsers } from "@/lib/push";
 
 type Body = {
   title?: string;
@@ -163,6 +164,14 @@ export async function POST(request: NextRequest) {
         link: "/semana",
       }))
     );
+
+    // Web Push (best-effort)
+    await pushToUsers(toNotify, {
+      title: `${creatorName} te asignó una tarea`,
+      body: clients.length > 0 ? `${title} · ${clients.join(" · ")}` : title,
+      url: "/semana",
+      tag: `assign-${inserted.id}`,
+    });
   }
 
   return NextResponse.json({ ok: true, id: inserted.id });

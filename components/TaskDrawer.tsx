@@ -13,13 +13,16 @@ type Props = {
   task: TaskRow | null;
   onClose: () => void;
   onEdit?: (t: TaskRow) => void;
+  isAdmin?: boolean;
 };
 
-export function TaskDrawer({ task, onClose, onEdit }: Props) {
+export function TaskDrawer({ task, onClose, onEdit, isAdmin }: Props) {
   const router = useRouter();
   const [note, setNote] = useState("");
   const [savingNote, startSavingNote] = useTransition();
   const [togglePending, startToggle] = useTransition();
+  const [pinging, setPinging] = useState(false);
+  const [pingMsg, setPingMsg] = useState<string | null>(null);
 
   useEffect(() => {
     setNote(task?.user_note ?? "");
@@ -254,6 +257,59 @@ export function TaskDrawer({ task, onClose, onEdit }: Props) {
             </button>
           )}
         </div>
+
+        {isAdmin && (
+          <div className="mt-3">
+            <button
+              type="button"
+              disabled={pinging}
+              onClick={async () => {
+                setPinging(true);
+                setPingMsg(null);
+                try {
+                  const res = await fetch("/api/push/notify", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      task_id: task!.id,
+                      title: "Recordatorio",
+                      body: `Revisa: ${task!.title}`,
+                      url: "/semana",
+                    }),
+                  });
+                  const data = await res.json().catch(() => ({}));
+                  if (!res.ok) {
+                    setPingMsg(`Error: ${data.error ?? res.status}`);
+                  } else if ((data.sent ?? 0) === 0) {
+                    setPingMsg("Notif enviada in-app (no hay push activo).");
+                  } else {
+                    setPingMsg(`Push enviado a ${data.sent} dispositivo(s).`);
+                  }
+                } catch {
+                  setPingMsg("Error de red.");
+                } finally {
+                  setPinging(false);
+                }
+              }}
+              className="w-full rounded-md px-4 py-2 text-sm"
+              style={{
+                border: "1px solid var(--border)",
+                background: "var(--bg-2)",
+                color: "var(--text-2)",
+              }}
+            >
+              {pinging ? "Enviando…" : "Recordar a asignados"}
+            </button>
+            {pingMsg && (
+              <div
+                className="mt-2 text-[11px]"
+                style={{ color: "var(--text-3)" }}
+              >
+                {pingMsg}
+              </div>
+            )}
+          </div>
+        )}
       </aside>
     </div>
   );

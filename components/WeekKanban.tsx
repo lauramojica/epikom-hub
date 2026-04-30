@@ -32,6 +32,7 @@ type Props = {
   rotationBlock?: string | null;
   rotationLabel?: string;
   crew?: CrewMember[]; // admin only — enables reassignment dropdown
+  isAdmin?: boolean; // habilita botón "Recordar a asignados" en TaskDrawer
 };
 
 const DAY_LABELS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
@@ -46,6 +47,7 @@ export function WeekKanban({
   rotationBlock,
   rotationLabel,
   crew,
+  isAdmin,
 }: Props) {
   const router = useRouter();
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -459,6 +461,7 @@ export function WeekKanban({
           setDrawer(null);
           setEditing(t);
         }}
+        isAdmin={isAdmin}
       />
     </>
   );
