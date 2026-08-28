@@ -9,7 +9,7 @@ export interface Profile {
   email: string
   name: string
   avatar_url: string | null
-  role: 'admin' | 'client'
+  role: 'superadmin' | 'admin' | 'crew' | 'client' | 'cliente'
   company_name: string | null
   language: 'es' | 'en'
   notification_preferences: Record<string, boolean>
@@ -78,7 +78,7 @@ export function useAuth() {
               user: session.user,
               profile,
               isLoading: false,
-              isAdmin: profile?.role === 'admin',
+              isAdmin: profile?.role === 'admin' || profile?.role === 'superadmin',
             })
           }
         } else {
@@ -110,10 +110,13 @@ export function useAuth() {
     initializeAuth()
 
     // Listen for auth changes
+    // IMPORTANTE: no usar await directamente dentro del callback de
+    // onAuthStateChange (deadlock conocido de supabase-js). Se difiere
+    // el trabajo async con setTimeout(0).
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         console.log('Auth state changed:', event)
-        
+
         if (!isMounted) return
 
         if (event === 'SIGNED_OUT') {
@@ -121,21 +124,22 @@ export function useAuth() {
           return
         }
 
-        if (session?.user) {
-          const profile = await fetchProfile(session.user.id)
-          if (isMounted) {
-            setState({
-              user: session.user,
-              profile,
-              isLoading: false,
-              isAdmin: profile?.role === 'admin',
-            })
-          }
-        } else {
-          if (isMounted) {
+        setTimeout(async () => {
+          if (!isMounted) return
+          if (session?.user) {
+            const profile = await fetchProfile(session.user.id)
+            if (isMounted) {
+              setState({
+                user: session.user,
+                profile,
+                isLoading: false,
+                isAdmin: profile?.role === 'admin' || profile?.role === 'superadmin',
+              })
+            }
+          } else {
             setState({ user: null, profile: null, isLoading: false, isAdmin: false })
           }
-        }
+        }, 0)
       }
     )
 
@@ -158,7 +162,7 @@ export function useAuth() {
     return { data, error }
   }
 
-  const signUp = async (email: string, password: string, fullName: string, role: 'admin' | 'client' = 'client') => {
+  const signUp = async (email: string, password: string, fullName: string, role: string = 'crew') => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -194,7 +198,7 @@ export function useAuth() {
       setState(prev => ({
         ...prev,
         profile: data,
-        isAdmin: data.role === 'admin',
+        isAdmin: data.role === 'admin' || data.role === 'superadmin',
       }))
     }
 

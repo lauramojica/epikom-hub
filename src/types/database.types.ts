@@ -15,7 +15,7 @@ export interface Database {
           email: string
           name: string
           avatar_url: string | null
-          role: 'admin' | 'client'
+          role: 'superadmin' | 'admin' | 'crew' | 'client' | 'cliente'
           company_name: string | null
           language: 'es' | 'en'
           notification_preferences: Json
@@ -27,7 +27,7 @@ export interface Database {
           email: string
           name: string
           avatar_url?: string | null
-          role?: 'admin' | 'client'
+          role?: 'superadmin' | 'admin' | 'crew' | 'client' | 'cliente'
           company_name?: string | null
           language?: 'es' | 'en'
           notification_preferences?: Json
@@ -39,7 +39,7 @@ export interface Database {
           email?: string
           name?: string
           avatar_url?: string | null
-          role?: 'admin' | 'client'
+          role?: 'superadmin' | 'admin' | 'crew' | 'client' | 'cliente'
           company_name?: string | null
           language?: 'es' | 'en'
           notification_preferences?: Json

@@ -18,7 +18,7 @@ export default async function DashboardPage() {
     .eq('id', user.id)
     .single()
 
-  const isAdmin = profile?.role === 'admin'
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'superadmin'
 
   // Fetch projects based on role
   let projectsQuery = supabase

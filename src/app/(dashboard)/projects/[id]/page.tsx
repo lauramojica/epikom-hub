@@ -61,7 +61,7 @@ export default async function ProjectDetailPage({ params }: Props) {
     .eq('id', user.id)
     .single()
 
-  const isAdmin = profile?.role === 'admin'
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'superadmin'
 
   return (
     <ProjectDetailClient
