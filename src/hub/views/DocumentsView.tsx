@@ -93,7 +93,7 @@ export default function DocumentsView({ documents, clients, projects, onAdd, onD
       <div className="flex items-end justify-between">
         <div>
           <p className="font-mono text-muted text-xs tracking-widest uppercase mb-1">Biblioteca de archivos</p>
-          <h1 className="font-display text-5xl font-700 tracking-tight text-ink uppercase">Documentos</h1>
+          <h1 className="font-display text-3xl md:text-5xl font-700 tracking-tight text-ink uppercase">Documentos</h1>
         </div>
         <button onClick={() => { setPendingFiles([]); setShowForm(true); }} className="text-xs font-mono px-4 py-2 rounded-lg bg-accent text-bg font-700 hover:opacity-90 transition-all">
           + Subir documentos

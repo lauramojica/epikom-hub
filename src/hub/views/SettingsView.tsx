@@ -142,7 +142,7 @@ export default function SettingsView({ isDark = true, onToggleTheme, agencyData,
     <div className="p-4 md:p-8 space-y-8 max-w-3xl">
       <div>
         <p className="font-mono text-muted text-xs tracking-widest uppercase mb-1">Preferencias del sistema</p>
-        <h1 className="font-display text-5xl font-700 tracking-tight text-ink uppercase">Configuración</h1>
+        <h1 className="font-display text-3xl md:text-5xl font-700 tracking-tight text-ink uppercase">Configuración</h1>
       </div>
 
       {/* Appearance */}

@@ -476,7 +476,7 @@ export default function ProjectsView({ projects, clients, users, onUpdateDeliver
       <div className="flex items-end justify-between">
         <div>
           <p className="font-mono text-muted text-xs tracking-widest uppercase mb-1">Gestión de Proyectos</p>
-          <h1 className="font-display text-5xl font-700 tracking-tight text-ink uppercase">Proyectos</h1>
+          <h1 className="font-display text-3xl md:text-5xl font-700 tracking-tight text-ink uppercase">Proyectos</h1>
         </div>
         <div className="flex items-center gap-3">
           {/* View mode tabs */}

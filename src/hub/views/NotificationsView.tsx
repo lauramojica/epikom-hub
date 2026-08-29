@@ -87,7 +87,7 @@ export default function NotificationsView({ notifications, clients, onMarkRead, 
       <div className="flex items-end justify-between">
         <div>
           <p className="font-mono text-muted text-xs tracking-widest uppercase mb-1">Bandeja de entrada</p>
-          <h1 className="font-display text-5xl font-700 tracking-tight text-ink uppercase">Notificaciones</h1>
+          <h1 className="font-display text-3xl md:text-5xl font-700 tracking-tight text-ink uppercase">Notificaciones</h1>
         </div>
         {unread.length > 0 && (
           <button onClick={onMarkAllRead} className="text-xs font-mono px-4 py-2 rounded-lg border border-line text-muted hover:text-ink hover:border-muted transition-all">

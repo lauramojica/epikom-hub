@@ -49,6 +49,9 @@ body {
 
 /* ── Dark mode (default) ── */
 :root {
+  --stat-lime:    #dbfa45;
+  --stat-violet:  #e040fb;
+  --stat-teal:    #31b498;
   --app-bg:       #0a0a0d;
   --app-surface:  #121216;
   --app-surface2: #1a1a20;
@@ -66,6 +69,9 @@ body {
 /* ── Light mode ── */
 :root.light {
   --app-bg:       #f4f5f7;
+  --stat-lime:    #5c8a00;
+  --stat-violet:  #9333ea;
+  --stat-teal:    #0f766e;
   --app-surface:  #ffffff;
   --app-surface2: #eceef1;
   --app-line:     #dde0e5;
@@ -221,3 +227,19 @@ button:active:not(:disabled) {
   to   { opacity: 1; transform: translateY(0); }
 }
 .animate-view-in { animation: view-in-v2 0.32s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* ── Fixes de contraste y capas ── */
+:root.light .text-accent { color: var(--stat-lime); }
+
+/* Dropdowns y popovers: fondo sólido, siempre encima */
+.dropdown-solid {
+  background: var(--app-surface);
+  z-index: 60;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.28);
+}
+:root.light .dropdown-solid {
+  box-shadow: 0 12px 32px rgba(0,0,0,0.12);
+}
+
+/* Números tabulares en toda la app (mono se alinea) */
+.font-mono { font-variant-numeric: tabular-nums; }

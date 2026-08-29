@@ -109,7 +109,7 @@ export default function Analytics({ posts, projects, clients, users }: Props) {
     <div className="p-4 md:p-8 space-y-6">
       <div>
         <p className="font-mono text-muted text-xs tracking-widest uppercase mb-1">Métricas del equipo</p>
-        <h1 className="font-display text-5xl font-700 tracking-tight text-ink uppercase">Analítica</h1>
+        <h1 className="font-display text-3xl md:text-5xl font-700 tracking-tight text-ink uppercase">Analítica</h1>
       </div>
 
       {/* KPI row */}

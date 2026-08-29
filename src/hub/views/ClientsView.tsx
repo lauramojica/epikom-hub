@@ -179,7 +179,7 @@ export default function ClientsView({ clients, projects, posts, onUpdateClient, 
       <div className="flex items-end justify-between">
         <div>
           <p className="font-mono text-muted text-xs tracking-widest uppercase mb-1">CRM — Cartera</p>
-          <h1 className="font-display text-5xl font-700 tracking-tight text-ink uppercase">Clientes</h1>
+          <h1 className="font-display text-3xl md:text-5xl font-700 tracking-tight text-ink uppercase">Clientes</h1>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative">

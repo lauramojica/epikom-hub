@@ -55,7 +55,7 @@ function NotifDropdown({ notifications, onMarkRead, onMarkAllRead, onViewAll, on
   const typeIcons: Record<string, string> = { alert: "⚠", approval: "✓", mention: "@", publish: "▶", system: "⚙" };
 
   return (
-    <div className="absolute right-0 top-full mt-2 w-80 bg-surface border border-line rounded-2xl shadow-2xl z-50 overflow-hidden animate-pop-in">
+    <div className="absolute right-0 top-full mt-2 w-80 border border-line rounded-2xl overflow-hidden animate-pop-in dropdown-solid">
       <div className="flex items-center justify-between px-4 py-3 border-b border-line">
         <span className="font-mono text-[10px] uppercase tracking-widest text-muted">Notificaciones</span>
         {unread.length > 0 && (
@@ -100,7 +100,7 @@ function AvatarDropdown({ user, onProfile, onSettings, onClose, onLogout }: {
 }) {
   const statusColors: Record<string, string> = { active: "#22c55e", away: "#f59e0b", offline: "#6b6b8a" };
   return (
-    <div className="absolute right-0 top-full mt-2 w-52 bg-surface border border-line rounded-2xl shadow-2xl z-50 overflow-hidden animate-pop-in">
+    <div className="absolute right-0 top-full mt-2 w-52 border border-line rounded-2xl overflow-hidden animate-pop-in dropdown-solid">
       <div className="px-4 py-4 border-b border-line flex items-center gap-3">
         <div className="relative">
           <div className="w-9 h-9 rounded-full flex items-center justify-center font-display font-700 text-sm" style={{ background: `${user.color}25`, color: user.color }}>
@@ -110,7 +110,8 @@ function AvatarDropdown({ user, onProfile, onSettings, onClose, onLogout }: {
         </div>
         <div className="min-w-0">
           <p className="text-xs font-600 text-ink truncate">{user.name}</p>
-          <p className="text-[10px] font-mono text-muted uppercase">{user.role}</p>
+          <p className="text-[10px] font-mono text-muted truncate">{user.email}</p>
+          <p className="text-[9px] font-mono text-muted/70 uppercase mt-0.5">{user.role}</p>
         </div>
       </div>
       <div className="py-2">
@@ -448,7 +449,7 @@ function AppInner({ authUserId }: { authUserId: string }) {
 
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="flex-shrink-0 flex items-center justify-between px-4 md:px-8 py-4 border-b border-line bg-surface/60 backdrop-blur-sm">
+        <header className="flex-shrink-0 flex items-center justify-between px-4 md:px-8 py-4 border-b border-line bg-surface/90 backdrop-blur-sm relative z-50">
           <div className="flex items-center gap-3">
             <button onClick={() => setSidebarOpen(true)} className="md:hidden w-8 h-8 rounded-lg border border-line bg-surface2 flex items-center justify-center text-muted">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 3.5H12M2 7H12M2 10.5H12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
@@ -458,7 +459,7 @@ function AppInner({ authUserId }: { authUserId: string }) {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="font-mono text-[10px] text-muted">{new Intl.DateTimeFormat("es-PR", { day: "numeric", month: "short", year: "numeric", timeZone: "America/Puerto_Rico" }).format(new Date())}</span>
+            <span className="font-mono text-[10px] text-muted hidden sm:inline">{new Intl.DateTimeFormat("es-PR", { day: "numeric", month: "short", year: "numeric", timeZone: "America/Puerto_Rico" }).format(new Date())}</span>
 
             {/* Dark mode */}
             <button onClick={toggleTheme} title={lightMode ? "Modo oscuro" : "Modo claro"} className="w-8 h-8 rounded-lg border border-line bg-surface2 flex items-center justify-center text-muted hover:text-ink transition-all">

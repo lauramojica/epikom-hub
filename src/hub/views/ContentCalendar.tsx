@@ -962,12 +962,12 @@ export default function ContentCalendar({ posts, clients, users, today, onMovePo
   return (
     <div className="p-4 md:p-8 space-y-6">
       {/* Header */}
-      <div className="flex items-end justify-between">
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
           <p className="font-mono text-muted text-xs tracking-widest uppercase mb-1">Gestión de Contenido</p>
-          <h1 className="font-display text-5xl font-700 tracking-tight text-ink uppercase">Calendario</h1>
+          <h1 className="font-display text-3xl md:text-5xl font-700 tracking-tight text-ink uppercase">Calendario</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button onClick={downloadTemplate} className="text-xs font-mono px-3 py-2 rounded-lg border border-line text-muted hover:text-ink transition-all">
             ↓ Plantilla
           </button>
@@ -994,17 +994,17 @@ export default function ContentCalendar({ posts, clients, users, today, onMovePo
             ))}
           </div>
           {/* Client filter */}
-          <select value={filterClient} onChange={(e) => setFilterClient(e.target.value)} className="bg-surface2 border border-line rounded-lg px-3 py-2 text-xs text-ink outline-none cursor-pointer font-mono">
+          <select value={filterClient} onChange={(e) => setFilterClient(e.target.value)} className="bg-surface2 border border-line rounded-lg px-3 py-2 text-xs text-ink outline-none cursor-pointer font-mono flex-1 min-w-[140px] md:flex-none">
             <option value="">Todos los clientes</option>
             {clients.map((c) => <option key={c.id} value={c.id} className="bg-surface">{c.company}</option>)}
           </select>
           {/* Channel filter */}
-          <select value={filterChannel} onChange={(e) => setFilterChannel(e.target.value)} className="bg-surface2 border border-line rounded-lg px-3 py-2 text-xs text-ink outline-none cursor-pointer font-mono">
+          <select value={filterChannel} onChange={(e) => setFilterChannel(e.target.value)} className="bg-surface2 border border-line rounded-lg px-3 py-2 text-xs text-ink outline-none cursor-pointer font-mono flex-1 min-w-[140px] md:flex-none">
             <option value="">Todos los canales</option>
             {CHANNELS.map((ch) => <option key={ch} value={ch} className="bg-surface">{ch}</option>)}
           </select>
           {/* Status filter */}
-          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="bg-surface2 border border-line rounded-lg px-3 py-2 text-xs text-ink outline-none cursor-pointer font-mono">
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="bg-surface2 border border-line rounded-lg px-3 py-2 text-xs text-ink outline-none cursor-pointer font-mono flex-1 min-w-[140px] md:flex-none">
             <option value="">Todos los estados</option>
             {STATUSES.map((s) => <option key={s.key} value={s.key} className="bg-surface">{s.label}</option>)}
           </select>

@@ -163,16 +163,16 @@ export default function MyWeek({ posts, projects, clients, users, activeUser, to
     <>
       <div className="p-4 md:p-8 space-y-7">
         {/* Header */}
-        <div className="flex items-end justify-between">
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
           <div>
             <p className="font-mono text-muted text-xs tracking-widest uppercase mb-1">
               {isAdmin && viewingUser.id !== activeUser.id
                 ? `Viendo semana de ${viewingUser.name.split(" ")[0]} 👀`
                 : `Hola, ${viewingUser.name.split(" ")[0]} 👋`}
             </p>
-            <h1 className="font-display text-5xl font-700 tracking-tight text-ink uppercase">Mi Semana</h1>
+            <h1 className="font-display text-3xl md:text-5xl font-700 tracking-tight text-ink uppercase">Mi Semana</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {/* Admin crew switcher */}
             {isAdmin && (
               <div className="flex items-center gap-1 bg-surface border border-line rounded-xl p-1">
@@ -265,21 +265,22 @@ export default function MyWeek({ posts, projects, clients, users, activeUser, to
         {/* Quick stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: "Esta semana", value: Object.values(postsByDay).flat().length, color: "#31b498" },
-            { label: "Vencidos", value: overdue.length, color: overdue.length > 0 ? "#ef4444" : "#6b6b8a" },
-            { label: "Publicados hoy", value: myPosts.filter((p) => p.publishedDate === today).length, color: "#dbfa45" },
-            { label: "Proyectos activos", value: myProjects.filter((p) => p.status === "active").length, color: "#e040fb" },
+            { label: "Esta semana", value: Object.values(postsByDay).flat().length, color: "var(--stat-teal)" },
+            { label: "Vencidos", value: overdue.length, color: overdue.length > 0 ? "#ef4444" : "var(--app-muted)" },
+            { label: "Publicados hoy", value: myPosts.filter((p) => p.publishedDate === today).length, color: "var(--stat-lime)" },
+            { label: "Proyectos activos", value: myProjects.filter((p) => p.status === "active").length, color: "var(--stat-violet)" },
           ].map((s) => (
             <div key={s.label} className="bg-surface border border-line rounded-xl p-4 hover:border-muted/40 transition-all">
               <p className="font-mono text-[10px] text-muted uppercase tracking-widest mb-2">{s.label}</p>
-              <p className="font-mono text-4xl font-700 transition-all" style={{ color: s.color }}>{s.value}</p>
+              <p className="font-mono text-4xl font-700" style={{ color: s.color }}><AnimatedNumber value={s.value} /></p>
             </div>
           ))}
         </div>
 
         {/* Weekly grid */}
         <div className="bg-surface border border-line rounded-xl overflow-hidden">
-          <div className="grid grid-cols-7 border-b border-line">
+          <div className="overflow-x-auto">
+          <div className="grid grid-cols-7 border-b border-line min-w-[640px]">
             {weekDates.map((date, i) => {
               const { day, month } = formatDay(date);
               const isToday = date === today;
@@ -297,7 +298,7 @@ export default function MyWeek({ posts, projects, clients, users, activeUser, to
               );
             })}
           </div>
-          <div className="grid grid-cols-7 min-h-[200px]">
+          <div className="grid grid-cols-7 min-h-[200px] min-w-[640px]">
             {weekDates.map((date, i) => {
               const dayPosts = postsByDay[date] || [];
               const isToday = date === today;
@@ -340,6 +341,7 @@ export default function MyWeek({ posts, projects, clients, users, activeUser, to
                 </div>
               );
             })}
+          </div>
           </div>
         </div>
 

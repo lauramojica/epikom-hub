@@ -53,6 +53,17 @@ export function colorForId(id: string): string {
   return USER_PALETTE[h % USER_PALETTE.length]
 }
 
+/** Si el "nombre" es un email, deriva un nombre legible: laura@epikom.com → Laura */
+export function displayName(raw: string | null | undefined, email?: string): string {
+  const v = (raw ?? '').trim()
+  const source = v && !v.includes('@') ? v : (v || email || '')
+  if (source.includes('@')) {
+    const local = source.split('@')[0]
+    return local.split(/[._-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+  }
+  return source
+}
+
 export function initialsOf(name: string): string {
   return name.split(/\s+/).map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?'
 }
@@ -149,13 +160,14 @@ export function userFromDb(row: any, assignedClientIds: string[] = []): User {
   const roleMap: Record<string, User['role']> = {
     superadmin: 'superadmin', admin: 'admin', crew: 'crew', cliente: 'client', client: 'client',
   }
+  const nice = displayName(row.name, row.email)
   return {
     id: row.id,
-    name: row.name ?? row.email,
+    name: nice,
     email: row.email,
     phone: row.phone ?? '',
     role: roleMap[row.role] ?? 'crew',
-    initials: initialsOf(row.name ?? row.email),
+    initials: initialsOf(nice),
     color: colorForId(row.id),
     assignedClientIds,
     alertThresholdDays: 3,
