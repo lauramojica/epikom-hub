@@ -114,6 +114,7 @@ export function clientFromDb(row: any): Client {
   return {
     id: row.id,
     name: row.nombre,
+    slug: row.slug,
     company: row.nombre,
     industry: '',
     email: (row.contactos?.[0]?.email) ?? '',

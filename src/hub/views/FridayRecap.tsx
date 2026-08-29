@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ContentPost, Project, User } from "../types";
+import AnimatedNumber from "../components/AnimatedNumber";
 
 interface Props {
   posts: ContentPost[];
@@ -50,7 +51,9 @@ export default function FridayRecap({ posts, projects, users, activeUser, onClos
     <div key="intro" className="flex flex-col items-center justify-center h-full text-center px-10 gap-6">
       <div className="text-6xl animate-bounce-slow">🚀</div>
       <div>
-        <p className="font-mono text-[10px] text-primary uppercase tracking-widest mb-3">Semana del 24–28 ago 2026</p>
+        <p className="font-mono text-[10px] text-primary uppercase tracking-widest mb-3">
+          Semana del {new Intl.DateTimeFormat("es-PR", { day: "numeric", month: "short", timeZone: "America/Puerto_Rico" }).format(new Date(Date.now() - 4 * 864e5))} al {new Intl.DateTimeFormat("es-PR", { day: "numeric", month: "short", year: "numeric", timeZone: "America/Puerto_Rico" }).format(new Date())}
+        </p>
         <h1 className="font-display text-6xl font-800 uppercase text-ink leading-none mb-3">
           Tu Semana<br />En Review
         </h1>
@@ -62,7 +65,7 @@ export default function FridayRecap({ posts, projects, users, activeUser, onClos
     <div key="posts" className="flex flex-col items-center justify-center h-full text-center px-10 gap-4">
       <p className="font-mono text-[10px] text-muted uppercase tracking-widest">Posts que salieron al mundo 🌍</p>
       <div className="font-display font-800 uppercase leading-none" style={{ fontSize: "clamp(80px, 22vw, 110px)", color: "#dbfa45" }}>
-        {publishedThisWeek.length}
+        <AnimatedNumber value={publishedThisWeek.length} />
       </div>
       <div className="space-y-1">
         <p className="text-ink text-lg font-500">posts publicados esta semana</p>
@@ -81,7 +84,7 @@ export default function FridayRecap({ posts, projects, users, activeUser, onClos
     <div key="tasks" className="flex flex-col items-center justify-center h-full text-center px-10 gap-4">
       <p className="font-mono text-[10px] text-muted uppercase tracking-widest">Entregables aprobados ✅</p>
       <div className="font-display font-800 uppercase leading-none" style={{ fontSize: "clamp(80px, 22vw, 110px)", color: "#31b498" }}>
-        {approvedDelivs.length}
+        <AnimatedNumber value={approvedDelivs.length} />
       </div>
       <div className="space-y-1">
         <p className="text-ink text-lg font-500">entregables cerrados con fuego</p>

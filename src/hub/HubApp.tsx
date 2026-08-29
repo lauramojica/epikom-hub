@@ -8,6 +8,7 @@ import type { ContentPost, Project, Client, User, Notification, View, Deliverabl
 import { useHubData } from "./useHubData";
 import { todayPR, computeStreak } from "./adapters";
 import { UploadContext } from "./UploadContext";
+import { AnimatePresence, motion } from "motion/react";
 import MyWeek from "./views/MyWeek";
 import ContentCalendar from "./views/ContentCalendar";
 import ProjectsView from "./views/ProjectsView";
@@ -128,6 +129,30 @@ function AvatarDropdown({ user, onProfile, onSettings, onClose, onLogout }: {
           <span className="text-base w-5 text-center">🚪</span>
           <span className="font-500">Cerrar sesión</span>
         </button>
+      </div>
+    </div>
+  );
+}
+
+function HubLoader() {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setElapsed((e) => e + 0.1), 100);
+    return () => clearInterval(t);
+  }, []);
+  const frases = ["Cargando tu hub…", "Despertando al crew…", "Puliendo la obsidiana…", "Casi casi…"];
+  const frase = frases[Math.min(Math.floor(elapsed / 2.5), frases.length - 1)];
+  return (
+    <div className="h-full flex items-center justify-center bg-bg text-ink">
+      <div className="text-center">
+        <div className="w-10 h-10 rounded-xl bg-accent mx-auto mb-4 animate-pulse flex items-center justify-center">
+          <svg width="18" height="18" viewBox="0 0 14 14" fill="none">
+            <path d="M2 9L5 5L7.5 7.5L10 4L13 6.5" stroke="#0a0a0d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <circle cx="12" cy="11" r="2.5" fill="#0a0a0d"/>
+          </svg>
+        </div>
+        <p className="font-mono text-xs text-muted uppercase tracking-widest">{frase}</p>
+        <p className="font-mono text-[10px] text-muted/50 mt-1.5 tabular-nums">{elapsed.toFixed(1)}s</p>
       </div>
     </div>
   );
@@ -310,19 +335,7 @@ function AppInner({ authUserId }: { authUserId: string }) {
   };
 
   if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center bg-bg text-ink">
-        <div className="text-center">
-          <div className="w-10 h-10 rounded-xl bg-accent mx-auto mb-4 animate-pulse flex items-center justify-center">
-            <svg width="18" height="18" viewBox="0 0 14 14" fill="none">
-              <path d="M2 9L5 5L7.5 7.5L10 4L13 6.5" stroke="#0a0a0d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <circle cx="12" cy="11" r="2.5" fill="#0a0a0d"/>
-            </svg>
-          </div>
-          <p className="font-mono text-xs text-muted uppercase tracking-widest">Cargando tu hub…</p>
-        </div>
-      </div>
-    );
+    return <HubLoader />;
   }
 
   if (error) {
@@ -381,10 +394,17 @@ function AppInner({ authUserId }: { authUserId: string }) {
                 key={item.key}
                 onClick={() => { setView(item.key); if (window.innerWidth < 768) setSidebarOpen(false); }}
                 title={!sidebarOpen ? item.label : undefined}
-                className={`w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg transition-all relative ${isActive ? "bg-accent/10 text-accent" : "text-muted hover:text-ink hover:bg-surface2"}`}
+                className={`w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg transition-colors relative ${isActive ? "text-accent" : "text-muted hover:text-ink hover:bg-surface2"}`}
               >
-                <span className="flex-shrink-0">{item.icon}</span>
-                {sidebarOpen && <span className="text-sm font-500 truncate">{item.label}</span>}
+                {isActive && (
+                  <motion.span
+                    layoutId="nav-active-pill"
+                    className="absolute inset-0 rounded-lg bg-accent/10"
+                    transition={{ type: "spring", stiffness: 480, damping: 38 }}
+                  />
+                )}
+                <span className="flex-shrink-0 relative z-10">{item.icon}</span>
+                {sidebarOpen && <span className="text-sm font-500 truncate relative z-10">{item.label}</span>}
                 {item.key === "notifications" && unreadCount > 0 && (
                   <span className={`flex-shrink-0 text-[10px] font-mono font-700 bg-danger text-ink px-1.5 py-0.5 rounded-full leading-none ${sidebarOpen ? "ml-auto" : "absolute top-1 right-1"}`}>
                     {unreadCount}
@@ -489,7 +509,15 @@ function AppInner({ authUserId }: { authUserId: string }) {
           </div>
         </header>
 
-        <main key={view} className="flex-1 overflow-y-auto animate-view-in">
+        <AnimatePresence mode="wait">
+        <motion.main
+          key={view}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+          className="flex-1 overflow-y-auto"
+        >
           {view === "myweek" && <MyWeek posts={posts} projects={projects} clients={clients} users={users} activeUser={activeUser} today={todayPR()} onMovePost={movePost} onSwitchUser={(u) => setViewAsId(u.id)} />}
           {view === "calendar" && <ContentCalendar posts={posts} clients={clients} users={users} today={todayPR()} onMovePost={movePost} onAddPost={addPost} onUpdatePost={updatePost} onAddPostFile={addPostFile} onRemovePostFile={removePostFile} />}
           {view === "projects" && <ProjectsView projects={projects} clients={clients} users={users} onUpdateDeliverable={updateDeliverable} onAddDeliverableFile={addDeliverableFile} onRemoveDeliverableFile={removeDeliverableFile} onMoveProjectPhase={moveProjectPhase} onAddProject={addProject} />}
@@ -508,7 +536,8 @@ function AppInner({ authUserId }: { authUserId: string }) {
             agencyData={agency} canEditAgency={isAdminUp}
             onSaveAgency={(u, f) => saveAgency(u, f).then(() => toast("✓ Configuración guardada.", "success")).catch(() => toast("✕ No se pudo guardar.", "error"))}
           />}
-        </main>
+        </motion.main>
+        </AnimatePresence>
       </div>
 
       {showProfile && (

@@ -91,6 +91,7 @@ export interface BrandFont {
 export interface Client {
   id: string;
   name: string;
+  slug?: string;
   company: string;
   industry: string;
   email: string;

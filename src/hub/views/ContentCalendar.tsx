@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { motion } from "motion/react";
 import type { ContentPost, Client, User, Channel, PostFormat, PostStatus, AttachedFile } from "../types";
 import FileUpload from "../components/FileUpload";
 
@@ -98,17 +99,22 @@ function BoardView({ posts, clients, users, filterClient, onMovePost, onSelectPo
               <span className="font-mono text-[10px] text-muted">{colPosts.length}</span>
             </div>
             <div className="p-2 space-y-2 min-h-[120px]">
-              {colPosts.map((post) => {
+              {colPosts.map((post, cardIdx) => {
                 const client = clients.find((c) => c.id === post.clientId);
                 const user = users.find((u) => u.id === post.assigneeId);
                 return (
-                  <div
+                  <motion.div
                     key={post.id}
+                    layout
+                    initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.96 }}
+                    transition={{ layout: { type: "spring", stiffness: 420, damping: 36 }, delay: Math.min(cardIdx * 0.04, 0.35) }}
                     draggable
-                    onDragStart={() => { dragId.current = post.id; }}
-                    onDragEnd={() => { dragId.current = null; }}
+                    onDragStart={(e) => { dragId.current = post.id; (e.currentTarget as HTMLElement).classList.add("dragging-card"); }}
+                    onDragEnd={(e) => { dragId.current = null; (e.currentTarget as HTMLElement).classList.remove("dragging-card"); }}
                     onClick={() => onSelectPost(post)}
-                    className="bg-surface2 border border-line rounded-lg p-2.5 cursor-grab active:cursor-grabbing hover:border-[var(--col-color)]/50 transition-colors"
+                    className="bg-surface2 border border-line rounded-lg p-2.5 cursor-grab active:cursor-grabbing hover:border-[var(--col-color)]/50 transition-colors hover-lift"
                     style={{ "--col-color": col.color } as React.CSSProperties}
                   >
                     <div className="flex items-start justify-between gap-1 mb-1.5">
@@ -129,7 +135,7 @@ function BoardView({ posts, clients, users, filterClient, onMovePost, onSelectPo
                         )}
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })}
             </div>
@@ -807,8 +813,12 @@ function CSVImportModal({ clients, users, onImport, onCancel }: {
         if (!titulo) return { ok: false, error: "Sin título", data: { _raw: cols } };
         const ref = clienteRef.toLowerCase();
         const validClient = clients.find(
-          (c) => c.id === clienteRef || c.company.toLowerCase() === ref || c.name.toLowerCase() === ref
+          (c) => c.id === clienteRef
+            || c.slug === ref
+            || c.company.toLowerCase() === ref
+            || c.name.toLowerCase() === ref
             || c.name.toLowerCase().replace(/\s+/g, "-") === ref
+            || c.name.toLowerCase().startsWith(ref)
         );
         if (!validClient) return { ok: false, error: `Cliente "${clienteRef}" no encontrado`, data: { _raw: cols } };
         const canalRaw = get("canal", 4).toLowerCase();

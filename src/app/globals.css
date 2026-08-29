@@ -147,8 +147,77 @@ body {
   70%  { transform: scale(1.04); opacity: 1; }
   100% { transform: scale(1); }
 }
-.animate-pop-in { animation: pop-in 0.3s cubic-bezier(0.34,1.56,0.64,1) both; }
+.animate-pop-in { animation: pop-in 0.34s cubic-bezier(0.34,1.56,0.64,1) both; }
+
+/* Recap tipo story: entrada dramática */
+@keyframes recap-in {
+  0%   { opacity: 0; transform: scale(0.92) translateY(20px); }
+  60%  { opacity: 1; transform: scale(1.02) translateY(-2px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.animate-recap-in { animation: recap-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Skeleton shimmer más suave sobre obsidian */
+.skeleton-base {
+  background: linear-gradient(90deg, var(--app-surface2) 25%, var(--app-line) 50%, var(--app-surface2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
 
 /* ── Drag ghost ── */
 .dragging { opacity: 0.4; }
 .drag-over { outline: 2px dashed var(--color-accent); outline-offset: -2px; }
+
+/* ── Capa de micro-interacciones (Gen Z layer) ── */
+
+/* Todos los botones responden al tacto */
+button {
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+/* Tarjetas con lift al hover */
+.hover-lift {
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.18s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+/* Entrada escalonada de tarjetas (kanban / listas) */
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-card-in {
+  animation: card-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Tarjeta agarrada durante drag */
+.dragging-card {
+  transform: rotate(2deg) scale(1.03);
+  opacity: 0.85;
+  cursor: grabbing;
+}
+
+/* Pulso en la racha */
+@keyframes streak-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+.animate-streak { animation: streak-pulse 2.2s ease-in-out infinite; }
+
+/* Barra de progreso con transición líquida */
+.progress-fill {
+  transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Transición de vista mejorada */
+@keyframes view-in-v2 {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-view-in { animation: view-in-v2 0.32s cubic-bezier(0.22, 1, 0.36, 1) both; }

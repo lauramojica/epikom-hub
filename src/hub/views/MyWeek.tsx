@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ContentPost, Project, Client, User } from "../types";
 import FridayRecap from "./FridayRecap";
 import EmojiReactions from "../components/EmojiReactions";
+import AnimatedNumber from "../components/AnimatedNumber";
 
 interface Props {
   posts: ContentPost[];
@@ -59,8 +60,8 @@ function StreakBadge({ streak, color }: { streak: number; color: string }) {
       className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-mono font-600 animate-pop-in"
       style={{ borderColor: `${color}40`, background: `${color}12`, color }}
     >
-      <span>{fire}</span>
-      <span>{streak} días de racha</span>
+      <span className="animate-streak inline-block">{fire}</span>
+      <span><AnimatedNumber value={streak} /> días de racha</span>
     </div>
   );
 }
@@ -209,12 +210,12 @@ export default function MyWeek({ posts, projects, clients, users, activeUser, to
           <div className="flex items-center justify-between mb-2">
             <span className="font-mono text-xs text-muted uppercase tracking-widest">Progreso semanal</span>
             <span className="font-mono text-sm font-600 text-ink">
-              {weekDone} de {weekGoal} esta semana {weekDone >= weekGoal ? "🔥" : ""}
+              <AnimatedNumber value={weekDone} /> de {weekGoal} esta semana {weekDone >= weekGoal ? "🔥" : ""}
             </span>
           </div>
           <div className="w-full h-2 bg-surface2 rounded-full overflow-hidden">
             <div
-              className="h-full rounded-full transition-all duration-700"
+              className="h-full rounded-full progress-fill"
               style={{
                 width: `${progressPct}%`,
                 background: progressPct >= 100
