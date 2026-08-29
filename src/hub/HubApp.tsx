@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { ContentPost, Project, Client, User, Notification, View, DeliverableStatus, Document, AttachedFile, ProjectPhase } from "./types";
 import { useHubData } from "./useHubData";
 import { todayPR, computeStreak } from "./adapters";
+import { UploadContext } from "./UploadContext";
 import MyWeek from "./views/MyWeek";
 import ContentCalendar from "./views/ContentCalendar";
 import ProjectsView from "./views/ProjectsView";
@@ -138,18 +139,18 @@ function AppInner({ authUserId }: { authUserId: string }) {
   const supabase = useMemo(() => createClient(), []);
   const [view, setView] = useState<View>("myweek");
   const {
-    posts, clients, users: rawUsers, notifications, loading, error,
+    posts, clients, users: rawUsers, notifications, projects, documents, interactions, loading, error,
     movePost: dbMovePost, addPost: dbAddPost, updatePost: dbUpdatePost,
     markNotifRead, markAllRead: dbMarkAllRead,
+    addProject: dbAddProject, moveProjectPhase: dbMovePhase, updateDeliverable: dbUpdateDeliv,
+    setDeliverableFiles, addClient: dbAddClient, updateClient: dbUpdateClient,
+    addDocument: dbAddDocument, deleteDocument: dbDeleteDocument, uploadFile,
   } = useHubData(authUserId);
   // Racha calculada con datos reales
   const users = useMemo(
     () => rawUsers.map((u) => ({ ...u, streak: computeStreak(posts, u.id) })),
     [rawUsers, posts]
   );
-  // Proyectos y documentos: locales en Fase 1 (se conectan en Fase 2)
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [documents, setDocuments] = useState<Document[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [lightMode, setLightMode] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -219,31 +220,43 @@ function AppInner({ authUserId }: { authUserId: string }) {
   const updateDeliverable = (projectId: string, delivId: string, status: DeliverableStatus, reason?: string) => {
     if (status === "approved") { triggerConfetti(); toast("💯 Entregable aprobado. Let's go!", "success"); }
     if (status === "rejected") toast("✕ Entregable rechazado. Ya saben qué hacer.", "error");
-    setProjects((prev) => prev.map((p) => p.id !== projectId ? p : {
-      ...p,
-      deliverables: p.deliverables.map((d) => d.id !== delivId ? d : { ...d, status, rejectionReason: reason }),
-    }));
+    dbUpdateDeliv(projectId, delivId, status, reason).catch(() => toast("✕ No se pudo actualizar.", "error"));
   };
 
   const moveProjectPhase = (projectId: string, phase: ProjectPhase) => {
-    setProjects((prev) => prev.map((p) => p.id !== projectId ? p : { ...p, currentPhase: phase }));
-    toast("✓ Fase actualizada.", "success");
+    dbMovePhase(projectId, phase)
+      .then(() => toast("✓ Fase actualizada.", "success"))
+      .catch(() => toast("✕ No se pudo mover la fase.", "error"));
   };
 
   const addProject = (project: Omit<Project, "id" | "phases" | "deliverables">) => {
-    const newProject: Project = { ...project, id: `p${Date.now()}`, phases: [], deliverables: [] };
-    setProjects((prev) => [...prev, newProject]);
-    toast("✓ Proyecto creado. A darle 💪", "success");
+    dbAddProject(project)
+      .then(() => toast("✓ Proyecto creado. A darle 💪", "success"))
+      .catch(() => toast("✕ No se pudo crear el proyecto.", "error"));
   };
 
   const markAllRead = () => { dbMarkAllRead(); toast("✓ Todo marcado como leído.", "success"); };
 
-  const updateClient = (_id: string, _updates: object) => {
-    toast("La edición de clientes se conecta en la Fase 2.", "info");
+  const updateClient = (id: string, updates: Partial<Client>) => {
+    dbUpdateClient(id, updates)
+      .then(() => toast("✓ Cliente actualizado.", "success"))
+      .catch(() => toast("✕ No se pudo actualizar el cliente.", "error"));
   };
 
-  const addDocument = (doc: Document) => { setDocuments((prev) => [doc, ...prev]); toast("✓ Documento subido.", "success"); };
-  const deleteDocument = (id: string) => setDocuments((prev) => prev.filter((d) => d.id !== id));
+  const addClient = (c: Partial<Client>) => {
+    dbAddClient(c)
+      .then(() => toast("✓ Cliente creado. ¡Bienvenido al roster! 🎉", "success"))
+      .catch((e) => toast(e?.message?.includes("duplicate") ? "✕ Ya existe un cliente con ese nombre." : "✕ No se pudo crear el cliente.", "error"));
+  };
+
+  const addDocument = (doc: Document, rawFile?: File) => {
+    dbAddDocument(doc, rawFile)
+      .then(() => toast("✓ Documento subido.", "success"))
+      .catch(() => toast("✕ No se pudo subir el documento.", "error"));
+  };
+  const deleteDocument = (id: string) => {
+    dbDeleteDocument(id).catch(() => toast("✕ No se pudo eliminar.", "error"));
+  };
 
   const addPostFile = (postId: string, file: AttachedFile) => {
     const post = posts.find((p) => p.id === postId);
@@ -257,17 +270,15 @@ function AppInner({ authUserId }: { authUserId: string }) {
       .catch(() => toast("✕ No se pudo quitar el archivo.", "error"));
   };
 
-  const addDeliverableFile = (projectId: string, delivId: string, file: AttachedFile) =>
-    setProjects((prev) => prev.map((p) => p.id !== projectId ? p : {
-      ...p,
-      deliverables: p.deliverables.map((d) => d.id !== delivId ? d : { ...d, attachedFiles: [...(d.attachedFiles || []), file] }),
-    }));
+  const addDeliverableFile = (projectId: string, delivId: string, file: AttachedFile) => {
+    const d = projects.find((p) => p.id === projectId)?.deliverables.find((x) => x.id === delivId);
+    setDeliverableFiles(projectId, delivId, [...(d?.attachedFiles || []), file]);
+  };
 
-  const removeDeliverableFile = (projectId: string, delivId: string, fileId: string) =>
-    setProjects((prev) => prev.map((p) => p.id !== projectId ? p : {
-      ...p,
-      deliverables: p.deliverables.map((d) => d.id !== delivId ? d : { ...d, attachedFiles: (d.attachedFiles || []).filter((f) => f.id !== fileId) }),
-    }));
+  const removeDeliverableFile = (projectId: string, delivId: string, fileId: string) => {
+    const d = projects.find((p) => p.id === projectId)?.deliverables.find((x) => x.id === delivId);
+    setDeliverableFiles(projectId, delivId, (d?.attachedFiles || []).filter((f) => f.id !== fileId));
+  };
 
   if (loading) {
     return (
@@ -299,6 +310,7 @@ function AppInner({ authUserId }: { authUserId: string }) {
   }
 
   return (
+    <UploadContext.Provider value={uploadFile}>
     <div className="h-full flex bg-bg text-ink overflow-hidden">
       <Confetti active={confettiActive} />
 
@@ -434,7 +446,7 @@ function AppInner({ authUserId }: { authUserId: string }) {
           {view === "myweek" && <MyWeek posts={posts} projects={projects} clients={clients} users={users} activeUser={activeUser} today={todayPR()} onMovePost={movePost} onSwitchUser={(u) => setViewAsId(u.id)} />}
           {view === "calendar" && <ContentCalendar posts={posts} clients={clients} users={users} today={todayPR()} onMovePost={movePost} onAddPost={addPost} onUpdatePost={updatePost} onAddPostFile={addPostFile} onRemovePostFile={removePostFile} />}
           {view === "projects" && <ProjectsView projects={projects} clients={clients} users={users} onUpdateDeliverable={updateDeliverable} onAddDeliverableFile={addDeliverableFile} onRemoveDeliverableFile={removeDeliverableFile} onMoveProjectPhase={moveProjectPhase} onAddProject={addProject} />}
-          {view === "clients" && <ClientsView clients={clients} projects={projects} posts={posts} onUpdateClient={updateClient} />}
+          {view === "clients" && <ClientsView clients={clients} projects={projects} posts={posts} onUpdateClient={updateClient} onAddClient={addClient} interactions={interactions} />}
           {view === "analytics" && <Analytics posts={posts} projects={projects} clients={clients} users={users} />}
           {view === "notifications" && <NotificationsView notifications={notifications} clients={clients} onMarkRead={markNotifRead} onMarkAllRead={markAllRead} />}
           {view === "roles" && <RolesView users={users} clients={clients} />}
@@ -462,6 +474,7 @@ function AppInner({ authUserId }: { authUserId: string }) {
         />
       )}
     </div>
+    </UploadContext.Provider>
   );
 }
 

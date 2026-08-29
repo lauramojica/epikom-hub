@@ -5,7 +5,7 @@ interface Props {
   documents: Document[];
   clients: Client[];
   projects: Project[];
-  onAdd: (doc: Document) => void;
+  onAdd: (doc: Document, rawFile?: File) => void;
   onDelete: (id: string) => void;
 }
 
@@ -55,7 +55,7 @@ export default function DocumentsView({ documents, clients, projects, onAdd, onD
     if (!form.clientId || pendingFiles.length === 0) return;
     pendingFiles.forEach((f) => {
       onAdd({
-        id: `doc${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        id: "",
         name: f.name, size: f.size, type: f.type,
         url: URL.createObjectURL(f),
         uploadedAt: new Date().toISOString().slice(0, 10),
@@ -63,7 +63,7 @@ export default function DocumentsView({ documents, clients, projects, onAdd, onD
         projectId: form.projectId || undefined,
         category: form.category,
         notes: form.notes,
-      });
+      }, f);
     });
     setPendingFiles([]);
     setForm({ clientId: "", projectId: "", category: "brief", notes: "" });

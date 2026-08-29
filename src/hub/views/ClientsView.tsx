@@ -6,6 +6,8 @@ interface Props {
   projects: Project[];
   posts: ContentPost[];
   onUpdateClient?: (id: string, updates: Partial<Client>) => void;
+  onAddClient?: (c: Partial<Client>) => void;
+  interactions?: Record<string, import("../types").ClientInteraction[]>;
 }
 
 const interactionIcons: Record<string, string> = {
@@ -155,8 +157,9 @@ function BrandTab({ client, onUpdate, logoRef }: { client: Client; onUpdate: (u:
   );
 }
 
-export default function ClientsView({ clients, projects, posts, onUpdateClient }: Props) {
+export default function ClientsView({ clients, projects, posts, onUpdateClient, onAddClient, interactions = {} }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
+  const [showNewClient, setShowNewClient] = useState(false);
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<"profile" | "brand" | "crm">("profile");
   const logoRef = useRef<HTMLInputElement>(null);
@@ -178,9 +181,16 @@ export default function ClientsView({ clients, projects, posts, onUpdateClient }
           <p className="font-mono text-muted text-xs tracking-widest uppercase mb-1">CRM — Cartera</p>
           <h1 className="font-display text-5xl font-700 tracking-tight text-ink uppercase">Clientes</h1>
         </div>
-        <div className="relative">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.5"/><path d="M9.5 9.5L12.5 12.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar cliente..." className="bg-surface border border-line rounded-lg pl-9 pr-4 py-2 text-sm text-ink outline-none focus:border-primary/40 w-52 font-body" />
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.5"/><path d="M9.5 9.5L12.5 12.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar cliente..." className="bg-surface border border-line rounded-lg pl-9 pr-4 py-2 text-sm text-ink outline-none focus:border-primary/40 w-52 font-body" />
+          </div>
+          {onAddClient && (
+            <button onClick={() => setShowNewClient(true)} className="text-xs font-mono px-4 py-2.5 rounded-lg bg-primary text-bg font-600 hover:opacity-90 transition-opacity flex-shrink-0">
+              + Nuevo cliente
+            </button>
+          )}
         </div>
       </div>
 
@@ -337,11 +347,11 @@ export default function ClientsView({ clients, projects, posts, onUpdateClient }
               {tab === "crm" && (
                 <div>
                   <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-3">Historial de interacciones</h3>
-                  {client.interactions.length === 0 ? (
+                  {(interactions[client.id] ?? []).length === 0 ? (
                     <p className="text-sm text-muted">Sin interacciones registradas.</p>
                   ) : (
                     <div className="space-y-3">
-                      {[...client.interactions].sort((a, b) => b.date.localeCompare(a.date)).map((interaction) => (
+                      {[...(interactions[client.id] ?? [])].map((interaction) => (
                         <div key={interaction.id} className="flex gap-3">
                           <div className="text-xl flex-shrink-0 mt-0.5">{interactionIcons[interaction.type]}</div>
                           <div className="flex-1 bg-surface2 border border-line rounded-lg px-4 py-3">
@@ -367,6 +377,108 @@ export default function ClientsView({ clients, projects, posts, onUpdateClient }
             </div>
           </div>
         )}
+      </div>
+      {showNewClient && onAddClient && (
+        <NewClientModal
+          onAdd={(c) => { onAddClient(c); setShowNewClient(false); }}
+          onCancel={() => setShowNewClient(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Nuevo Cliente ────────────────────────────────────────────────────────────
+function NewClientModal({ onAdd, onCancel }: { onAdd: (c: Partial<Client>) => void; onCancel: () => void }) {
+  const [name, setName] = useState("");
+  const [color, setColor] = useState("#31b498");
+  const [language, setLanguage] = useState("Español");
+  const [timezone, setTimezone] = useState("America/Puerto_Rico");
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [tone, setTone] = useState("");
+  const [bannedWords, setBannedWords] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+
+  const submit = () => {
+    if (!name.trim()) { setErr("El nombre es obligatorio."); return; }
+    onAdd({
+      name: name.trim(),
+      color,
+      language,
+      timezone,
+      contacts: contactName || contactEmail ? [{ name: contactName, role: "", email: contactEmail, phone: "" }] : [],
+      brandRules: {
+        bannedWords: bannedWords.split(",").map((w) => w.trim()).filter(Boolean),
+        guidelines: "", tone, colors: [], fonts: [],
+      },
+      notifyEmail: true,
+    });
+  };
+
+  const inputCls = "w-full bg-surface2 border border-line rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-primary/40 font-body placeholder:text-muted/50";
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6" onClick={onCancel}>
+      <div className="bg-surface border border-line rounded-2xl w-full max-w-lg overflow-hidden animate-pop-in" onClick={(e) => e.stopPropagation()}>
+        <div className="px-6 py-4 border-b border-line flex items-center justify-between">
+          <h2 className="font-display text-2xl font-700 uppercase text-ink">Nuevo cliente</h2>
+          <button onClick={onCancel} className="text-muted hover:text-ink text-lg">✕</button>
+        </div>
+        <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+          <div className="flex gap-4 items-end">
+            <div className="flex-1">
+              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Nombre *</label>
+              <input autoFocus value={name} onChange={(e) => { setName(e.target.value); setErr(null); }} placeholder="Ej: Ferreterías National" className={inputCls} />
+            </div>
+            <div>
+              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Color</label>
+              <div className="w-10 h-10 rounded-lg border border-line overflow-hidden relative cursor-pointer" style={{ background: color }}>
+                <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Idioma</label>
+              <select value={language} onChange={(e) => setLanguage(e.target.value)} className={inputCls + " cursor-pointer"}>
+                <option className="bg-surface">Español</option>
+                <option className="bg-surface">English</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Zona horaria</label>
+              <select value={timezone} onChange={(e) => setTimezone(e.target.value)} className={inputCls + " cursor-pointer"}>
+                {["America/Puerto_Rico", "America/New_York", "America/Chicago", "America/Los_Angeles"].map((tz) => (
+                  <option key={tz} value={tz} className="bg-surface">{tz.replace("_", " ")}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Contacto principal</label>
+              <input value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Nombre" className={inputCls} />
+            </div>
+            <div>
+              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Email del contacto</label>
+              <input type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="contacto@cliente.com" className={inputCls} />
+            </div>
+          </div>
+          <div>
+            <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Tono de marca</label>
+            <input value={tone} onChange={(e) => setTone(e.target.value)} placeholder="Ej: cercano, profesional, juvenil…" className={inputCls} />
+          </div>
+          <div>
+            <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Palabras prohibidas (separadas por coma)</label>
+            <input value={bannedWords} onChange={(e) => setBannedWords(e.target.value)} placeholder="Ej: barato, oferta loca" className={inputCls} />
+          </div>
+          {err && <p className="text-xs text-danger bg-danger/10 border border-danger/20 rounded-lg px-3 py-2">{err}</p>}
+        </div>
+        <div className="px-6 py-4 border-t border-line flex justify-end gap-3">
+          <button onClick={onCancel} className="text-xs font-mono px-4 py-2 rounded-lg border border-line text-muted hover:text-ink transition-colors">Cancelar</button>
+          <button onClick={submit} className="text-xs font-mono px-5 py-2 rounded-lg bg-primary text-bg font-600 hover:opacity-90">Crear cliente</button>
+        </div>
       </div>
     </div>
   );

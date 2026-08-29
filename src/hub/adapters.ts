@@ -206,3 +206,140 @@ export function computeStreak(posts: ContentPost[], userId: string): number {
   }
   return streak
 }
+
+// ============================================================================
+// FASE 2: Projects, Deliverables, Documents, Interactions
+// ============================================================================
+import type { Project, Deliverable, Document as HubDocument, ClientInteraction, ProjectPhase, PhaseData } from './types'
+
+export const DEFAULT_PHASES: PhaseData[] = [
+  { key: 'discovery', label: 'Descubrimiento' },
+  { key: 'strategy', label: 'Estrategia' },
+  { key: 'production', label: 'Producción' },
+  { key: 'review', label: 'Revisión' },
+  { key: 'launch', label: 'Lanzamiento' },
+  { key: 'reporting', label: 'Reporte' },
+]
+
+const DELIV_DB_TO_UI: Record<string, Deliverable['status']> = {
+  pending: 'pending', in_review: 'in-review', 'in-review': 'in-review',
+  approved: 'approved', rejected: 'rejected',
+}
+const DELIV_UI_TO_DB: Record<Deliverable['status'], string> = {
+  pending: 'pending', 'in-review': 'in_review', approved: 'approved', rejected: 'rejected',
+}
+
+export function deliverableFromDb(row: any): Deliverable {
+  return {
+    id: row.id,
+    title: row.name,
+    status: DELIV_DB_TO_UI[row.status] ?? 'pending',
+    rejectionReason: row.rejection_reason ?? undefined,
+    dueDate: row.due_date ?? '',
+    timeSpent: Number(row.time_spent ?? 0),
+    comments: Array.isArray(row.comments_list) ? row.comments_list : [],
+    attachedFiles: Array.isArray(row.archivos) ? row.archivos : [],
+  }
+}
+
+export function deliverableToDb(d: Partial<Deliverable>): Record<string, any> {
+  const out: Record<string, any> = {}
+  if (d.title !== undefined) out.name = d.title
+  if (d.status !== undefined) out.status = DELIV_UI_TO_DB[d.status]
+  if (d.rejectionReason !== undefined) out.rejection_reason = d.rejectionReason
+  if (d.dueDate !== undefined) out.due_date = d.dueDate || null
+  if (d.timeSpent !== undefined) out.time_spent = d.timeSpent
+  if (d.comments !== undefined) out.comments_list = d.comments
+  if (d.attachedFiles !== undefined) out.archivos = d.attachedFiles
+  return out
+}
+
+export function projectFromDb(row: any, deliverables: Deliverable[] = []): Project {
+  const phases: PhaseData[] = Array.isArray(row.phases) && row.phases.length > 0 ? row.phases : DEFAULT_PHASES
+  const statusMap: Record<string, Project['status']> = {
+    active: 'active', 'on-hold': 'paused', paused: 'paused', completed: 'completed', cancelled: 'paused',
+  }
+  return {
+    id: row.id,
+    name: row.name,
+    clientId: row.client_id,
+    currentPhase: (row.current_phase ?? 'discovery') as ProjectPhase,
+    phases,
+    deliverables,
+    startDate: row.start_date ?? '',
+    endDate: row.end_date ?? '',
+    budget: row.budget != null ? Number(row.budget) : 0,
+    description: row.description ?? '',
+    color: row.color ?? colorForId(row.id),
+    status: statusMap[row.status] ?? 'active',
+  }
+}
+
+export function projectToDb(p: Partial<Project>): Record<string, any> {
+  const out: Record<string, any> = {}
+  if (p.name !== undefined) out.name = p.name
+  if (p.clientId !== undefined) out.client_id = p.clientId
+  if (p.currentPhase !== undefined) out.current_phase = p.currentPhase
+  if (p.phases !== undefined) out.phases = p.phases
+  if (p.startDate !== undefined) out.start_date = p.startDate || null
+  if (p.endDate !== undefined) out.end_date = p.endDate || null
+  if (p.budget !== undefined) out.budget = p.budget
+  if (p.description !== undefined) out.description = p.description
+  if (p.color !== undefined) out.color = p.color
+  if (p.status !== undefined) out.status = p.status === 'paused' ? 'on-hold' : p.status
+  return out
+}
+
+export function documentFromDb(row: any): HubDocument {
+  return {
+    id: row.id,
+    name: row.name,
+    size: Number(row.size ?? 0),
+    type: row.type ?? '',
+    url: row.url,
+    uploadedAt: toDateStr(row.created_at),
+    clientId: row.client_id,
+    projectId: row.project_id ?? undefined,
+    postId: row.post_id ?? undefined,
+    category: row.category ?? 'otro',
+    notes: row.notes ?? '',
+  }
+}
+
+export function interactionFromDb(row: any, userName?: string): ClientInteraction {
+  const typeMap: Record<string, ClientInteraction['type']> = {
+    call: 'call', email: 'email', meeting: 'meeting', task: 'task',
+    llamada: 'call', reunion: 'meeting', tarea: 'task',
+  }
+  return {
+    id: row.id,
+    date: toDateStr(row.created_at),
+    type: typeMap[row.interaction_type] ?? 'task',
+    notes: row.title + (row.description ? ` — ${row.description}` : ''),
+    by: userName ?? '',
+  }
+}
+
+/** Client (UI) → payload de hub_clients (DB) */
+export function clientToDb(c: Partial<import('./types').Client>): Record<string, any> {
+  const out: Record<string, any> = {}
+  if (c.name !== undefined) {
+    out.nombre = c.name
+    out.slug = c.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+  }
+  if (c.color !== undefined) out.color = c.color
+  if (c.language !== undefined) out.idioma = c.language === 'English' ? 'en' : 'es'
+  if (c.timezone !== undefined) out.timezone = c.timezone
+  if (c.brandRules !== undefined) out.reglas_marca = {
+    palabras_prohibidas: c.brandRules.bannedWords ?? [],
+    guidelines: c.brandRules.guidelines ?? '',
+    tone: c.brandRules.tone ?? '',
+    colors: c.brandRules.colors ?? [],
+    fonts: c.brandRules.fonts ?? [],
+    logoUrl: c.brandRules.logoUrl,
+  }
+  if (c.contacts !== undefined) out.contactos = c.contacts
+  if (c.notifyEmail !== undefined) out.notif_email = c.notifyEmail
+  return out
+}

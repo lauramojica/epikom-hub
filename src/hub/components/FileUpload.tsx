@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import type { AttachedFile } from "../types";
+import { useUpload } from "../UploadContext";
 
 const fileIcon = (type: string) => {
   if (type.startsWith("image/")) return "🖼";
@@ -27,13 +28,25 @@ interface Props {
 export default function FileUpload({ files, onAdd, onRemove, compact = false }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const upload = useUpload();
 
-  const handleFiles = (fileList: FileList | null) => {
+  const handleFiles = async (fileList: FileList | null) => {
     if (!fileList) return;
-    Array.from(fileList).forEach((f) => {
-      const url = URL.createObjectURL(f);
+    setUploading(true);
+    for (const f of Array.from(fileList)) {
+      let url = URL.createObjectURL(f);
+      if (upload) {
+        try {
+          const res = await upload(f, "adjuntos");
+          url = res.url;
+        } catch (e) {
+          console.error("upload error:", e);
+        }
+      }
       onAdd({ id: `f${Date.now()}-${Math.random().toString(36).slice(2)}`, name: f.name, size: f.size, type: f.type, url, uploadedAt: new Date().toISOString().slice(0, 10) });
-    });
+    }
+    setUploading(false);
   };
 
   return (
@@ -49,7 +62,7 @@ export default function FileUpload({ files, onAdd, onRemove, compact = false }: 
         } ${dragging ? "border-primary bg-primary/5" : "border-line hover:border-muted"}`}
       >
         <input ref={inputRef} type="file" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} />
-        <p className="text-sm text-muted">{dragging ? "Suelta los archivos aquí" : "Arrastra archivos o haz clic para subir"}</p>
+        <p className="text-sm text-muted">{uploading ? "Subiendo…" : dragging ? "Suelta los archivos aquí" : "Arrastra archivos o haz clic para subir"}</p>
         {!compact && <p className="text-[10px] font-mono text-muted/50 mt-1">PDF, imágenes, videos, documentos</p>}
       </div>
 
