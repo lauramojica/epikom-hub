@@ -160,7 +160,7 @@ export default function MyWeek({ posts, projects, clients, users, activeUser, to
 
   return (
     <>
-      <div className="p-8 space-y-7">
+      <div className="p-4 md:p-8 space-y-7">
         {/* Header */}
         <div className="flex items-end justify-between">
           <div>
@@ -262,7 +262,7 @@ export default function MyWeek({ posts, projects, clients, users, activeUser, to
         </div>
 
         {/* Quick stats */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: "Esta semana", value: Object.values(postsByDay).flat().length, color: "#31b498" },
             { label: "Vencidos", value: overdue.length, color: overdue.length > 0 ? "#ef4444" : "#6b6b8a" },

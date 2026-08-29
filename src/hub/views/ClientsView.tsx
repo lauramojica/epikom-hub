@@ -175,7 +175,7 @@ export default function ClientsView({ clients, projects, posts, onUpdateClient, 
   const publishedPosts = clientPosts.filter((p) => p.status === "published");
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 md:p-8 space-y-6">
       <div className="flex items-end justify-between">
         <div>
           <p className="font-mono text-muted text-xs tracking-widest uppercase mb-1">CRM — Cartera</p>
@@ -195,7 +195,7 @@ export default function ClientsView({ clients, projects, posts, onUpdateClient, 
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: "Total clientes", value: clients.length, color: "#f2f3f6" },
           { label: "Con portal", value: clients.filter((c) => c.portalAccess).length, color: "#31b498" },

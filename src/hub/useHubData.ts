@@ -297,8 +297,60 @@ export function useHubData(authUserId: string) {
     }
   }, [supabase, documents])
 
+  // ---------------- Crew, roles, agencia y perfil ----------------
+  const toggleCrewAssignment = useCallback(async (userId: string, clientId: string, assigned: boolean) => {
+    setUsers(prev => prev.map(u => u.id !== userId ? u : {
+      ...u,
+      assignedClientIds: assigned
+        ? [...u.assignedClientIds, clientId]
+        : u.assignedClientIds.filter(id => id !== clientId),
+    }))
+    if (assigned) {
+      const { error } = await supabase.from('crew_client_access')
+        .insert({ user_id: userId, client_id: clientId, asignado_por: authUserId })
+      if (error && !error.message.includes('duplicate')) { console.error(error); loadAll(); throw error }
+    } else {
+      const { error } = await supabase.from('crew_client_access')
+        .delete().eq('user_id', userId).eq('client_id', clientId)
+      if (error) { console.error(error); loadAll(); throw error }
+    }
+  }, [supabase, authUserId, loadAll])
+
+  const changeUserRole = useCallback(async (userId: string, role: string) => {
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: role as User['role'] } : u))
+    const dbRole = role === 'client' ? 'cliente' : role
+    const { error } = await supabase.from('users').update({ role: dbRole }).eq('id', userId)
+    if (error) { console.error(error); loadAll(); throw error }
+  }, [supabase, loadAll])
+
+  const updateProfile = useCallback(async (updates: { name?: string; phone?: string }) => {
+    setUsers(prev => prev.map(u => u.id === authUserId ? { ...u, ...updates } : u))
+    const { error } = await supabase.from('users').update(updates).eq('id', authUserId)
+    if (error) { console.error(error); loadAll(); throw error }
+  }, [supabase, authUserId, loadAll])
+
+  const [agency, setAgency] = useState<Record<string, any> | null>(null)
+  useEffect(() => {
+    supabase.from('agency_settings').select('*').eq('id', 1).single()
+      .then(({ data }) => { if (data) setAgency(data) })
+  }, [supabase])
+
+  const saveAgency = useCallback(async (updates: Record<string, any>, logoFile?: File) => {
+    let logo_url = updates.logo_url ?? agency?.logo_url ?? null
+    if (logoFile) {
+      const up = await uploadFile(logoFile, 'branding')
+      logo_url = up.url
+    }
+    const payload: Record<string, any> = { ...updates, logo_url, updated_at: new Date().toISOString() }
+    delete payload.id
+    setAgency(prev => ({ ...(prev ?? {}), ...payload, id: 1 }))
+    const { error } = await supabase.from('agency_settings').update(payload).eq('id', 1)
+    if (error) { console.error(error); throw error }
+  }, [supabase, agency, uploadFile])
+
   return {
     posts, clients, users, notifications, projects, documents, interactions, loading, error,
+    agency, saveAgency, toggleCrewAssignment, changeUserRole, updateProfile,
     addProject, moveProjectPhase, updateDeliverable, addDeliverable, setDeliverableFiles,
     addClient, updateClient, addInteraction,
     addDocument, deleteDocument, uploadFile,

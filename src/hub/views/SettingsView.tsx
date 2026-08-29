@@ -88,13 +88,23 @@ function NotifPrefsSection() {
   );
 }
 
+interface AgencyData {
+  name?: string; tagline?: string; email?: string; phone?: string; website?: string;
+  city?: string; default_timezone?: string; default_language?: string; logo_url?: string | null;
+}
+
 interface Props {
+  agencyData?: AgencyData | null;
+  onSaveAgency?: (updates: Record<string, unknown>, logoFile?: File) => Promise<void> | void;
+  canEditAgency?: boolean;
   isDark?: boolean;
   onToggleTheme?: () => void;
   onConfirm?: (config: { title: string; message: string; danger?: boolean; onConfirm: () => void }) => void;
 }
 
-export default function SettingsView({ isDark = true, onToggleTheme }: Props) {
+export default function SettingsView({ isDark = true, onToggleTheme, agencyData, onSaveAgency, canEditAgency = false }: Props) {
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
   const [fontSize, setFontSize] = useState(16);
 
   const applyFontSize = (px: number) => {
@@ -102,16 +112,16 @@ export default function SettingsView({ isDark = true, onToggleTheme }: Props) {
     document.documentElement.style.fontSize = `${px}px`;
   };
 
-  const [agencyLogo, setAgencyLogo] = useState<string | null>(null);
+  const [agencyLogo, setAgencyLogo] = useState<string | null>(agencyData?.logo_url ?? null);
   const [agency, setAgency] = useState({
-    name: "Epikom Interactive",
-    tagline: "Estrategia · Contenido · Resultados",
-    email: "laura@epikom.com",
-    phone: "+1 787 000 0000",
-    website: "epikom.com",
-    city: "Bayamón, Puerto Rico",
-    defaultTimezone: "America/Puerto_Rico",
-    defaultLanguage: "es-PR",
+    name: agencyData?.name ?? "Epikom Interactive",
+    tagline: agencyData?.tagline ?? "Estrategia · Contenido · Resultados",
+    email: agencyData?.email ?? "laura@epikom.com",
+    phone: agencyData?.phone ?? "",
+    website: agencyData?.website ?? "epikom.com",
+    city: agencyData?.city ?? "Bayamón, Puerto Rico",
+    defaultTimezone: agencyData?.default_timezone ?? "America/Puerto_Rico",
+    defaultLanguage: agencyData?.default_language ?? "es-PR",
   });
 
   const [prefs, setPrefs] = useState({
@@ -129,7 +139,7 @@ export default function SettingsView({ isDark = true, onToggleTheme }: Props) {
   const updPref = (k: keyof typeof prefs, v: unknown) => setPrefs((p) => ({ ...p, [k]: v }));
 
   return (
-    <div className="p-8 space-y-8 max-w-3xl">
+    <div className="p-4 md:p-8 space-y-8 max-w-3xl">
       <div>
         <p className="font-mono text-muted text-xs tracking-widest uppercase mb-1">Preferencias del sistema</p>
         <h1 className="font-display text-5xl font-700 tracking-tight text-ink uppercase">Configuración</h1>
@@ -226,12 +236,12 @@ export default function SettingsView({ isDark = true, onToggleTheme }: Props) {
                   className="hidden"
                   onChange={(e) => {
                     const f = e.target.files?.[0];
-                    if (f) setAgencyLogo(URL.createObjectURL(f));
+                    if (f) { setAgencyLogo(URL.createObjectURL(f)); setLogoFile(f); }
                   }}
                 />
               </label>
               {agencyLogo && (
-                <button onClick={() => setAgencyLogo(null)} className="text-xs font-mono px-3 py-2 rounded-lg text-muted hover:text-danger transition-colors">
+                <button onClick={() => { setAgencyLogo(null); setLogoFile(null); }} className="text-xs font-mono px-3 py-2 rounded-lg text-muted hover:text-danger transition-colors">
                   Quitar
                 </button>
               )}
@@ -271,7 +281,23 @@ export default function SettingsView({ isDark = true, onToggleTheme }: Props) {
           </div>
         </div>
         <div className="px-5 py-4 border-t border-line flex justify-end">
-          <button className="text-xs font-mono px-5 py-2 rounded-lg bg-primary text-bg font-600 hover:opacity-90">Guardar cambios</button>
+          <button
+            disabled={saving || !canEditAgency}
+            onClick={async () => {
+              if (!onSaveAgency) return;
+              setSaving(true);
+              try {
+                await onSaveAgency({
+                  name: agency.name, tagline: agency.tagline, email: agency.email,
+                  phone: agency.phone, website: agency.website, city: agency.city,
+                  default_timezone: agency.defaultTimezone, default_language: agency.defaultLanguage,
+                  logo_url: agencyLogo && !logoFile ? agencyLogo : undefined,
+                }, logoFile ?? undefined);
+                setLogoFile(null);
+              } finally { setSaving(false); }
+            }}
+            className="text-xs font-mono px-5 py-2 rounded-lg bg-primary text-bg font-600 hover:opacity-90 disabled:opacity-40"
+          >{saving ? "Guardando…" : canEditAgency ? "Guardar cambios" : "Solo admins pueden editar"}</button>
         </div>
       </section>
 

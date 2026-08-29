@@ -950,7 +950,7 @@ export default function ContentCalendar({ posts, clients, users, today, onMovePo
   );
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 md:p-8 space-y-6">
       {/* Header */}
       <div className="flex items-end justify-between">
         <div>

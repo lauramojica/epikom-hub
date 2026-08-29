@@ -1,8 +1,13 @@
+import { useState } from "react";
 import type { User, Client, UserRole } from "../types";
 
 interface Props {
   users: User[];
   clients: Client[];
+  canManage?: boolean;        // superadmin: cambia roles
+  canAssign?: boolean;        // admin+: asigna crew a clientes
+  onToggleAssignment?: (userId: string, clientId: string, assigned: boolean) => void;
+  onChangeRole?: (userId: string, role: UserRole) => void;
 }
 
 const roleConfig: Record<UserRole, { label: string; desc: string; color: string; level: number }> = {
@@ -28,19 +33,21 @@ const PERMISSIONS = [
   { feature: "Acceso portal cliente", superadmin: true, admin: true, crew: false, client: true },
 ];
 
-export default function RolesView({ users, clients }: Props) {
+export default function RolesView({ users, clients, canManage = false, canAssign = false, onToggleAssignment, onChangeRole }: Props) {
   const byRole: Record<UserRole, User[]> = { superadmin: [], admin: [], crew: [], client: [] };
   users.forEach((u) => byRole[u.role].push(u));
+  const [expandedClient, setExpandedClient] = useState<string | null>(null);
+  const crewMembers = users.filter((u) => u.role === "crew" || u.role === "admin");
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-4 md:p-8 space-y-8">
       <div>
         <p className="font-mono text-muted text-xs tracking-widest uppercase mb-1">Gestión de accesos</p>
         <h1 className="font-display text-5xl font-700 tracking-tight text-ink uppercase">Roles y Permisos</h1>
       </div>
 
       {/* Role hierarchy */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {(["superadmin","admin","crew","client"] as UserRole[]).map((role) => {
           const rc = roleConfig[role];
           const members = byRole[role];
@@ -67,7 +74,19 @@ export default function RolesView({ users, clients }: Props) {
                         <p className="text-xs font-500 text-ink truncate">{u.name}</p>
                         <p className="text-[9px] font-mono text-muted truncate">{u.email}</p>
                       </div>
-                      <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: statusColors[u.status] }} title={u.status} />
+                      {canManage && u.role !== "superadmin" ? (
+                        <select
+                          value={u.role}
+                          onChange={(e) => onChangeRole?.(u.id, e.target.value as UserRole)}
+                          className="text-[9px] font-mono bg-surface2 border border-line rounded px-1 py-0.5 text-muted outline-none cursor-pointer flex-shrink-0"
+                        >
+                          <option value="admin" className="bg-surface">admin</option>
+                          <option value="crew" className="bg-surface">crew</option>
+                          <option value="client" className="bg-surface">cliente</option>
+                        </select>
+                      ) : (
+                        <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: statusColors[u.status] }} title={u.status} />
+                      )}
                     </div>
                   ))
                 )}
@@ -121,25 +140,64 @@ export default function RolesView({ users, clients }: Props) {
         <div className="divide-y divide-line">
           {clients.map((c) => {
             const assignedCrew = users.filter((u) => u.assignedClientIds.includes(c.id));
+            const isExpanded = expandedClient === c.id;
             return (
-              <div key={c.id} className="flex items-center gap-4 px-5 py-3">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-700 flex-shrink-0" style={{ background: `${c.color}20`, color: c.color }}>
-                  {c.initials}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-500 text-ink">{c.company}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    {assignedCrew.map((u) => (
-                      <span key={u.id} className="text-[9px] font-mono px-1.5 py-0.5 rounded" style={{ background: `${u.color}15`, color: u.color }}>{u.name.split(" ")[0]}</span>
-                    ))}
+              <div key={c.id}>
+                <div
+                  className={`flex items-center gap-4 px-5 py-3 ${canAssign ? "cursor-pointer hover:bg-surface2 transition-colors" : ""}`}
+                  onClick={() => canAssign && setExpandedClient(isExpanded ? null : c.id)}
+                >
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-700 flex-shrink-0" style={{ background: `${c.color}20`, color: c.color }}>
+                    {c.initials}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-500 text-ink">{c.company}</p>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      {assignedCrew.length === 0 ? (
+                        <span className="text-[9px] font-mono text-muted/50">Sin crew asignado</span>
+                      ) : assignedCrew.map((u) => (
+                        <span key={u.id} className="text-[9px] font-mono px-1.5 py-0.5 rounded" style={{ background: `${u.color}15`, color: u.color }}>{u.name.split(" ")[0]}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {c.notifyEmail && <span className="text-[9px] font-mono text-muted border border-line px-2 py-0.5 rounded">Email ✓</span>}
+                    {canAssign && (
+                      <span className="text-[10px] font-mono text-muted">{isExpanded ? "▲" : "▼"}</span>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  {c.notifyEmail && <span className="text-[9px] font-mono text-muted border border-line px-2 py-0.5 rounded">Email ✓</span>}
-                  <span className={`text-[10px] font-mono px-2.5 py-1 rounded border ${c.portalAccess ? "text-primary border-primary/30 bg-primary/5" : "text-muted border-line"}`}>
-                    Portal {c.portalAccess ? "✓" : "✕"}
-                  </span>
-                </div>
+                {isExpanded && canAssign && (
+                  <div className="px-5 pb-4 pt-1 bg-surface2/40">
+                    <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-2.5">Asignar crew a {c.company}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {crewMembers.map((u) => {
+                        const assigned = u.assignedClientIds.includes(c.id);
+                        const isAdminUser = u.role === "admin" || u.role === "superadmin";
+                        return (
+                          <label
+                            key={u.id}
+                            className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border transition-all ${isAdminUser ? "border-line/50 opacity-50" : assigned ? "border-primary/40 bg-primary/5 cursor-pointer" : "border-line hover:border-muted cursor-pointer"}`}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={assigned || isAdminUser}
+                              disabled={isAdminUser}
+                              onChange={(e) => onToggleAssignment?.(u.id, c.id, e.target.checked)}
+                              className="accent-[#31b498]"
+                            />
+                            <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-700 flex-shrink-0" style={{ background: `${u.color}20`, color: u.color }}>{u.initials}</div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-500 text-ink truncate">{u.name}</p>
+                              {isAdminUser && <p className="text-[9px] font-mono text-muted">admin — ve todo</p>}
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}

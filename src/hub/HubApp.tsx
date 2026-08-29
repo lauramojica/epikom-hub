@@ -145,6 +145,7 @@ function AppInner({ authUserId }: { authUserId: string }) {
     addProject: dbAddProject, moveProjectPhase: dbMovePhase, updateDeliverable: dbUpdateDeliv,
     setDeliverableFiles, addClient: dbAddClient, updateClient: dbUpdateClient,
     addDocument: dbAddDocument, deleteDocument: dbDeleteDocument, uploadFile,
+    agency, saveAgency, toggleCrewAssignment, changeUserRole, updateProfile,
   } = useHubData(authUserId);
   // Racha calculada con datos reales
   const users = useMemo(
@@ -179,11 +180,21 @@ function AppInner({ authUserId }: { authUserId: string }) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  useEffect(() => {
+    const saved = localStorage.getItem("epikom-theme");
+    if (saved === "light") {
+      setLightMode(true);
+      document.documentElement.classList.add("light");
+    }
+  }, []);
+
   const toggleTheme = () => {
     setLightMode((v) => {
-      document.documentElement.classList.toggle("light", !v);
-      toast(!v ? "🌙 Modo oscuro activado" : "☀️ Modo claro, fresh!", "info");
-      return !v;
+      const next = !v;
+      document.documentElement.classList.toggle("light", next);
+      localStorage.setItem("epikom-theme", next ? "light" : "dark");
+      toast(next ? "☀️ Modo claro, fresh!" : "🌙 Modo oscuro activado", "info");
+      return next;
     });
   };
 
@@ -193,6 +204,24 @@ function AppInner({ authUserId }: { authUserId: string }) {
   }, []);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const myRole = loggedUser?.role ?? "crew";
+  const isSuperadmin = myRole === "superadmin";
+  const isAdminUp = myRole === "superadmin" || myRole === "admin";
+  const isClientUser = myRole === "client";
+  const visibleNav = navItems.filter((item) => {
+    if (isClientUser) return ["calendar", "documents", "notifications", "settings"].includes(item.key);
+    if (!isAdminUp) return item.key !== "roles";
+    return true;
+  });
+
+  // Si la vista actual no está permitida para el rol, redirigir a la primera visible
+  useEffect(() => {
+    if (!loading && visibleNav.length > 0 && !visibleNav.some((n) => n.key === view)) {
+      setView(visibleNav[0].key);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, myRole]);
 
   const movePost = (postId: string, newStatus: ContentPost["status"]) => {
     if (newStatus === "published") { triggerConfetti(); toast("🚀 ¡Publicado! Salió al mundo.", "success"); }
@@ -314,30 +343,43 @@ function AppInner({ authUserId }: { authUserId: string }) {
     <div className="h-full flex bg-bg text-ink overflow-hidden">
       <Confetti active={confettiActive} />
 
+      {/* Backdrop móvil */}
+      {sidebarOpen && (
+        <div className="md:hidden fixed inset-0 bg-black/50 z-30" onClick={() => setSidebarOpen(false)} />
+      )}
+
       {/* Sidebar */}
-      <aside className={`flex-shrink-0 flex flex-col border-r border-line bg-surface transition-all duration-200 ${sidebarOpen ? "w-52" : "w-14"}`}>
+      <aside className={`flex-shrink-0 flex flex-col border-r border-line bg-surface transition-all duration-200
+        max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-40 max-md:w-60
+        ${sidebarOpen ? "w-52 max-md:translate-x-0" : "w-14 max-md:-translate-x-full"}`}>
         <div className="flex items-center gap-3 px-4 py-5 border-b border-line">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-accent flex-shrink-0">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M2 9L5 5L7.5 7.5L10 4L13 6.5" stroke="#0a0a0d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <circle cx="12" cy="11" r="2.5" fill="#0a0a0d"/>
-            </svg>
-          </div>
+          {agency?.logo_url ? (
+            <div className="w-7 h-7 rounded-lg overflow-hidden flex-shrink-0 bg-surface2">
+              <img src={agency.logo_url} alt="Logo" className="w-full h-full object-cover" />
+            </div>
+          ) : (
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-accent flex-shrink-0">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M2 9L5 5L7.5 7.5L10 4L13 6.5" stroke="#0a0a0d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="12" cy="11" r="2.5" fill="#0a0a0d"/>
+              </svg>
+            </div>
+          )}
           {sidebarOpen && (
             <div>
-              <p className="font-display text-base font-800 uppercase tracking-widest text-ink leading-none">Epikom</p>
+              <p className="font-display text-base font-800 uppercase tracking-widest text-ink leading-none">{(agency?.name ?? "Epikom").split(" ")[0]}</p>
               <p className="font-mono text-[9px] text-muted uppercase tracking-widest">Hub Interno</p>
             </div>
           )}
         </div>
 
         <nav className="flex-1 py-3 space-y-0.5 px-2 overflow-y-auto">
-          {navItems.map((item) => {
+          {visibleNav.map((item) => {
             const isActive = view === item.key;
             return (
               <button
                 key={item.key}
-                onClick={() => setView(item.key)}
+                onClick={() => { setView(item.key); if (window.innerWidth < 768) setSidebarOpen(false); }}
                 title={!sidebarOpen ? item.label : undefined}
                 className={`w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg transition-all relative ${isActive ? "bg-accent/10 text-accent" : "text-muted hover:text-ink hover:bg-surface2"}`}
               >
@@ -386,10 +428,15 @@ function AppInner({ authUserId }: { authUserId: string }) {
 
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="flex-shrink-0 flex items-center justify-between px-8 py-4 border-b border-line bg-surface/60 backdrop-blur-sm">
-          <p className="font-mono text-xs text-muted uppercase tracking-widest">
-            {navItems.find((n) => n.key === view)?.label}
-          </p>
+        <header className="flex-shrink-0 flex items-center justify-between px-4 md:px-8 py-4 border-b border-line bg-surface/60 backdrop-blur-sm">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarOpen(true)} className="md:hidden w-8 h-8 rounded-lg border border-line bg-surface2 flex items-center justify-center text-muted">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 3.5H12M2 7H12M2 10.5H12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+            </button>
+            <p className="font-mono text-xs text-muted uppercase tracking-widest">
+              {navItems.find((n) => n.key === view)?.label}
+            </p>
+          </div>
           <div className="flex items-center gap-3">
             <span className="font-mono text-[10px] text-muted">{new Intl.DateTimeFormat("es-PR", { day: "numeric", month: "short", year: "numeric", timeZone: "America/Puerto_Rico" }).format(new Date())}</span>
 
@@ -449,9 +496,18 @@ function AppInner({ authUserId }: { authUserId: string }) {
           {view === "clients" && <ClientsView clients={clients} projects={projects} posts={posts} onUpdateClient={updateClient} onAddClient={addClient} interactions={interactions} />}
           {view === "analytics" && <Analytics posts={posts} projects={projects} clients={clients} users={users} />}
           {view === "notifications" && <NotificationsView notifications={notifications} clients={clients} onMarkRead={markNotifRead} onMarkAllRead={markAllRead} />}
-          {view === "roles" && <RolesView users={users} clients={clients} />}
+          {view === "roles" && <RolesView
+            users={users} clients={clients}
+            canManage={isSuperadmin} canAssign={isAdminUp}
+            onToggleAssignment={(uid, cid, on) => toggleCrewAssignment(uid, cid, on).then(() => toast(on ? "✓ Cliente asignado." : "✓ Asignación removida.", "success")).catch(() => toast("✕ No se pudo actualizar.", "error"))}
+            onChangeRole={(uid, role) => changeUserRole(uid, role).then(() => toast("✓ Rol actualizado.", "success")).catch(() => toast("✕ Solo superadmin puede cambiar roles.", "error"))}
+          />}
           {view === "documents" && <DocumentsView documents={documents} clients={clients} projects={projects} onAdd={addDocument} onDelete={deleteDocument} />}
-          {view === "settings" && <SettingsView isDark={!lightMode} onToggleTheme={toggleTheme} onConfirm={setConfirm} />}
+          {view === "settings" && <SettingsView
+            isDark={!lightMode} onToggleTheme={toggleTheme} onConfirm={setConfirm}
+            agencyData={agency} canEditAgency={isAdminUp}
+            onSaveAgency={(u, f) => saveAgency(u, f).then(() => toast("✓ Configuración guardada.", "success")).catch(() => toast("✕ No se pudo guardar.", "error"))}
+          />}
         </main>
       </div>
 
@@ -459,7 +515,15 @@ function AppInner({ authUserId }: { authUserId: string }) {
         <UserProfilePanel
           user={activeUser}
           onClose={() => setShowProfile(false)}
-          onUpdate={() => toast("La edición de perfil se conecta en la Fase 3.", "info")}
+          onUpdate={(updates) => {
+            const payload: { name?: string; phone?: string } = {};
+            if (typeof updates.name === "string") payload.name = updates.name;
+            if (typeof updates.phone === "string") payload.phone = updates.phone;
+            if (Object.keys(payload).length === 0) return;
+            updateProfile(payload)
+              .then(() => toast("✓ Perfil actualizado.", "success"))
+              .catch(() => toast("✕ No se pudo guardar el perfil.", "error"));
+          }}
         />
       )}
 

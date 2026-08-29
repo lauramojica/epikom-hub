@@ -464,7 +464,7 @@ export default function ProjectsView({ projects, clients, users, onUpdateDeliver
   const filtered = filterStatus ? projects.filter((p) => p.status === filterStatus) : projects;
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 md:p-8 space-y-6">
       {showNewModal && (
         <NewProjectModal
           clients={clients}
@@ -500,7 +500,7 @@ export default function ProjectsView({ projects, clients, users, onUpdateDeliver
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: "Total", value: projects.length, color: "#f2f3f6" },
           { label: "Activos", value: projects.filter((p) => p.status === "active").length, color: "#31b498" },

@@ -83,7 +83,7 @@ export default function NotificationsView({ notifications, clients, onMarkRead, 
   const readGroups   = groupByTime(notifications.filter((n) => n.read));
 
   return (
-    <div className="p-8 space-y-6 max-w-3xl">
+    <div className="p-4 md:p-8 space-y-6 max-w-3xl">
       <div className="flex items-end justify-between">
         <div>
           <p className="font-mono text-muted text-xs tracking-widest uppercase mb-1">Bandeja de entrada</p>
