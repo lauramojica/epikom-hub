@@ -1,11 +1,33 @@
 import { useState } from "react";
 import type { User, UserStatus } from "../types";
 import Avatar, { contrastColor } from "./Avatar";
+import { useUpload } from "../UploadContext";
 
 interface Props {
   user: User;
   onClose: () => void;
   onUpdate: (updates: Partial<User>) => void;
+  onChangePassword?: (newPassword: string) => Promise<void> | void;
+}
+
+function generatePassword(len = 16): string {
+  const lower = "abcdefghijkmnopqrstuvwxyz";
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const nums = "23456789";
+  const syms = "!@#$%&*?-_";
+  const all = lower + upper + nums + syms;
+  const pick = (set: string) => set[Math.floor(Math.random() * set.length)];
+  // Garantiza al menos uno de cada tipo
+  const chars = [pick(lower), pick(upper), pick(nums), pick(syms)];
+  const bytes = new Uint32Array(len - 4);
+  crypto.getRandomValues(bytes);
+  bytes.forEach((b) => chars.push(all[b % all.length]));
+  // Shuffle
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join("");
 }
 
 const statusConfig: Record<UserStatus, { label: string; color: string }> = {
@@ -24,9 +46,15 @@ const ROLE_LABELS: Record<string, string> = {
   superadmin: "Super Admin", admin: "Admin", crew: "Crew", client: "Cliente",
 };
 
-export default function UserProfilePanel({ user, onClose, onUpdate }: Props) {
+export default function UserProfilePanel({ user, onClose, onUpdate, onChangePassword }: Props) {
   const [draft, setDraft] = useState<User>({ ...user });
-  const [tab, setTab] = useState<"profile" | "prefs">("profile");
+  const [tab, setTab] = useState<"profile" | "prefs" | "security">("profile");
+  const upload = useUpload();
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [newPass, setNewPass] = useState("");
+  const [passMsg, setPassMsg] = useState<string | null>(null);
+  const [savingPass, setSavingPass] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [skillInput, setSkillInput] = useState("");
 
   const upd = (k: keyof User, v: unknown) => setDraft((p) => ({ ...p, [k]: v }));
@@ -46,7 +74,32 @@ export default function UserProfilePanel({ user, onClose, onUpdate }: Props) {
         <div className="relative p-6 border-b border-line" style={{ background: `${draft.color}12` }}>
           <div className="flex items-center gap-4">
             <div className="relative">
-              <Avatar initials={draft.initials} color={draft.color} size="lg" />
+              <Avatar initials={draft.initials} color={draft.color} size="lg" src={draft.avatarUrl} />
+              <label className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-surface border border-line flex items-center justify-center cursor-pointer hover:border-primary transition-all" title="Subir foto">
+                {uploadingPhoto ? (
+                  <span className="text-[8px]">…</span>
+                ) : (
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2V8M2 5H8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    setUploadingPhoto(true);
+                    try {
+                      if (upload) {
+                        const { url } = await upload(f, "avatars");
+                        upd("avatarUrl", url);
+                      } else {
+                        upd("avatarUrl", URL.createObjectURL(f));
+                      }
+                    } finally { setUploadingPhoto(false); }
+                  }}
+                />
+              </label>
               {/* Color picker trigger */}
               <label className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-surface border border-line flex items-center justify-center cursor-pointer hover:border-muted transition-all" title="Cambiar color">
                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="3" stroke="currentColor" strokeWidth="1.2"/><path d="M5 3V5L6.5 6.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/></svg>
@@ -78,9 +131,9 @@ export default function UserProfilePanel({ user, onClose, onUpdate }: Props) {
 
         {/* Tabs */}
         <div className="flex border-b border-line">
-          {(["profile", "prefs"] as const).map((t) => (
+          {(["profile", "prefs", "security"] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)} className={`flex-1 py-3 text-xs font-mono uppercase tracking-widest border-b-2 -mb-px transition-all ${tab === t ? "text-primary border-primary" : "text-muted border-transparent hover:text-ink"}`}>
-              {t === "profile" ? "Perfil" : "Preferencias"}
+              {t === "profile" ? "Perfil" : t === "prefs" ? "Preferencias" : "Seguridad"}
             </button>
           ))}
         </div>
@@ -167,6 +220,80 @@ export default function UserProfilePanel({ user, onClose, onUpdate }: Props) {
                 </div>
               </div>
             </>
+          )}
+
+          {tab === "security" && (
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-600 text-ink mb-1">Cambiar contraseña</p>
+                <p className="text-xs text-muted leading-relaxed">
+                  Genera una contraseña fuerte o escribe la tuya. Mínimo 8 caracteres.
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newPass}
+                  onChange={(e) => { setNewPass(e.target.value); setPassMsg(null); setCopied(false); }}
+                  placeholder="Nueva contraseña"
+                  className="flex-1 bg-surface2 border border-line rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-primary/40 font-mono placeholder:text-muted/50"
+                />
+                <button
+                  onClick={() => { setNewPass(generatePassword()); setPassMsg(null); setCopied(false); }}
+                  className="text-xs font-mono px-3 py-2 rounded-lg border border-line text-muted hover:text-primary hover:border-primary/40 transition-all whitespace-nowrap"
+                  title="Generar contraseña segura"
+                >
+                  🎲 Generar
+                </button>
+              </div>
+
+              {newPass && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(newPass); setCopied(true); }}
+                    className="text-[10px] font-mono text-primary hover:opacity-80"
+                  >
+                    {copied ? "✓ Copiada" : "📋 Copiar contraseña"}
+                  </button>
+                  <span className="text-[10px] font-mono text-muted">·</span>
+                  <span className="text-[10px] font-mono" style={{ color: newPass.length >= 12 ? "#22c55e" : newPass.length >= 8 ? "#f59e0b" : "#ef4444" }}>
+                    {newPass.length >= 12 ? "Fuerte" : newPass.length >= 8 ? "Aceptable" : "Muy corta"}
+                  </span>
+                </div>
+              )}
+
+              {passMsg && (
+                <p className={`text-xs rounded-lg px-3 py-2 border ${passMsg.startsWith("✓") ? "text-primary bg-primary/10 border-primary/20" : "text-danger bg-danger/10 border-danger/20"}`}>
+                  {passMsg}
+                </p>
+              )}
+
+              <button
+                disabled={savingPass || newPass.length < 8 || !onChangePassword}
+                onClick={async () => {
+                  if (!onChangePassword) return;
+                  setSavingPass(true); setPassMsg(null);
+                  try {
+                    await onChangePassword(newPass);
+                    setPassMsg("✓ Contraseña actualizada. Guárdala en un lugar seguro.");
+                    setNewPass("");
+                  } catch (err) {
+                    setPassMsg("✕ No se pudo cambiar la contraseña.");
+                  } finally { setSavingPass(false); }
+                }}
+                className="w-full text-xs font-mono py-2.5 rounded-lg bg-primary text-bg font-600 hover:opacity-90 disabled:opacity-40 transition-opacity"
+              >
+                {savingPass ? "Guardando…" : "Actualizar contraseña"}
+              </button>
+
+              <div className="pt-2 border-t border-line">
+                <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-1.5">Sesión</p>
+                <p className="text-xs text-muted leading-relaxed">
+                  Cuenta: <span className="text-ink font-mono">{user.email}</span>
+                </p>
+              </div>
+            </div>
           )}
         </div>
 

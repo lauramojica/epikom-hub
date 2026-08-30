@@ -164,6 +164,7 @@ export function userFromDb(row: any, assignedClientIds: string[] = []): User {
   return {
     id: row.id,
     name: nice,
+    avatarUrl: row.avatar_url ?? null,
     email: row.email,
     phone: row.phone ?? '',
     role: roleMap[row.role] ?? 'crew',

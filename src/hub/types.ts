@@ -118,6 +118,7 @@ export interface Client {
 export interface User {
   id: string;
   name: string;
+  avatarUrl?: string | null;
   email: string;
   phone: string;
   role: UserRole;

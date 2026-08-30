@@ -155,7 +155,7 @@ export default function NotificationsView({ notifications, clients, onMarkRead, 
       {notifications.length > 0 && unread.length === 0 && (
         <div className="text-center py-8 space-y-2">
           <p className="text-3xl">✨</p>
-          <p className="text-sm text-muted">Todo al día. No hay nada más aquí, bestie.</p>
+          <p className="text-sm text-muted">Todo al día. No hay nada más por aquí.</p>
         </div>
       )}
     </div>

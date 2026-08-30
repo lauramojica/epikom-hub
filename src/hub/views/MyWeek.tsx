@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ContentPost, Project, Client, User } from "../types";
 import FridayRecap from "./FridayRecap";
 import EmojiReactions from "../components/EmojiReactions";
@@ -10,6 +10,7 @@ interface Props {
   clients: Client[];
   users: User[];
   activeUser: User;
+  loggedUser?: User;
   today: string;
   onMovePost: (id: string, status: ContentPost["status"]) => void;
   onSwitchUser?: (user: User) => void;
@@ -46,7 +47,7 @@ function formatDay(dateStr: string) {
 }
 
 const EMPTY_DAY_QUIPS = [
-  "Nada hoy. Rest up, bestie 💆",
+  "Nada hoy. A descansar 💆",
   "Free day! Living your best life ✌️",
   "Vacío… por ahora 👀",
   "No hay nada. Yet. 🌚",
@@ -110,14 +111,17 @@ function ShoutoutCard({ users, posts, today }: { users: User[]; posts: ContentPo
   );
 }
 
-export default function MyWeek({ posts, projects, clients, users, activeUser, today, onMovePost, onSwitchUser }: Props) {
+export default function MyWeek({ posts, projects, clients, users, activeUser, loggedUser, today, onMovePost, onSwitchUser }: Props) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [showRecap, setShowRecap] = useState(false);
   const [viewingUser, setViewingUser] = useState(activeUser);
-  const isAdmin = activeUser.role === "superadmin" || activeUser.role === "admin";
+  useEffect(() => { setViewingUser(activeUser); }, [activeUser.id]);
+  const [groupByClient, setGroupByClient] = useState(true);
+  const me = loggedUser ?? activeUser;
+  const canSwitchUsers = me.role === "superadmin";
   const weekDates = getWeekDates(today, weekOffset);
 
-  const switchUser = (u: User) => { setViewingUser(u); onSwitchUser?.(u); };
+  const switchUser = (u: User) => setViewingUser(u);
 
   const myPosts = posts.filter((p) => p.assigneeId === viewingUser.id);
   const unscheduled = myPosts.filter((p) => !p.scheduledDate || p.scheduledDate === "");
@@ -135,7 +139,7 @@ export default function MyWeek({ posts, projects, clients, users, activeUser, to
   });
 
   const myProjects = projects.filter((p) =>
-    clients.some((c) => c.projectIds.includes(p.id) && (activeUser.assignedClientIds.includes(c.id) || activeUser.role !== "crew"))
+    clients.some((c) => c.projectIds.includes(p.id) && (viewingUser.assignedClientIds.includes(c.id) || viewingUser.role !== "crew"))
   );
 
   const weekLabel = (() => {
@@ -166,7 +170,7 @@ export default function MyWeek({ posts, projects, clients, users, activeUser, to
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
           <div>
             <p className="font-mono text-muted text-xs tracking-widest uppercase mb-1">
-              {isAdmin && viewingUser.id !== activeUser.id
+              {canSwitchUsers && viewingUser.id !== me.id
                 ? `Viendo semana de ${viewingUser.name.split(" ")[0]} 👀`
                 : `Hola, ${viewingUser.name.split(" ")[0]} 👋`}
             </p>
@@ -174,7 +178,7 @@ export default function MyWeek({ posts, projects, clients, users, activeUser, to
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {/* Admin crew switcher */}
-            {isAdmin && (
+            {canSwitchUsers && (
               <div className="flex items-center gap-1 bg-surface border border-line rounded-xl p-1">
                 {users.filter((u) => u.role === "crew" || u.role === "admin" || u.role === "superadmin").map((u) => (
                   <button
@@ -193,7 +197,7 @@ export default function MyWeek({ posts, projects, clients, users, activeUser, to
                 ))}
               </div>
             )}
-            {streak > 0 && <StreakBadge streak={streak} color={activeUser.color} />}
+            {streak > 0 && <StreakBadge streak={streak} color={viewingUser.color} />}
             {(isFriday || true) && (
               <button
                 onClick={() => setShowRecap(true)}
@@ -229,7 +233,7 @@ export default function MyWeek({ posts, projects, clients, users, activeUser, to
           <div className="flex items-center justify-between mt-1.5">
             <span className="font-mono text-[10px] text-muted">{progressPct}% completado</span>
             {progressPct >= 100 && (
-              <span className="font-mono text-[10px] text-accent animate-bounce-slow">¡Meta cumplida, bestie! 🎉</span>
+              <span className="font-mono text-[10px] text-accent animate-bounce-slow">¡Meta cumplida! 🎉</span>
             )}
           </div>
         </div>
@@ -260,6 +264,19 @@ export default function MyWeek({ posts, projects, clients, users, activeUser, to
               Hoy
             </button>
           )}
+          <div className="flex gap-1 bg-surface border border-line rounded-lg p-0.5 ml-auto">
+            {([["clients", "Por cliente"], ["days", "Solo mías"]] as const).map(([k, label]) => (
+              <button
+                key={k}
+                onClick={() => setGroupByClient(k === "clients")}
+                className={`px-3 py-1 rounded-md text-[10px] font-mono uppercase tracking-wide transition-all ${
+                  (k === "clients") === groupByClient ? "bg-primary text-bg font-600" : "text-muted hover:text-ink"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Quick stats */}
@@ -298,50 +315,98 @@ export default function MyWeek({ posts, projects, clients, users, activeUser, to
               );
             })}
           </div>
-          <div className="grid grid-cols-7 min-h-[200px] min-w-[640px]">
-            {weekDates.map((date, i) => {
-              const dayPosts = postsByDay[date] || [];
-              const isToday = date === today;
-              return (
-                <div
-                  key={date}
-                  className={`p-2 border-r border-line last:border-r-0 space-y-1.5 ${isToday ? "bg-accent/[0.03]" : ""}`}
-                >
-                  {dayPosts.map((post) => {
-                    const client = clients.find((c) => c.id === post.clientId);
-                    return (
-                      <div
-                        key={post.id}
-                        className="rounded-lg p-2 cursor-pointer hover:opacity-90 transition-all hover:scale-[1.02]"
-                        style={{
-                          background: `${channelColors[post.channel]}15`,
-                          borderLeft: `2px solid ${channelColors[post.channel]}`,
-                        }}
-                      >
-                        <p className="text-[10px] font-600 text-ink leading-tight truncate">{post.title}</p>
-                        <p className="text-[9px] text-muted truncate">{client?.company}</p>
-                        <div className="flex items-center justify-between mt-1">
-                          <span className="text-[8px] font-mono" style={{ color: channelColors[post.channel] }}>
-                            {post.channel.slice(0, 2).toUpperCase()}
-                          </span>
-                          <span className="text-[8px] font-mono capitalize px-1 rounded" style={{ color: statusColors[post.status] }}>
-                            {post.status}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {dayPosts.length === 0 && (
-                    <div className="h-full min-h-[80px] flex items-center justify-center px-1">
-                      <span className="text-[9px] text-muted/25 text-center leading-snug">
-                        {EMPTY_DAY_QUIPS[i % EMPTY_DAY_QUIPS.length]}
+          {groupByClient ? (
+            /* Vista agrupada: una fila por cliente (todos, tengan o no tareas) */
+            <div className="min-w-[640px]">
+              {clients.map((client) => {
+                const clientPosts = myPosts.filter((p) => p.clientId === client.id);
+                const hasAny = clientPosts.some((p) => weekDates.includes(p.scheduledDate));
+                return (
+                  <div key={client.id} className="border-b border-line last:border-b-0">
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-surface2/40">
+                      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: client.color }} />
+                      <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: hasAny ? client.color : "var(--app-muted)" }}>
+                        {client.company}
                       </span>
+                      {!hasAny && <span className="font-mono text-[9px] text-muted/40 ml-auto">sin contenido esta semana</span>}
                     </div>
-                  )}
+                    <div className="grid grid-cols-7 min-h-[54px]">
+                      {weekDates.map((date) => {
+                        const cellPosts = clientPosts.filter((p) => p.scheduledDate === date);
+                        const isToday = date === today;
+                        return (
+                          <div key={date} className={`p-1.5 border-r border-line last:border-r-0 space-y-1 ${isToday ? "bg-accent/[0.03]" : ""}`}>
+                            {cellPosts.map((post) => (
+                              <div
+                                key={post.id}
+                                className="rounded-md p-1.5 cursor-pointer hover-lift"
+                                style={{ background: `${channelColors[post.channel]}15`, borderLeft: `2px solid ${channelColors[post.channel]}` }}
+                              >
+                                <p className="text-[10px] font-600 text-ink leading-tight truncate">{post.title}</p>
+                                <div className="flex items-center justify-between mt-0.5">
+                                  <span className="text-[8px] font-mono" style={{ color: channelColors[post.channel] }}>
+                                    {post.channel.slice(0, 2).toUpperCase()}
+                                  </span>
+                                  <span className="text-[8px] font-mono capitalize" style={{ color: statusColors[post.status] }}>
+                                    {post.status}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+              {clients.length === 0 && (
+                <div className="py-10 text-center">
+                  <p className="text-sm text-muted">Aún no hay clientes registrados.</p>
                 </div>
-              );
-            })}
-          </div>
+              )}
+            </div>
+          ) : (
+            /* Vista simple: solo mis tareas por día */
+            <div className="grid grid-cols-7 min-h-[200px] min-w-[640px]">
+              {weekDates.map((date, i) => {
+                const dayPosts = postsByDay[date] || [];
+                const isToday = date === today;
+                return (
+                  <div key={date} className={`p-2 border-r border-line last:border-r-0 space-y-1.5 ${isToday ? "bg-accent/[0.03]" : ""}`}>
+                    {dayPosts.map((post) => {
+                      const client = clients.find((c) => c.id === post.clientId);
+                      return (
+                        <div
+                          key={post.id}
+                          className="rounded-lg p-2 cursor-pointer hover-lift"
+                          style={{ background: `${channelColors[post.channel]}15`, borderLeft: `2px solid ${channelColors[post.channel]}` }}
+                        >
+                          <p className="text-[10px] font-600 text-ink leading-tight truncate">{post.title}</p>
+                          <p className="text-[9px] text-muted truncate">{client?.company}</p>
+                          <div className="flex items-center justify-between mt-1">
+                            <span className="text-[8px] font-mono" style={{ color: channelColors[post.channel] }}>
+                              {post.channel.slice(0, 2).toUpperCase()}
+                            </span>
+                            <span className="text-[8px] font-mono capitalize px-1 rounded" style={{ color: statusColors[post.status] }}>
+                              {post.status}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {dayPosts.length === 0 && (
+                      <div className="h-full min-h-[80px] flex items-center justify-center px-1">
+                        <span className="text-[9px] text-muted/25 text-center leading-snug">
+                          {EMPTY_DAY_QUIPS[i % EMPTY_DAY_QUIPS.length]}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
           </div>
         </div>
 
@@ -443,7 +508,7 @@ export default function MyWeek({ posts, projects, clients, users, activeUser, to
               {myProjects.flatMap((p) => p.deliverables.filter((d) => d.status !== "approved")).length === 0 && (
                 <div className="px-5 py-10 text-center">
                   <p className="text-2xl mb-2">🎊</p>
-                  <p className="text-sm font-500 text-ink">Todo al día, bestie</p>
+                  <p className="text-sm font-500 text-ink">Todo al día</p>
                   <p className="text-xs text-muted mt-1">No hay entregables pendientes. You're winning.</p>
                 </div>
               )}

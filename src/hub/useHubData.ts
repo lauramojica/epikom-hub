@@ -323,8 +323,8 @@ export function useHubData(authUserId: string) {
     if (error) { console.error(error); loadAll(); throw error }
   }, [supabase, loadAll])
 
-  const updateProfile = useCallback(async (updates: { name?: string; phone?: string }) => {
-    setUsers(prev => prev.map(u => u.id === authUserId ? { ...u, ...updates } : u))
+  const updateProfile = useCallback(async (updates: { name?: string; phone?: string; avatar_url?: string | null }) => {
+    setUsers(prev => prev.map(u => u.id === authUserId ? { ...u, name: updates.name ?? u.name, phone: updates.phone ?? u.phone, avatarUrl: updates.avatar_url !== undefined ? updates.avatar_url : u.avatarUrl } : u))
     const { error } = await supabase.from('users').update(updates).eq('id', authUserId)
     if (error) { console.error(error); loadAll(); throw error }
   }, [supabase, authUserId, loadAll])

@@ -12,6 +12,7 @@ interface AvatarProps {
   color: string;
   size?: "xs" | "sm" | "md" | "lg";
   className?: string;
+  src?: string | null;
 }
 
 const sizes = {
@@ -21,8 +22,15 @@ const sizes = {
   lg: { outer: "w-12 h-12", text: "text-base" },
 };
 
-export default function Avatar({ initials, color, size = "sm", className = "" }: AvatarProps) {
+export default function Avatar({ initials, color, size = "sm", className = "", src }: AvatarProps) {
   const { outer, text } = sizes[size];
+  if (src) {
+    return (
+      <div className={`${outer} rounded-full overflow-hidden flex-shrink-0 ${className}`} style={{ background: color }}>
+        <img src={src} alt={initials} className="w-full h-full object-cover" />
+      </div>
+    );
+  }
   return (
     <div
       className={`${outer} rounded-full flex items-center justify-center font-700 flex-shrink-0 ${text} ${className}`}

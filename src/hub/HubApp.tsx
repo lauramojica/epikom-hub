@@ -65,7 +65,7 @@ function NotifDropdown({ notifications, onMarkRead, onMarkAllRead, onViewAll, on
       {unread.length === 0 ? (
         <div className="py-8 text-center">
           <p className="text-2xl mb-1">🎊</p>
-          <p className="text-xs text-muted">Estás al día, bestie</p>
+          <p className="text-xs text-muted">Estás al día</p>
         </div>
       ) : (
         <div className="divide-y divide-line max-h-72 overflow-y-auto">
@@ -183,8 +183,7 @@ function AppInner({ authUserId }: { authUserId: string }) {
   const [showProfile, setShowProfile] = useState(false);
   // Usuario activo = el logueado; admins pueden "ver como" otro en Mi Semana
   const loggedUser = users.find((u) => u.id === authUserId);
-  const [viewAsId, setViewAsId] = useState<string | null>(null);
-  const activeUser = users.find((u) => u.id === (viewAsId ?? authUserId)) ?? loggedUser ?? {
+  const activeUser = loggedUser ?? {
     id: authUserId, name: "Cargando…", email: "", phone: "", role: "crew" as const,
     initials: "…", color: "#31b498", assignedClientIds: [], alertThresholdDays: 3,
     emailNotifications: true, status: "active" as const, joinDate: "", skills: [], streak: 0,
@@ -206,22 +205,41 @@ function AppInner({ authUserId }: { authUserId: string }) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  useEffect(() => {
-    const saved = localStorage.getItem("epikom-theme");
-    if (saved === "light") {
-      setLightMode(true);
-      document.documentElement.classList.add("light");
-    }
+  // Tema: "dark" | "light" | "auto" (auto = claro 7am–7pm, oscuro el resto)
+  const [themeMode, setThemeMode] = useState<"dark" | "light" | "auto">("dark");
+
+  const isLightByClock = () => {
+    const h = Number(new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone: "America/Puerto_Rico" }).format(new Date()));
+    return h >= 7 && h < 19;
+  };
+
+  const applyTheme = useCallback((mode: "dark" | "light" | "auto") => {
+    const light = mode === "light" || (mode === "auto" && isLightByClock());
+    document.documentElement.classList.toggle("light", light);
+    setLightMode(light);
   }, []);
 
+  useEffect(() => {
+    const saved = (localStorage.getItem("epikom-theme") as "dark" | "light" | "auto") ?? "dark";
+    setThemeMode(saved);
+    applyTheme(saved);
+    // En modo auto, revisar cada 5 minutos por si cruzó el umbral
+    const t = setInterval(() => {
+      if ((localStorage.getItem("epikom-theme") ?? "dark") === "auto") applyTheme("auto");
+    }, 300000);
+    return () => clearInterval(t);
+  }, [applyTheme]);
+
+  const setTheme = (mode: "dark" | "light" | "auto") => {
+    setThemeMode(mode);
+    localStorage.setItem("epikom-theme", mode);
+    applyTheme(mode);
+    toast(mode === "auto" ? "🕐 Tema automático según la hora" : mode === "light" ? "☀️ Modo claro" : "🌙 Modo oscuro", "info");
+  };
+
   const toggleTheme = () => {
-    setLightMode((v) => {
-      const next = !v;
-      document.documentElement.classList.toggle("light", next);
-      localStorage.setItem("epikom-theme", next ? "light" : "dark");
-      toast(next ? "☀️ Modo claro, fresh!" : "🌙 Modo oscuro activado", "info");
-      return next;
-    });
+    // Ciclo: dark → light → auto → dark
+    setTheme(themeMode === "dark" ? "light" : themeMode === "light" ? "auto" : "dark");
   };
 
   const triggerConfetti = useCallback(() => {
@@ -421,7 +439,7 @@ function AppInner({ authUserId }: { authUserId: string }) {
             onClick={() => setShowProfile(true)}
             className={`flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-surface2 transition-all w-full text-left ${sidebarOpen ? "" : "justify-center"}`}
           >
-            <Avatar initials={activeUser.initials} color={activeUser.color} size="sm" />
+            <Avatar initials={activeUser.initials} color={activeUser.color} size="sm" src={activeUser.avatarUrl} />
             {sidebarOpen && (
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-600 text-ink truncate">{activeUser.name}</p>
@@ -495,7 +513,7 @@ function AppInner({ authUserId }: { authUserId: string }) {
                 onClick={() => { setShowAvatarDropdown((v) => !v); setShowNotifDropdown(false); }}
                 className="rounded-full hover:ring-2 hover:ring-primary/40 transition-all"
               >
-                <Avatar initials={activeUser.initials} color={activeUser.color} size="sm" />
+                <Avatar initials={activeUser.initials} color={activeUser.color} size="sm" src={activeUser.avatarUrl} />
               </button>
               {showAvatarDropdown && (
                 <AvatarDropdown
@@ -519,7 +537,7 @@ function AppInner({ authUserId }: { authUserId: string }) {
           transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           className="flex-1 overflow-y-auto"
         >
-          {view === "myweek" && <MyWeek posts={posts} projects={projects} clients={clients} users={users} activeUser={activeUser} today={todayPR()} onMovePost={movePost} onSwitchUser={(u) => setViewAsId(u.id)} />}
+          {view === "myweek" && <MyWeek posts={posts} projects={projects} clients={clients} users={users} activeUser={activeUser} today={todayPR()} loggedUser={loggedUser} onMovePost={movePost} />}
           {view === "calendar" && <ContentCalendar posts={posts} clients={clients} users={users} today={todayPR()} onMovePost={movePost} onAddPost={addPost} onUpdatePost={updatePost} onAddPostFile={addPostFile} onRemovePostFile={removePostFile} />}
           {view === "projects" && <ProjectsView projects={projects} clients={clients} users={users} onUpdateDeliverable={updateDeliverable} onAddDeliverableFile={addDeliverableFile} onRemoveDeliverableFile={removeDeliverableFile} onMoveProjectPhase={moveProjectPhase} onAddProject={addProject} />}
           {view === "clients" && <ClientsView clients={clients} projects={projects} posts={posts} onUpdateClient={updateClient} onAddClient={addClient} interactions={interactions} />}
@@ -545,10 +563,15 @@ function AppInner({ authUserId }: { authUserId: string }) {
         <UserProfilePanel
           user={activeUser}
           onClose={() => setShowProfile(false)}
+          onChangePassword={async (newPassword) => {
+            const { error } = await supabase.auth.updateUser({ password: newPassword });
+            if (error) throw error;
+          }}
           onUpdate={(updates) => {
-            const payload: { name?: string; phone?: string } = {};
+            const payload: { name?: string; phone?: string; avatar_url?: string | null } = {};
             if (typeof updates.name === "string") payload.name = updates.name;
             if (typeof updates.phone === "string") payload.phone = updates.phone;
+            if (updates.avatarUrl !== undefined) payload.avatar_url = updates.avatarUrl;
             if (Object.keys(payload).length === 0) return;
             updateProfile(payload)
               .then(() => toast("✓ Perfil actualizado.", "success"))
