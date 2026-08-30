@@ -1,21 +1,25 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+
+type Mode = 'password' | 'magic'
 
 export default function LoginPage() {
   const router = useRouter()
   const supabase = useMemo(() => createClient(), [])
+  const [mode, setMode] = useState<Mode>('password')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  const handleLogin = async () => {
+  const handlePasswordLogin = async () => {
     if (!email || !password) { setError('Escribe tu email y contraseña.'); return }
-    setLoading(true)
-    setError(null)
+    setLoading(true); setError(null)
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
       setError(
@@ -30,10 +34,33 @@ export default function LoginPage() {
     router.refresh()
   }
 
+  const handleMagicLink = async () => {
+    if (!email) { setError('Escribe tu email.'); return }
+    setLoading(true); setError(null)
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: false,
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+    setLoading(false)
+    if (error) {
+      setError(
+        error.message.toLowerCase().includes('signups not allowed')
+          ? 'Ese email no tiene cuenta en el hub. Pídele acceso a Laura.'
+          : error.message
+      )
+      return
+    }
+    setSent(true)
+  }
+
+  const inputCls = 'w-full bg-surface2 border border-line rounded-lg px-3 py-2.5 text-sm text-ink outline-none focus:border-primary/40 font-body placeholder:text-muted/50'
+
   return (
     <div className="min-h-dvh bg-bg text-ink flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
-        {/* Marca */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-accent mb-5">
             <svg width="24" height="24" viewBox="0 0 14 14" fill="none">
@@ -45,45 +72,91 @@ export default function LoginPage() {
           <p className="font-mono text-[10px] text-muted uppercase tracking-widest mt-1.5">Hub Interno</p>
         </div>
 
-        {/* Card */}
-        <div className="bg-surface border border-line rounded-2xl p-6 space-y-4">
-          <div>
-            <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-              placeholder="tu@epikom.com"
-              autoComplete="email"
-              className="w-full bg-surface2 border border-line rounded-lg px-3 py-2.5 text-sm text-ink outline-none focus:border-primary/40 font-body placeholder:text-muted/50"
-            />
+        {sent ? (
+          <div className="bg-surface border border-line rounded-2xl p-6 text-center animate-pop-in">
+            <p className="text-4xl mb-3">📬</p>
+            <p className="text-sm font-600 text-ink mb-1.5">Revisa tu email</p>
+            <p className="text-xs text-muted leading-relaxed mb-5">
+              Te enviamos un enlace mágico a <span className="text-ink font-mono">{email}</span>.
+              Ábrelo desde este mismo dispositivo.
+            </p>
+            <button
+              onClick={() => { setSent(false); setError(null) }}
+              className="text-xs font-mono text-primary hover:opacity-80"
+            >
+              ← Usar otro email
+            </button>
           </div>
-          <div>
-            <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Contraseña</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-              placeholder="••••••••"
-              autoComplete="current-password"
-              className="w-full bg-surface2 border border-line rounded-lg px-3 py-2.5 text-sm text-ink outline-none focus:border-primary/40 font-body placeholder:text-muted/50"
-            />
+        ) : (
+          <div className="bg-surface border border-line rounded-2xl p-6 space-y-4">
+            <div className="flex gap-1 bg-surface2 border border-line rounded-xl p-1">
+              {(['password', 'magic'] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => { setMode(m); setError(null) }}
+                  className={`flex-1 px-3 py-1.5 rounded-lg text-[11px] font-mono uppercase tracking-wide transition-all ${
+                    mode === m ? 'bg-primary text-bg font-600' : 'text-muted hover:text-ink'
+                  }`}
+                >
+                  {m === 'password' ? 'Contraseña' : '✨ Magic Link'}
+                </button>
+              ))}
+            </div>
+
+            <div>
+              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setError(null) }}
+                onKeyDown={(e) => e.key === 'Enter' && (mode === 'password' ? handlePasswordLogin() : handleMagicLink())}
+                placeholder="tu@epikom.com"
+                autoComplete="email"
+                className={inputCls}
+              />
+            </div>
+
+            {mode === 'password' && (
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[10px] font-mono text-muted uppercase tracking-widest">Contraseña</label>
+                  <Link href="/forgot-password" className="text-[10px] font-mono text-primary hover:opacity-80">
+                    ¿Olvidaste?
+                  </Link>
+                </div>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); setError(null) }}
+                  onKeyDown={(e) => e.key === 'Enter' && handlePasswordLogin()}
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  className={inputCls}
+                />
+              </div>
+            )}
+
+            {mode === 'magic' && (
+              <p className="text-[11px] text-muted leading-relaxed">
+                Te mandamos un enlace al correo y entras sin contraseña. Solo funciona con emails que ya tienen cuenta.
+              </p>
+            )}
+
+            {error && (
+              <p className="text-xs text-danger bg-danger/10 border border-danger/20 rounded-lg px-3 py-2">{error}</p>
+            )}
+
+            <button
+              onClick={mode === 'password' ? handlePasswordLogin : handleMagicLink}
+              disabled={loading}
+              className="w-full bg-primary text-bg font-600 text-sm rounded-lg py-2.5 hover:opacity-90 transition-opacity disabled:opacity-50 font-body"
+            >
+              {loading
+                ? (mode === 'password' ? 'Entrando…' : 'Enviando…')
+                : (mode === 'password' ? 'Entrar al hub →' : 'Enviar enlace mágico ✨')}
+            </button>
           </div>
-
-          {error && (
-            <p className="text-xs text-danger bg-danger/10 border border-danger/20 rounded-lg px-3 py-2">{error}</p>
-          )}
-
-          <button
-            onClick={handleLogin}
-            disabled={loading}
-            className="w-full bg-primary text-bg font-600 text-sm rounded-lg py-2.5 hover:opacity-90 transition-opacity disabled:opacity-50 font-body"
-          >
-            {loading ? 'Entrando…' : 'Entrar al hub →'}
-          </button>
-        </div>
+        )}
 
         <p className="text-center text-[10px] font-mono text-muted mt-6 uppercase tracking-widest">
           Epikom Interactive · Bayamón PR

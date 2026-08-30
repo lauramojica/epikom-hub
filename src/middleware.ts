@@ -34,21 +34,29 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Protected routes - redirect to login if not authenticated
-  if (
-    !user &&
-    !request.nextUrl.pathname.startsWith('/login') &&
-    !request.nextUrl.pathname.startsWith('/auth')
-  ) {
+  const { pathname } = request.nextUrl
+
+  // Rutas accesibles sin sesión
+  const PUBLIC_ROUTES = ['/login', '/forgot-password', '/reset-password', '/auth']
+
+  // Rutas que expulsan al hub si YA hay sesión.
+  // OJO: /reset-password NO va aquí. El enlace de recovery de Supabase
+  // crea sesión antes de llegar a esa página; si la incluimos, el usuario
+  // sería redirigido al hub y nunca podría cambiar su contraseña.
+  const REDIRECT_IF_LOGGED_IN = ['/login', '/forgot-password']
+
+  const isPublic = PUBLIC_ROUTES.some((r) => pathname.startsWith(r))
+
+  if (!user && !isPublic) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  // Redirect to dashboard if already logged in and trying to access login
-  if (user && request.nextUrl.pathname.startsWith('/login')) {
+  if (user && REDIRECT_IF_LOGGED_IN.some((r) => pathname.startsWith(r))) {
     const url = request.nextUrl.clone()
     url.pathname = '/'
+    url.search = ''
     return NextResponse.redirect(url)
   }
 
