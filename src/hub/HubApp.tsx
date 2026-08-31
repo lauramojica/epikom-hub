@@ -171,7 +171,8 @@ function AppInner({ authUserId }: { authUserId: string }) {
     posts, clients, users: rawUsers, notifications, projects, documents, interactions, loading, error,
     movePost: dbMovePost, addPost: dbAddPost, updatePost: dbUpdatePost,
     markNotifRead, markAllRead: dbMarkAllRead,
-    addProject: dbAddProject, moveProjectPhase: dbMovePhase, updateDeliverable: dbUpdateDeliv,
+    addProject: dbAddProject, updateProject: dbUpdateProject, deleteProject: dbDeleteProject,
+    deleteClient: dbDeleteClient, moveProjectPhase: dbMovePhase, updateDeliverable: dbUpdateDeliv,
     setDeliverableFiles, addClient: dbAddClient, updateClient: dbUpdateClient,
     addDocument: dbAddDocument, deleteDocument: dbDeleteDocument, uploadFile,
     agency, saveAgency, toggleCrewAssignment, changeUserRole, updateProfile,
@@ -388,13 +389,17 @@ function AppInner({ authUserId }: { authUserId: string }) {
       <aside className={`flex-shrink-0 flex flex-col border-r border-line bg-surface transition-all duration-200
         max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-40 max-md:w-60
         ${sidebarOpen ? "w-52 max-md:translate-x-0" : "w-14 max-md:-translate-x-full"}`}>
-        <div className="flex items-center gap-3 px-4 py-5 border-b border-line">
-          {agency?.logo_url ? (
-            <div className="w-7 h-7 rounded-lg overflow-hidden flex-shrink-0 bg-surface2">
-              <img src={agency.logo_url} alt="Logo" className="w-full h-full object-cover" />
+        <button
+          onClick={() => { setView(visibleNav[0]?.key ?? "myweek"); if (window.innerWidth < 768) setSidebarOpen(false); }}
+          title="Ir al inicio"
+          className="flex items-center gap-3 px-4 py-5 border-b border-line w-full text-left hover:bg-surface2/50 transition-colors group"
+        >
+          {(lightMode && agency?.logo_url_light ? agency.logo_url_light : agency?.logo_url) ? (
+            <div className="w-7 h-7 rounded-lg overflow-hidden flex-shrink-0 bg-surface2 group-hover:scale-105 transition-transform">
+              <img src={(lightMode && agency?.logo_url_light ? agency.logo_url_light : agency?.logo_url) as string} alt="Logo" className="w-full h-full object-contain" />
             </div>
           ) : (
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-accent flex-shrink-0">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-accent flex-shrink-0 group-hover:scale-105 transition-transform">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <path d="M2 9L5 5L7.5 7.5L10 4L13 6.5" stroke="#0a0a0d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                 <circle cx="12" cy="11" r="2.5" fill="#0a0a0d"/>
@@ -404,10 +409,10 @@ function AppInner({ authUserId }: { authUserId: string }) {
           {sidebarOpen && (
             <div>
               <p className="font-display text-base font-800 uppercase tracking-widest text-ink leading-none">{(agency?.name ?? "Epikom").split(" ")[0]}</p>
-              <p className="font-mono text-[9px] text-muted uppercase tracking-widest">Hub Interno</p>
+              <p className="font-mono text-[9px] text-muted uppercase tracking-widest">{(agency?.wordmark_sub as string) ?? "Hub Interno"}</p>
             </div>
           )}
-        </div>
+        </button>
 
         <nav className="flex-1 py-3 space-y-0.5 px-2 overflow-y-auto">
           {visibleNav.map((item) => {
@@ -545,9 +550,27 @@ function AppInner({ authUserId }: { authUserId: string }) {
           {view === "calendar" && <ContentCalendar
             dynamicFormats={workshop.byKind("format").map((o) => ({ value: o.value, label: o.label }))}
             dynamicChannels={workshop.byKind("channel").map((o) => ({ value: o.value, label: o.label, color: o.color }))}
-            posts={posts} clients={clients} users={users} today={todayPR()} onMovePost={movePost} onAddPost={addPost} onUpdatePost={updatePost} onAddPostFile={addPostFile} onRemovePostFile={removePostFile} />}
-          {view === "projects" && <ProjectsView projects={projects} clients={clients} users={users} onUpdateDeliverable={updateDeliverable} onAddDeliverableFile={addDeliverableFile} onRemoveDeliverableFile={removeDeliverableFile} onMoveProjectPhase={moveProjectPhase} onAddProject={addProject} />}
-          {view === "clients" && <ClientsView clients={clients} projects={projects} posts={posts} onUpdateClient={updateClient} onAddClient={addClient} interactions={interactions} />}
+            posts={posts}
+            clients={workshop.services.length > 0 ? clients.filter((c) => workshop.clientHasContentCalendar(c.id)) : clients}
+            users={users} today={todayPR()} onMovePost={movePost} onAddPost={addPost} onUpdatePost={updatePost} onAddPostFile={addPostFile} onRemovePostFile={removePostFile} />}
+          {view === "projects" && <ProjectsView projects={projects} clients={clients} users={users} onUpdateDeliverable={updateDeliverable} onAddDeliverableFile={addDeliverableFile} onRemoveDeliverableFile={removeDeliverableFile} onMoveProjectPhase={moveProjectPhase} onAddProject={addProject}
+            onUpdateProject={(id, u) => dbUpdateProject(id, u).then(() => toast("✓ Proyecto actualizado.", "success")).catch(() => toast("✕ No se pudo actualizar.", "error"))}
+            onDeleteProject={(id) => dbDeleteProject(id).then(() => toast("✓ Proyecto eliminado.", "success")).catch(() => toast("✕ No se pudo eliminar.", "error"))}
+            services={workshop.services}
+            projectServices={workshop.projectServices}
+            onToggleProjectService={(pid, sid, on) => workshop.toggleProjectService(pid, sid, on)}
+            canEdit={isAdminUp}
+          />}
+          {view === "clients" && <ClientsView
+            clients={clients} projects={projects} posts={posts}
+            onUpdateClient={updateClient} onAddClient={addClient}
+            onDeleteClient={(id) => dbDeleteClient(id).then(() => toast("✓ Cliente eliminado.", "success")).catch((e) => toast(e.message ?? "✕ No se pudo eliminar.", "error"))}
+            interactions={interactions}
+            services={workshop.services}
+            clientServices={workshop.clientServices}
+            onToggleService={(cid, sid, on) => workshop.toggleClientService(cid, sid, on)}
+            canEdit={isAdminUp}
+          />}
           {view === "analytics" && <Analytics posts={posts} projects={projects} clients={clients} users={users} />}
           {view === "notifications" && <NotificationsView notifications={notifications} clients={clients} onMarkRead={markNotifRead} onMarkAllRead={markAllRead} />}
           {view === "roles" && <RolesView

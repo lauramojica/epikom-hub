@@ -12,6 +12,12 @@ interface Props {
   onRemoveDeliverableFile: (projectId: string, delivId: string, fileId: string) => void;
   onMoveProjectPhase?: (projectId: string, phase: ProjectPhase) => void;
   onAddProject?: (project: Omit<Project, "id" | "phases" | "deliverables">) => void;
+  onUpdateProject?: (id: string, updates: Partial<Project>) => void;
+  onDeleteProject?: (id: string) => void;
+  services?: { id: string; name: string; color: string }[];
+  projectServices?: Record<string, string[]>;
+  onToggleProjectService?: (projectId: string, serviceId: string, on: boolean) => void;
+  canEdit?: boolean;
 }
 
 const PROJECT_COLORS = ["#31b498","#a78bfa","#f59e0b","#ef4444","#22c55e","#e040fb","#dbfa45","#3b82f6"];
@@ -455,7 +461,8 @@ function KanbanView({ projects, clients, onUpdateDeliverable, onAddDeliverableFi
 }
 
 // ─── Main ──────────────────────────────────────────────────────────────────────
-export default function ProjectsView({ projects, clients, users, onUpdateDeliverable, onAddDeliverableFile, onRemoveDeliverableFile, onMoveProjectPhase, onAddProject }: Props) {
+export default function ProjectsView({ projects, clients, users, onUpdateDeliverable, onAddDeliverableFile, onRemoveDeliverableFile, onMoveProjectPhase, onAddProject, onUpdateProject, onDeleteProject, services = [], projectServices = {}, onToggleProjectService, canEdit = true }: Props) {
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "gantt" | "kanban">("list");
   const [selected, setSelected] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("");
@@ -541,8 +548,26 @@ export default function ProjectsView({ projects, clients, users, onUpdateDeliver
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      {(projectServices[project.id] ?? []).slice(0, 3).map((sid) => {
+                        const svc = services.find((x) => x.id === sid);
+                        if (!svc) return null;
+                        return (
+                          <span key={sid} className="text-[9px] font-mono px-1.5 py-0.5 rounded" style={{ background: `${svc.color}18`, color: svc.color }}>
+                            {svc.name}
+                          </span>
+                        );
+                      })}
                       {pendingDelivs > 0 && <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-warning/10 text-warning border border-warning/30">{pendingDelivs} pendientes</span>}
                       <span className="text-[10px] font-mono px-2 py-0.5 rounded border" style={{ borderColor: `${statusColors[project.status]}40`, color: statusColors[project.status] }}>{project.status}</span>
+                      {canEdit && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setEditingProject(project); }}
+                          className="w-6 h-6 rounded-lg border border-line flex items-center justify-center text-muted hover:text-primary hover:border-primary/40 transition-all flex-shrink-0"
+                          title="Editar proyecto"
+                        >
+                          <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M8.5 1.5l2 2L4 10l-2.5.5L2 8l6.5-6.5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg>
+                        </button>
+                      )}
                     </div>
                   </div>
                   <PhaseJourney phases={project.phases} currentPhase={project.currentPhase} color={project.color} />
@@ -589,6 +614,133 @@ export default function ProjectsView({ projects, clients, users, onUpdateDeliver
           })}
         </div>
       )}
+      {editingProject && (
+        <EditProjectModal
+          project={editingProject}
+          clients={clients}
+          services={services}
+          activeServiceIds={projectServices[editingProject.id] ?? []}
+          onToggleService={(sid, on) => onToggleProjectService?.(editingProject.id, sid, on)}
+          onSave={(updates) => { onUpdateProject?.(editingProject.id, updates); setEditingProject(null); }}
+          onDelete={onDeleteProject ? () => { onDeleteProject(editingProject.id); setEditingProject(null); } : undefined}
+          onCancel={() => setEditingProject(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+
+/* ─── Editar proyecto ─────────────────────────────────────────────────────── */
+function EditProjectModal({ project, clients, services, activeServiceIds, onToggleService, onSave, onDelete, onCancel }: {
+  project: Project;
+  clients: Client[];
+  services: { id: string; name: string; color: string }[];
+  activeServiceIds: string[];
+  onToggleService: (serviceId: string, on: boolean) => void;
+  onSave: (updates: Partial<Project>) => void;
+  onDelete?: () => void;
+  onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState<Project>({ ...project });
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const upd = (k: keyof Project, v: unknown) => setDraft((p) => ({ ...p, [k]: v }));
+  const cls = "w-full bg-surface2 border border-line rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-primary/40 font-body";
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6" onClick={onCancel}>
+      <div className="bg-surface border border-line rounded-2xl w-full max-w-lg overflow-hidden animate-pop-in" onClick={(e) => e.stopPropagation()}>
+        <div className="px-6 py-4 border-b border-line flex items-center justify-between">
+          <h2 className="font-display text-2xl font-700 uppercase text-ink">Editar proyecto</h2>
+          <button onClick={onCancel} className="text-muted hover:text-ink text-lg">✕</button>
+        </div>
+
+        <div className="p-6 space-y-4 max-h-[65vh] overflow-y-auto">
+          <div className="flex gap-3 items-end">
+            <div className="flex-1">
+              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Nombre</label>
+              <input value={draft.name} onChange={(e) => upd("name", e.target.value)} className={cls} />
+            </div>
+            <div className="w-10 h-10 rounded-lg border border-line relative cursor-pointer flex-shrink-0" style={{ background: draft.color }}>
+              <input type="color" value={draft.color} onChange={(e) => upd("color", e.target.value)} className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Descripción</label>
+            <textarea value={draft.description} onChange={(e) => upd("description", e.target.value)} rows={2} className={cls + " resize-none"} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Cliente</label>
+              <select value={draft.clientId} onChange={(e) => upd("clientId", e.target.value)} className={cls + " cursor-pointer"}>
+                {clients.map((c) => <option key={c.id} value={c.id} className="bg-surface">{c.company}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Estado</label>
+              <select value={draft.status} onChange={(e) => upd("status", e.target.value)} className={cls + " cursor-pointer"}>
+                <option value="active" className="bg-surface">Activo</option>
+                <option value="paused" className="bg-surface">En pausa</option>
+                <option value="completed" className="bg-surface">Completado</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Inicio</label>
+              <input type="date" value={draft.startDate} onChange={(e) => upd("startDate", e.target.value)} className={cls} />
+            </div>
+            <div>
+              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Fin</label>
+              <input type="date" value={draft.endDate} onChange={(e) => upd("endDate", e.target.value)} className={cls} />
+            </div>
+            <div>
+              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Presupuesto</label>
+              <input type="number" value={draft.budget} onChange={(e) => upd("budget", Number(e.target.value))} className={cls} />
+            </div>
+          </div>
+
+          {services.length > 0 && (
+            <div>
+              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Servicios de este proyecto</label>
+              <p className="text-[11px] text-muted mb-2">Un proyecto puede combinar varios (ej. Branding + Web + Gráficos).</p>
+              <div className="grid grid-cols-2 gap-2">
+                {services.map((s) => {
+                  const on = activeServiceIds.includes(s.id);
+                  return (
+                    <label key={s.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs cursor-pointer transition-all ${on ? "border-primary/40 bg-primary/5 text-ink" : "border-line text-muted hover:border-muted"}`}>
+                      <input type="checkbox" checked={on} onChange={(e) => onToggleService(s.id, e.target.checked)} className="accent-[#31b498]" />
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }} />
+                      <span className="truncate">{s.name}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t border-line flex items-center justify-between">
+          {onDelete ? (
+            confirmDelete ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-danger">¿Eliminar?</span>
+                <button onClick={onDelete} className="text-xs font-mono px-3 py-1.5 rounded-lg bg-danger text-white font-600">Sí</button>
+                <button onClick={() => setConfirmDelete(false)} className="text-xs font-mono px-3 py-1.5 rounded-lg border border-line text-muted">No</button>
+              </div>
+            ) : (
+              <button onClick={() => setConfirmDelete(true)} className="text-xs font-mono text-danger hover:opacity-80">Eliminar proyecto</button>
+            )
+          ) : <span />}
+          <div className="flex gap-3">
+            <button onClick={onCancel} className="text-xs font-mono px-4 py-2 rounded-lg border border-line text-muted hover:text-ink">Cancelar</button>
+            <button onClick={() => onSave(draft)} className="text-xs font-mono px-5 py-2 rounded-lg bg-primary text-bg font-600 hover:opacity-90">Guardar cambios</button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

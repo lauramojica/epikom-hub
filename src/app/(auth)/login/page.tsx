@@ -19,9 +19,18 @@ export default function LoginPage() {
   const [brand, setBrand] = useState<{ icon_url?: string | null; wordmark?: string; wordmark_sub?: string } | null>(null)
 
   useEffect(() => {
-    supabase.from('agency_settings').select('icon_url, logo_url, wordmark, wordmark_sub').eq('id', 1).single()
+    supabase.from('agency_settings').select('icon_url, icon_url_light, logo_url, logo_url_light, wordmark, wordmark_sub').eq('id', 1).single()
       .then(({ data }) => {
-        if (data) setBrand({ icon_url: data.icon_url ?? data.logo_url, wordmark: data.wordmark, wordmark_sub: data.wordmark_sub })
+        if (!data) return
+        // El login respeta el tema guardado por el usuario
+        const saved = localStorage.getItem('epikom-theme') ?? 'dark'
+        const hour = new Date().getHours()
+        const isLight = saved === 'light' || (saved === 'auto' && hour >= 7 && hour < 19)
+        if (isLight) document.documentElement.classList.add('light')
+        const icon = isLight
+          ? (data.icon_url_light ?? data.icon_url ?? data.logo_url_light ?? data.logo_url)
+          : (data.icon_url ?? data.logo_url)
+        setBrand({ icon_url: icon, wordmark: data.wordmark, wordmark_sub: data.wordmark_sub })
       })
   }, [supabase])
 

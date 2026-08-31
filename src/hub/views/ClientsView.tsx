@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { Client, Project, ContentPost, BrandColor, BrandFont } from "../types";
 
 interface Props {
@@ -7,7 +7,12 @@ interface Props {
   posts: ContentPost[];
   onUpdateClient?: (id: string, updates: Partial<Client>) => void;
   onAddClient?: (c: Partial<Client>) => void;
+  onDeleteClient?: (id: string) => void;
   interactions?: Record<string, import("../types").ClientInteraction[]>;
+  services?: { id: string; name: string; color: string; enables_content_calendar: boolean }[];
+  clientServices?: Record<string, string[]>;
+  onToggleService?: (clientId: string, serviceId: string, on: boolean) => void;
+  canEdit?: boolean;
 }
 
 const interactionIcons: Record<string, string> = {
@@ -157,11 +162,11 @@ function BrandTab({ client, onUpdate, logoRef }: { client: Client; onUpdate: (u:
   );
 }
 
-export default function ClientsView({ clients, projects, posts, onUpdateClient, onAddClient, interactions = {} }: Props) {
+export default function ClientsView({ clients, projects, posts, onUpdateClient, onAddClient, onDeleteClient, interactions = {}, services = [], clientServices = {}, onToggleService, canEdit = true }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
   const [showNewClient, setShowNewClient] = useState(false);
   const [search, setSearch] = useState("");
-  const [tab, setTab] = useState<"profile" | "brand" | "crm">("profile");
+  const [tab, setTab] = useState<"profile" | "edit" | "brand" | "crm">("profile");
   const logoRef = useRef<HTMLInputElement>(null);
 
   const filtered = clients.filter((c) =>
@@ -282,9 +287,9 @@ export default function ClientsView({ clients, projects, posts, onUpdateClient, 
 
             {/* Tabs */}
             <div className="flex border-b border-line">
-              {(["profile", "brand", "crm"] as const).map((t) => (
+              {(["profile", "edit", "brand", "crm"] as const).map((t) => (
                 <button key={t} onClick={() => setTab(t)} className={`px-5 py-3 text-xs font-mono uppercase tracking-widest transition-all border-b-2 -mb-px ${tab === t ? "text-primary border-primary" : "text-muted border-transparent hover:text-ink"}`}>
-                  {t === "profile" ? "Perfil" : t === "brand" ? "Marca" : "CRM"}
+                  {t === "profile" ? "Perfil" : t === "edit" ? "Editar" : t === "brand" ? "Marca" : "CRM"}
                 </button>
               ))}
             </div>
@@ -336,6 +341,19 @@ export default function ClientsView({ clients, projects, posts, onUpdateClient, 
                     </div>
                   )}
                 </div>
+              )}
+
+              {/* Edit tab */}
+              {tab === "edit" && (
+                <ClientEditTab
+                  client={client}
+                  canEdit={canEdit}
+                  services={services}
+                  activeServiceIds={clientServices[client.id] ?? []}
+                  onToggleService={(sid, on) => onToggleService?.(client.id, sid, on)}
+                  onSave={(updates) => onUpdateClient?.(client.id, updates)}
+                  onDelete={onDeleteClient ? () => onDeleteClient(client.id) : undefined}
+                />
               )}
 
               {/* Brand tab */}
@@ -480,6 +498,170 @@ function NewClientModal({ onAdd, onCancel }: { onAdd: (c: Partial<Client>) => vo
           <button onClick={submit} className="text-xs font-mono px-5 py-2 rounded-lg bg-primary text-bg font-600 hover:opacity-90">Crear cliente</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ─── Editar cliente ──────────────────────────────────────────────────────── */
+function ClientEditTab({ client, canEdit, services, activeServiceIds, onToggleService, onSave, onDelete }: {
+  client: Client;
+  canEdit: boolean;
+  services: { id: string; name: string; color: string; enables_content_calendar: boolean }[];
+  activeServiceIds: string[];
+  onToggleService: (serviceId: string, on: boolean) => void;
+  onSave: (updates: Partial<Client>) => void;
+  onDelete?: () => void;
+}) {
+  const [draft, setDraft] = useState<Client>({ ...client });
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  useEffect(() => { setDraft({ ...client }); }, [client.id]);
+
+  const dirty = JSON.stringify(draft) !== JSON.stringify(client);
+  const upd = (k: keyof Client, v: unknown) => setDraft((p) => ({ ...p, [k]: v }));
+  const cls = "w-full bg-surface2 border border-line rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-primary/40 font-body placeholder:text-muted/50";
+
+  const updContact = (i: number, field: string, value: string) => {
+    const next = [...draft.contacts];
+    next[i] = { ...next[i], [field]: value };
+    upd("contacts", next);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Datos base */}
+      <div>
+        <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-3">Datos del cliente</h3>
+        <div className="space-y-4">
+          <div className="flex gap-4 items-end">
+            <div className="flex-1">
+              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Nombre</label>
+              <input value={draft.name} disabled={!canEdit} onChange={(e) => { upd("name", e.target.value); upd("company", e.target.value); }} className={cls} />
+            </div>
+            <div>
+              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Color</label>
+              <div className="w-10 h-10 rounded-lg border border-line relative cursor-pointer" style={{ background: draft.color }}>
+                {canEdit && <input type="color" value={draft.color} onChange={(e) => upd("color", e.target.value)} className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" />}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Idioma</label>
+              <select value={draft.language} disabled={!canEdit} onChange={(e) => upd("language", e.target.value)} className={cls + " cursor-pointer"}>
+                <option className="bg-surface">Español</option>
+                <option className="bg-surface">English</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Zona horaria</label>
+              <select value={draft.timezone} disabled={!canEdit} onChange={(e) => upd("timezone", e.target.value)} className={cls + " cursor-pointer"}>
+                {["America/Puerto_Rico", "America/New_York", "America/Chicago", "America/Los_Angeles"].map((tz) => (
+                  <option key={tz} value={tz} className="bg-surface">{tz.replace("_", " ")}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2 text-xs text-ink cursor-pointer">
+            <input type="checkbox" checked={draft.notifyEmail} disabled={!canEdit} onChange={(e) => upd("notifyEmail", e.target.checked)} className="accent-[#31b498]" />
+            Recibe notificaciones por email
+          </label>
+        </div>
+      </div>
+
+      {/* Servicios contratados */}
+      <div>
+        <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-1">Servicios contratados</h3>
+        <p className="text-[11px] text-muted mb-3">Definen qué módulos se activan para este cliente.</p>
+        {services.length === 0 ? (
+          <p className="text-xs text-muted">Aún no hay servicios. Créalos en Workshop → Servicios.</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            {services.map((s) => {
+              const on = activeServiceIds.includes(s.id);
+              return (
+                <label key={s.id} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border text-xs cursor-pointer transition-all ${on ? "border-primary/40 bg-primary/5 text-ink" : "border-line text-muted hover:border-muted"}`}>
+                  <input type="checkbox" checked={on} disabled={!canEdit} onChange={(e) => onToggleService(s.id, e.target.checked)} className="accent-[#31b498]" />
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }} />
+                  <span className="truncate flex-1">{s.name}</span>
+                  {s.enables_content_calendar && on && <span className="text-[9px] font-mono text-primary">📅</span>}
+                </label>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Contactos */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest">Contactos</h3>
+          {canEdit && (
+            <button
+              onClick={() => upd("contacts", [...draft.contacts, { name: "", role: "", email: "", phone: "" }])}
+              className="text-[10px] font-mono text-primary hover:opacity-80"
+            >
+              + Añadir contacto
+            </button>
+          )}
+        </div>
+        <div className="space-y-2">
+          {draft.contacts.map((c, i) => (
+            <div key={i} className="bg-surface2 border border-line rounded-lg p-3 space-y-2">
+              <div className="flex gap-2">
+                <input value={c.name} disabled={!canEdit} onChange={(e) => updContact(i, "name", e.target.value)} placeholder="Nombre" className={cls} />
+                <input value={c.role} disabled={!canEdit} onChange={(e) => updContact(i, "role", e.target.value)} placeholder="Puesto" className={cls} />
+                {canEdit && (
+                  <button
+                    onClick={() => upd("contacts", draft.contacts.filter((_, j) => j !== i))}
+                    className="text-danger hover:opacity-70 px-2 flex-shrink-0"
+                    title="Quitar contacto"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <input value={c.email} disabled={!canEdit} onChange={(e) => updContact(i, "email", e.target.value)} placeholder="email@cliente.com" className={cls} />
+                <input value={c.phone} disabled={!canEdit} onChange={(e) => updContact(i, "phone", e.target.value)} placeholder="787-000-0000" className={cls} />
+              </div>
+            </div>
+          ))}
+          {draft.contacts.length === 0 && <p className="text-xs text-muted">Sin contactos registrados.</p>}
+        </div>
+      </div>
+
+      {/* Acciones */}
+      {canEdit && (
+        <div className="flex items-center justify-between pt-4 border-t border-line">
+          {onDelete ? (
+            confirmDelete ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-danger">¿Seguro?</span>
+                <button onClick={onDelete} className="text-xs font-mono px-3 py-1.5 rounded-lg bg-danger text-white font-600">Sí, eliminar</button>
+                <button onClick={() => setConfirmDelete(false)} className="text-xs font-mono px-3 py-1.5 rounded-lg border border-line text-muted">Cancelar</button>
+              </div>
+            ) : (
+              <button onClick={() => setConfirmDelete(true)} className="text-xs font-mono text-danger hover:opacity-80">
+                Eliminar cliente
+              </button>
+            )
+          ) : <span />}
+
+          <div className="flex items-center gap-3">
+            {dirty && <span className="text-[10px] font-mono text-warning">Cambios sin guardar</span>}
+            <button
+              onClick={() => onSave(draft)}
+              disabled={!dirty}
+              className="text-xs font-mono px-5 py-2 rounded-lg bg-primary text-bg font-600 hover:opacity-90 disabled:opacity-30 transition-opacity"
+            >
+              Guardar cambios
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

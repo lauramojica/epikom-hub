@@ -31,13 +31,15 @@ export function useWorkshop() {
   const [options, setOptions] = useState<WorkshopOption[]>([])
   const [services, setServices] = useState<Service[]>([])
   const [clientServices, setClientServices] = useState<Record<string, string[]>>({})
+  const [projectServices, setProjectServices] = useState<Record<string, string[]>>({})
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
-    const [optRes, svcRes, csRes] = await Promise.all([
+    const [optRes, svcRes, csRes, psRes] = await Promise.all([
       supabase.from('workshop_options').select('*').order('kind').order('sort_order'),
       supabase.from('services').select('*').order('sort_order'),
       supabase.from('client_services').select('client_id, service_id'),
+      supabase.from('project_services').select('project_id, service_id'),
     ])
     setOptions((optRes.data ?? []) as WorkshopOption[])
     setServices((svcRes.data ?? []) as Service[])
@@ -46,6 +48,11 @@ export function useWorkshop() {
       map[r.client_id] = [...(map[r.client_id] ?? []), r.service_id]
     }
     setClientServices(map)
+    const pmap: Record<string, string[]> = {}
+    for (const r of psRes.data ?? []) {
+      pmap[r.project_id] = [...(pmap[r.project_id] ?? []), r.service_id]
+    }
+    setProjectServices(pmap)
     setLoading(false)
   }, [supabase])
 
@@ -133,8 +140,25 @@ export function useWorkshop() {
     return services.some(s => ids.includes(s.id) && s.enables_content_calendar)
   }, [clientServices, services])
 
+  const toggleProjectService = useCallback(async (projectId: string, serviceId: string, on: boolean) => {
+    setProjectServices(prev => ({
+      ...prev,
+      [projectId]: on
+        ? [...(prev[projectId] ?? []), serviceId]
+        : (prev[projectId] ?? []).filter(id => id !== serviceId),
+    }))
+    if (on) {
+      const { error } = await supabase.from('project_services').insert({ project_id: projectId, service_id: serviceId })
+      if (error && !error.message.includes('duplicate')) { load(); throw error }
+    } else {
+      const { error } = await supabase.from('project_services')
+        .delete().eq('project_id', projectId).eq('service_id', serviceId)
+      if (error) { load(); throw error }
+    }
+  }, [supabase, load])
+
   return {
-    options, services, clientServices, loading, byKind,
+    options, services, clientServices, projectServices, toggleProjectService, loading, byKind,
     addOption, updateOption, deleteOption,
     addService, updateService, deleteService,
     toggleClientService, clientHasContentCalendar,

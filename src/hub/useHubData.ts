@@ -297,6 +297,32 @@ export function useHubData(authUserId: string) {
     }
   }, [supabase, documents])
 
+  // ---------------- Proyectos: editar y borrar ----------------
+  const updateProject = useCallback(async (id: string, updates: Partial<Project>) => {
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p))
+    const payload = projectToDb(updates)
+    if (Object.keys(payload).length === 0) return
+    const { error } = await supabase.from('projects').update(payload).eq('id', id)
+    if (error) { console.error('updateProject:', error); loadAll(); throw error }
+  }, [supabase, loadAll])
+
+  const deleteProject = useCallback(async (id: string) => {
+    setProjects(prev => prev.filter(p => p.id !== id))
+    const { error } = await supabase.from('projects').delete().eq('id', id)
+    if (error) { console.error('deleteProject:', error); loadAll(); throw error }
+  }, [supabase, loadAll])
+
+  const deleteClient = useCallback(async (id: string) => {
+    const { count } = await supabase.from('content_items')
+      .select('id', { count: 'exact', head: true }).eq('client_id', id)
+    if ((count ?? 0) > 0) {
+      throw new Error(`Este cliente tiene ${count} publicaciones. Muévelas o elimínalas primero.`)
+    }
+    setClients(prev => prev.filter(c => c.id !== id))
+    const { error } = await supabase.from('hub_clients').delete().eq('id', id)
+    if (error) { console.error('deleteClient:', error); loadAll(); throw error }
+  }, [supabase, loadAll])
+
   // ---------------- Crew, roles, agencia y perfil ----------------
   const toggleCrewAssignment = useCallback(async (userId: string, clientId: string, assigned: boolean) => {
     setUsers(prev => prev.map(u => u.id !== userId ? u : {
@@ -345,7 +371,9 @@ export function useHubData(authUserId: string) {
       payload.logo_url = up.url
     } else if (files && typeof files === 'object') {
       const keyMap: Record<string, string> = {
-        logo: 'logo_url', icon: 'icon_url', portal_logo: 'portal_logo_url', favicon: 'favicon_url',
+        logo: 'logo_url', logo_light: 'logo_url_light',
+        icon: 'icon_url', icon_light: 'icon_url_light',
+        portal_logo: 'portal_logo_url', favicon: 'favicon_url',
       }
       for (const [k, f] of Object.entries(files)) {
         const col = keyMap[k]
@@ -364,7 +392,8 @@ export function useHubData(authUserId: string) {
   return {
     posts, clients, users, notifications, projects, documents, interactions, loading, error,
     agency, saveAgency, toggleCrewAssignment, changeUserRole, updateProfile,
-    addProject, moveProjectPhase, updateDeliverable, addDeliverable, setDeliverableFiles,
+    addProject, updateProject, deleteProject, moveProjectPhase, updateDeliverable, addDeliverable, setDeliverableFiles,
+    deleteClient,
     addClient, updateClient, addInteraction,
     addDocument, deleteDocument, uploadFile,
     movePost, addPost, updatePost, deletePost,

@@ -344,7 +344,9 @@ function BrandingTab({ agency, canEdit, onSave, onToast }: {
 }) {
   const a = (agency ?? {}) as Record<string, string | null>;
   const [logo, setLogo] = useState<string | null>(a.logo_url ?? null);
+  const [logoLight, setLogoLight] = useState<string | null>(a.logo_url_light ?? null);
   const [icon, setIcon] = useState<string | null>(a.icon_url ?? null);
+  const [iconLight, setIconLight] = useState<string | null>(a.icon_url_light ?? null);
   const [portalLogo, setPortalLogo] = useState<string | null>(a.portal_logo_url ?? null);
   const [wordmark, setWordmark] = useState(a.wordmark ?? "Epikom");
   const [wordmarkSub, setWordmarkSub] = useState(a.wordmark_sub ?? "Hub Interno");
@@ -365,7 +367,9 @@ function BrandingTab({ agency, canEdit, onSave, onToast }: {
     setSaving(true);
     try {
       await onSave({
-        logo_url: logo, icon_url: icon, portal_logo_url: portalLogo,
+        logo_url: logo, logo_url_light: logoLight,
+        icon_url: icon, icon_url_light: iconLight,
+        portal_logo_url: portalLogo,
         wordmark, wordmark_sub: wordmarkSub,
         brand_primary: primary, brand_accent: accent,
       }, files);
@@ -382,11 +386,34 @@ function BrandingTab({ agency, canEdit, onSave, onToast }: {
         La identidad visual del Hub: lo que ve tu equipo al entrar y lo que ven tus clientes en su portal.
       </p>
 
-      <div className="grid md:grid-cols-3 gap-4">
-        <LogoSlot label="Logo principal" hint="Sidebar y encabezados" src={logo} onPick={pick("logo", setLogo)} onClear={() => { setLogo(null); setFiles(f => { const n = {...f}; delete n.logo; return n; }); }} canEdit={canEdit} />
-        <LogoSlot label="Isotipo / icono" hint="Login y favicon · cuadrado" src={icon} onPick={pick("icon", setIcon)} onClear={() => { setIcon(null); setFiles(f => { const n = {...f}; delete n.icon; return n; }); }} canEdit={canEdit} square />
-        <LogoSlot label="Logo del portal" hint="Lo que ven los clientes" src={portalLogo} onPick={pick("portal_logo", setPortalLogo)} onClear={() => { setPortalLogo(null); setFiles(f => { const n = {...f}; delete n.portal_logo; return n; }); }} canEdit={canEdit} />
+      <div className="space-y-4">
+        <div>
+          <p className="font-mono text-[10px] text-muted uppercase tracking-widest mb-2">Logo principal · sidebar y encabezados</p>
+          <div className="grid md:grid-cols-2 gap-4">
+            <LogoSlot label="Para fondo oscuro" hint="Versión clara del logo" src={logo} onPick={pick("logo", setLogo)} onClear={() => { setLogo(null); setFiles(f => { const n = {...f}; delete n.logo; return n; }); }} canEdit={canEdit} dark />
+            <LogoSlot label="Para fondo claro" hint="Versión oscura · opcional" src={logoLight} onPick={pick("logo_light", setLogoLight)} onClear={() => { setLogoLight(null); setFiles(f => { const n = {...f}; delete n.logo_light; return n; }); }} canEdit={canEdit} light />
+          </div>
+        </div>
+
+        <div>
+          <p className="font-mono text-[10px] text-muted uppercase tracking-widest mb-2">Isotipo · login y favicon · cuadrado</p>
+          <div className="grid md:grid-cols-2 gap-4">
+            <LogoSlot label="Para fondo oscuro" hint="Versión clara" src={icon} onPick={pick("icon", setIcon)} onClear={() => { setIcon(null); setFiles(f => { const n = {...f}; delete n.icon; return n; }); }} canEdit={canEdit} square dark />
+            <LogoSlot label="Para fondo claro" hint="Versión oscura · opcional" src={iconLight} onPick={pick("icon_light", setIconLight)} onClear={() => { setIconLight(null); setFiles(f => { const n = {...f}; delete n.icon_light; return n; }); }} canEdit={canEdit} square light />
+          </div>
+        </div>
+
+        <div>
+          <p className="font-mono text-[10px] text-muted uppercase tracking-widest mb-2">Portal del cliente</p>
+          <div className="md:w-1/2">
+            <LogoSlot label="Logo del portal" hint="Lo que ven tus clientes" src={portalLogo} onPick={pick("portal_logo", setPortalLogo)} onClear={() => { setPortalLogo(null); setFiles(f => { const n = {...f}; delete n.portal_logo; return n; }); }} canEdit={canEdit} />
+          </div>
+        </div>
       </div>
+
+      <p className="text-[11px] text-muted/70 leading-relaxed">
+        Si solo subes la versión para fondo oscuro, se usará en ambos modos. Sube la variante clara cuando tu logo no tenga contraste suficiente sobre blanco.
+      </p>
 
       <div className="bg-surface border border-line rounded-xl p-5 space-y-4">
         <p className="font-mono text-[10px] text-muted uppercase tracking-widest">Wordmark del login</p>
@@ -428,15 +455,19 @@ function BrandingTab({ agency, canEdit, onSave, onToast }: {
   );
 }
 
-function LogoSlot({ label, hint, src, onPick, onClear, canEdit, square }: {
+function LogoSlot({ label, hint, src, onPick, onClear, canEdit, square, dark, light }: {
   label: string; hint: string; src: string | null;
   onPick: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onClear: () => void; canEdit: boolean; square?: boolean;
+  onClear: () => void; canEdit: boolean; square?: boolean; dark?: boolean; light?: boolean;
 }) {
+  const previewBg = dark ? "#0a0a0d" : light ? "#f4f5f7" : undefined;
   return (
     <div className="bg-surface border border-line rounded-xl p-4">
       <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-2">{label}</p>
-      <div className={`${square ? "w-16 h-16" : "w-full h-16"} rounded-lg bg-surface2 border border-line flex items-center justify-center overflow-hidden mb-3`}>
+      <div
+        className={`${square ? "w-16 h-16" : "w-full h-16"} rounded-lg border border-line flex items-center justify-center overflow-hidden mb-3 ${previewBg ? "" : "bg-surface2"}`}
+        style={previewBg ? { background: previewBg } : undefined}
+      >
         {src ? (
           <img src={src} alt={label} className="w-full h-full object-contain" />
         ) : (
