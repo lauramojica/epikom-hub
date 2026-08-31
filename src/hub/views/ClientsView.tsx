@@ -655,10 +655,10 @@ function ClientEditTab({ client, canEdit, services, activeServiceIds, onToggleSe
       </div>
 
       {/* Email de la cuenta */}
-      {client.slug && client.emailToken && (
+      {client.slug && (
         <div>
           <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-2">Crear tareas por email</h3>
-          <EmailAddress slug={client.slug} token={client.emailToken} />
+          <EmailAddress slug={client.slug} token={client.emailToken} kind="client" entityId={client.id} />
         </div>
       )}
 

@@ -38,9 +38,10 @@ async function processInbox() {
   const inbox = process.env.EMAIL_INTAKE_ADDRESS ?? "notifications@epikom.com";
   const localPart = inbox.split("@")[0];
 
+  // Busca tanto las direcciones con token (+algo) como la genérica
   const list = await gmail.users.messages.list({
     userId: "me",
-    q: `is:unread to:${localPart}+ -from:me`,
+    q: `is:unread (to:${localPart}@ OR to:${localPart}+) -from:me`,
     maxResults: 20,
   });
 

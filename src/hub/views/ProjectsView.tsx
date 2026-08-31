@@ -732,8 +732,10 @@ function EditProjectModal({ project, clients, services, activeServiceIds, onTogg
             </div>
           </div>
 
-          {project.emailToken && (
+          {(
             <EmailAddress
+              kind="project"
+              entityId={project.id}
               slug={project.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 20)}
               token={project.emailToken}
               label="Email de este proyecto"
