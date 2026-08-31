@@ -54,6 +54,13 @@ export default function TasksView({ clients, projects, users, authUserId, canEdi
     unassigned: t.tasks.filter((x) => !x.assigneeId && x.status !== "completada").length,
   };
 
+  const assign = (id: string, userId: string | null) => {
+    const who = userId === authUserId ? "ti" : users.find((u) => u.id === userId)?.name.split(" ")[0];
+    t.updateTask(id, { assigneeId: userId })
+      .then(() => onToast?.(userId ? `✓ Asignada a ${who}.` : "✓ Sin asignar.", "success"))
+      .catch(() => onToast?.("✕ No se pudo asignar.", "error"));
+  };
+
   const complete = async (id: string) => {
     const done = await t.toggleComplete(id);
     if (done) { onConfetti?.(); onToast?.("✓ Tarea completada 🎉", "success"); }
@@ -127,8 +134,9 @@ export default function TasksView({ clients, projects, users, authUserId, canEdi
               </p>
               <div className="space-y-2">
                 {overdue.map((task) => (
-                  <TaskRow key={task.id} task={task} clients={clients} users={users} today={today}
-                    onComplete={() => complete(task.id)} onOpen={() => setSelected(task)} />
+                  <TaskRow key={task.id} task={task} clients={clients} users={users} today={today} authUserId={authUserId}
+                    onComplete={() => complete(task.id)} onOpen={() => setSelected(task)}
+                    onAssign={canEdit ? (uid) => assign(task.id, uid) : undefined} />
                 ))}
               </div>
             </div>
@@ -140,8 +148,9 @@ export default function TasksView({ clients, projects, users, authUserId, canEdi
               )}
               <div className="space-y-2">
                 {rest.map((task) => (
-                  <TaskRow key={task.id} task={task} clients={clients} users={users} today={today}
-                    onComplete={() => complete(task.id)} onOpen={() => setSelected(task)} />
+                  <TaskRow key={task.id} task={task} clients={clients} users={users} today={today} authUserId={authUserId}
+                    onComplete={() => complete(task.id)} onOpen={() => setSelected(task)}
+                    onAssign={canEdit ? (uid) => assign(task.id, uid) : undefined} />
                 ))}
               </div>
             </div>
@@ -180,10 +189,18 @@ export default function TasksView({ clients, projects, users, authUserId, canEdi
 }
 
 /* ─── Fila de tarea ───────────────────────────────────────────────────────── */
-function TaskRow({ task, clients, users, today, onComplete, onOpen }: {
-  task: HubTask; clients: Client[]; users: User[]; today: string;
+function TaskRow({ task, clients, users, today, authUserId, onComplete, onOpen, onAssign }: {
+  task: HubTask; clients: Client[]; users: User[]; today: string; authUserId: string;
   onComplete: () => void; onOpen: () => void;
+  onAssign?: (userId: string | null) => void;
 }) {
+  const [showAssign, setShowAssign] = useState(false);
+  // El usuario actual siempre disponible y de primero
+  const me = users.find((u) => u.id === authUserId);
+  const crew = [
+    ...(me ? [me] : []),
+    ...users.filter((u) => u.id !== authUserId && u.role !== "client" && u.role !== "cliente"),
+  ];
   const client = clients.find((c) => c.id === task.clientId);
   const assignee = users.find((u) => u.id === task.assigneeId);
   const st = STATUSES.find((s) => s.key === task.status)!;
@@ -237,11 +254,75 @@ function TaskRow({ task, clients, users, today, onComplete, onOpen }: {
         </div>
       </div>
 
-      {assignee ? (
-        <Avatar initials={assignee.initials} color={assignee.color} size="xs" src={assignee.avatarUrl} className="mt-0.5" />
-      ) : (
-        <span className="text-[9px] font-mono text-muted/50 mt-1 whitespace-nowrap">sin asignar</span>
-      )}
+      {/* Asignación rápida */}
+      <div className="relative flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+        {assignee ? (
+          <button
+            onClick={() => onAssign && setShowAssign((v) => !v)}
+            title={`${assignee.name} · click para reasignar`}
+            className="block hover:opacity-80 transition-opacity"
+          >
+            <Avatar initials={assignee.initials} color={assignee.color} size="xs" src={assignee.avatarUrl} />
+          </button>
+        ) : onAssign ? (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => onAssign(authUserId)}
+              title="Asignármela a mí"
+              className="text-[9px] font-mono px-2 py-1 rounded-lg border border-line text-muted hover:text-primary hover:border-primary/40 transition-all whitespace-nowrap"
+            >
+              tomarla
+            </button>
+            <button
+              onClick={() => setShowAssign((v) => !v)}
+              title="Asignar a alguien"
+              className="w-6 h-6 rounded-full border border-dashed border-line flex items-center justify-center text-muted hover:text-primary hover:border-primary/40 transition-all"
+            >
+              <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M6 2.5v7M2.5 6h7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+            </button>
+          </div>
+        ) : (
+          <span className="text-[9px] font-mono text-muted/50 whitespace-nowrap">sin asignar</span>
+        )}
+
+        {showAssign && onAssign && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setShowAssign(false)} />
+            <div className="absolute right-0 top-full mt-1 w-48 border border-line rounded-xl overflow-hidden z-50 dropdown-solid max-h-60 overflow-y-auto">
+              <button
+                onClick={() => { onAssign(authUserId); setShowAssign(false); }}
+                className="w-full flex items-center gap-2 px-3 py-2 hover:bg-surface2 transition-colors text-left border-b border-line"
+              >
+                <span className="text-sm">🙋</span>
+                <span className="text-xs text-primary font-500">Asignármela a mí</span>
+              </button>
+              {crew.map((u) => (
+                <button
+                  key={u.id}
+                  onClick={() => { onAssign(u.id); setShowAssign(false); }}
+                  className={`w-full flex items-center gap-2 px-3 py-2 hover:bg-surface2 transition-colors text-left ${
+                    u.id === task.assigneeId ? "bg-primary/5" : ""
+                  }`}
+                >
+                  <Avatar initials={u.initials} color={u.color} size="xs" src={u.avatarUrl} />
+                  <span className="text-xs text-ink truncate flex-1">
+                    {u.name}{u.id === authUserId && <span className="text-muted"> (tú)</span>}
+                  </span>
+                  {u.id === task.assigneeId && <span className="text-[10px] text-primary">✓</span>}
+                </button>
+              ))}
+              {task.assigneeId && (
+                <button
+                  onClick={() => { onAssign(null); setShowAssign(false); }}
+                  className="w-full px-3 py-2 hover:bg-surface2 transition-colors text-left border-t border-line"
+                >
+                  <span className="text-xs text-muted">Quitar asignación</span>
+                </button>
+              )}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -256,6 +337,7 @@ function TaskModal({ task, clients, projects, users, authUserId, onSave, onDelet
 }) {
   const [draft, setDraft] = useState<Partial<HubTask>>(task ?? {
     title: "", description: "", status: "pendiente", priority: "media",
+    assigneeId: authUserId,   // por defecto me la asigno
     tags: [], attachments: [],
   });
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -310,12 +392,29 @@ function TaskModal({ task, clients, projects, users, authUserId, onSave, onDelet
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Asignar a</label>
-              <select value={draft.assigneeId ?? ""} onChange={(e) => upd("assigneeId", e.target.value)} className={inputCls + " cursor-pointer"}>
-                <option value="" className="bg-surface">Sin asignar</option>
-                {users.filter((u) => u.role !== "client" && u.role !== "cliente").map((u) => (
-                  <option key={u.id} value={u.id} className="bg-surface">{u.name}</option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <select value={draft.assigneeId ?? ""} onChange={(e) => upd("assigneeId", e.target.value)} className={inputCls + " cursor-pointer flex-1"}>
+                  <option value="" className="bg-surface">Sin asignar</option>
+                  {(() => {
+                    const meUser = users.find((u) => u.id === authUserId);
+                    const others = users.filter((u) => u.id !== authUserId && u.role !== "client" && u.role !== "cliente");
+                    return [...(meUser ? [meUser] : []), ...others].map((u) => (
+                      <option key={u.id} value={u.id} className="bg-surface">
+                        {u.name}{u.id === authUserId ? " (tú)" : ""}
+                      </option>
+                    ));
+                  })()}
+                </select>
+                {draft.assigneeId !== authUserId && (
+                  <button
+                    onClick={() => upd("assigneeId", authUserId)}
+                    title="Asignármela a mí"
+                    className="text-[10px] font-mono px-3 rounded-lg border border-line text-muted hover:text-primary hover:border-primary/40 transition-all whitespace-nowrap"
+                  >
+                    para mí
+                  </button>
+                )}
+              </div>
             </div>
             <div>
               <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Prioridad</label>
