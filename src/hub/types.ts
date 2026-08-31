@@ -148,7 +148,7 @@ export interface Notification {
   clientId?: string;
 }
 
-export type View = 'myweek' | 'calendar' | 'projects' | 'clients' | 'analytics' | 'notifications' | 'roles' | 'workshop' | 'settings' | 'documents';
+export type View = 'myweek' | 'calendar' | 'projects' | 'clients' | 'analytics' | 'notifications' | 'roles' | 'messages' | 'workshop' | 'settings' | 'documents';
 
 export interface AttachedFile {
   id: string;

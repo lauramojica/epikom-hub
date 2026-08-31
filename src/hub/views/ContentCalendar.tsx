@@ -2,8 +2,10 @@ import { useState, useRef } from "react";
 import { motion } from "motion/react";
 import type { ContentPost, Client, User, Channel, PostFormat, PostStatus, AttachedFile } from "../types";
 import FileUpload from "../components/FileUpload";
+import DiscussionBoard from "../components/DiscussionBoard";
 
 interface Props {
+  currentUserId?: string;
   dynamicFormats?: { value: string; label: string }[];
   dynamicChannels?: { value: string; label: string; color: string | null }[];
   posts: ContentPost[];
@@ -474,7 +476,7 @@ function TableView({ posts, clients, users, filterClient, onSelectPost, onMovePo
 
 // ─── Post Detail Panel ─────────────────────────────────────────────────────────
 function PostPanel({ post, clients, users, onClose, onUpdate, onMove, onExpand, onAddFile, onRemoveFile }: {
-  post: ContentPost; clients: Client[]; users: User[];
+  post: ContentPost; clients: Client[]; users: User[]; currentUserId?: string;
   onClose: () => void; onUpdate: (id: string, u: Partial<ContentPost>) => void;
   onMove: (id: string, s: PostStatus) => void; onExpand: () => void;
   onAddFile: (f: AttachedFile) => void; onRemoveFile: (id: string) => void;
@@ -635,8 +637,8 @@ function PostPanel({ post, clients, users, onClose, onUpdate, onMove, onExpand, 
 }
 
 // ─── Post Screen (pantalla completa de tarea) ──────────────────────────────────
-function PostScreen({ post, clients, users, onClose, onUpdate, onMove, onAddFile, onRemoveFile }: {
-  post: ContentPost; clients: Client[]; users: User[];
+function PostScreen({ post, clients, users, onClose, onUpdate, onMove, onAddFile, onRemoveFile, currentUserId }: {
+  post: ContentPost; clients: Client[]; users: User[]; currentUserId?: string;
   onClose: () => void; onUpdate: (id: string, u: Partial<ContentPost>) => void; onMove: (id: string, s: PostStatus) => void;
   onAddFile: (f: AttachedFile) => void; onRemoveFile: (id: string) => void;
 }) {
@@ -768,6 +770,13 @@ function PostScreen({ post, clients, users, onClose, onUpdate, onMove, onAddFile
               <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-2">Archivos adjuntos</p>
               <FileUpload files={post.attachedFiles || []} onAdd={onAddFile} onRemove={onRemoveFile} />
             </div>
+
+            {/* Discusión */}
+            {currentUserId && (
+              <div className="bg-surface border border-line rounded-xl p-5">
+                <DiscussionBoard entityType="post" entityId={post.id} users={users} currentUserId={currentUserId} />
+              </div>
+            )}
           </div>
 
           {/* Sidebar col */}
@@ -1149,7 +1158,7 @@ function CSVImportModal({ clients, users, onImport, onCancel }: {
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-export default function ContentCalendar({ posts, clients, users, today, onMovePost, onAddPost, onUpdatePost, onAddPostFile, onRemovePostFile, dynamicFormats, dynamicChannels }: Props) {
+export default function ContentCalendar({ posts, clients, users, today, onMovePost, onAddPost, onUpdatePost, onAddPostFile, onRemovePostFile, dynamicFormats, dynamicChannels, currentUserId }: Props) {
   // Catálogos configurables desde el Workshop: sincronizan las listas del módulo
   if (dynamicFormats?.length) FORMATS = dynamicFormats.map((f) => f.value) as PostFormat[];
   if (dynamicChannels?.length) {
@@ -1268,7 +1277,7 @@ export default function ContentCalendar({ posts, clients, users, today, onMovePo
       {expandedPost && (
         <PostScreen
           post={posts.find((p) => p.id === expandedPost.id) || expandedPost}
-          clients={clients} users={users}
+          clients={clients} users={users} currentUserId={currentUserId}
           onClose={() => setExpandedPost(null)}
           onUpdate={onUpdatePost}
           onMove={(id, s) => { onMovePost(id, s); }}

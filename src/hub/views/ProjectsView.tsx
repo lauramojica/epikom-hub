@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Project, Client, User, DeliverableStatus, ProjectPhase, AttachedFile } from "../types";
 import FileUpload from "../components/FileUpload";
 import EmojiReactions from "../components/EmojiReactions";
+import DiscussionBoard from "../components/DiscussionBoard";
 
 interface Props {
   projects: Project[];
@@ -18,6 +19,7 @@ interface Props {
   projectServices?: Record<string, string[]>;
   onToggleProjectService?: (projectId: string, serviceId: string, on: boolean) => void;
   canEdit?: boolean;
+  currentUserId?: string;
 }
 
 const PROJECT_COLORS = ["#31b498","#a78bfa","#f59e0b","#ef4444","#22c55e","#e040fb","#dbfa45","#3b82f6"];
@@ -181,15 +183,18 @@ function PhaseJourney({ phases, currentPhase, color }: { phases: Project["phases
   );
 }
 
-function DeliverableRow({ d, projectId, onUpdate, onAddFile, onRemoveFile }: {
+function DeliverableRow({ d, projectId, onUpdate, onAddFile, onRemoveFile, users, currentUserId }: {
   d: Project["deliverables"][0]; projectId: string;
   onUpdate: Props["onUpdateDeliverable"];
   onAddFile: (f: AttachedFile) => void;
   onRemoveFile: (id: string) => void;
+  users?: User[];
+  currentUserId?: string;
 }) {
   const [showReject, setShowReject] = useState(false);
   const [reason, setReason] = useState("");
   const [showFiles, setShowFiles] = useState(false);
+  const [showChat, setShowChat] = useState(false);
 
   return (<>
     <div className="flex items-center gap-3 px-5 py-3 border-b border-line last:border-0 group">
@@ -231,6 +236,21 @@ function DeliverableRow({ d, projectId, onUpdate, onAddFile, onRemoveFile }: {
     {showFiles && (
       <div className="px-5 pb-3">
         <FileUpload files={d.attachedFiles || []} onAdd={onAddFile} onRemove={onRemoveFile} compact />
+      </div>
+    )}
+    {currentUserId && users && (
+      <div className="px-5 pb-3">
+        <button
+          onClick={() => setShowChat((v) => !v)}
+          className="text-[10px] font-mono text-muted hover:text-primary transition-colors"
+        >
+          {showChat ? "− ocultar discusión" : "💬 discusión"}
+        </button>
+        {showChat && (
+          <div className="mt-2 pl-3 border-l-2 border-line">
+            <DiscussionBoard entityType="deliverable" entityId={d.id} users={users} currentUserId={currentUserId} compact />
+          </div>
+        )}
       </div>
     )}
   </>);
@@ -337,8 +357,9 @@ const KANBAN_EMPTY_QUIPS = [
 const PHASE_COLORS = ["#6b6b8a","#a78bfa","#e040fb","#f59e0b","#31b498","#dbfa45"];
 
 // ─── Kanban / Control view ─────────────────────────────────────────────────────
-function KanbanView({ projects, clients, onUpdateDeliverable, onAddDeliverableFile, onRemoveDeliverableFile, onMoveProjectPhase }: {
+function KanbanView({ projects, clients, users, currentUserId, onUpdateDeliverable, onAddDeliverableFile, onRemoveDeliverableFile, onMoveProjectPhase }: {
   projects: Project[]; clients: Client[];
+  users?: User[]; currentUserId?: string;
   onUpdateDeliverable: Props["onUpdateDeliverable"];
   onAddDeliverableFile: Props["onAddDeliverableFile"];
   onRemoveDeliverableFile: Props["onRemoveDeliverableFile"];
@@ -437,7 +458,8 @@ function KanbanView({ projects, clients, onUpdateDeliverable, onAddDeliverableFi
                         {project.deliverables.map((d) => (
                           <DeliverableRow key={d.id} d={d} projectId={project.id} onUpdate={onUpdateDeliverable}
                             onAddFile={(f) => onAddDeliverableFile(project.id, d.id, f)}
-                            onRemoveFile={(fid) => onRemoveDeliverableFile(project.id, d.id, fid)} />
+                            onRemoveFile={(fid) => onRemoveDeliverableFile(project.id, d.id, fid)}
+                            users={users} currentUserId={currentUserId} />
                         ))}
                       </div>
                     )}
@@ -461,7 +483,7 @@ function KanbanView({ projects, clients, onUpdateDeliverable, onAddDeliverableFi
 }
 
 // ─── Main ──────────────────────────────────────────────────────────────────────
-export default function ProjectsView({ projects, clients, users, onUpdateDeliverable, onAddDeliverableFile, onRemoveDeliverableFile, onMoveProjectPhase, onAddProject, onUpdateProject, onDeleteProject, services = [], projectServices = {}, onToggleProjectService, canEdit = true }: Props) {
+export default function ProjectsView({ projects, clients, users, onUpdateDeliverable, onAddDeliverableFile, onRemoveDeliverableFile, onMoveProjectPhase, onAddProject, onUpdateProject, onDeleteProject, services = [], projectServices = {}, onToggleProjectService, canEdit = true, currentUserId }: Props) {
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "gantt" | "kanban">("list");
   const [selected, setSelected] = useState<string | null>(null);
@@ -525,7 +547,7 @@ export default function ProjectsView({ projects, clients, users, onUpdateDeliver
       {viewMode === "gantt" && <GanttView projects={filtered} clients={clients} />}
 
       {/* Kanban */}
-      {viewMode === "kanban" && <KanbanView projects={filtered} clients={clients} onUpdateDeliverable={onUpdateDeliverable} onAddDeliverableFile={onAddDeliverableFile} onRemoveDeliverableFile={onRemoveDeliverableFile} onMoveProjectPhase={onMoveProjectPhase} />}
+      {viewMode === "kanban" && <KanbanView projects={filtered} clients={clients} users={users} currentUserId={currentUserId} onUpdateDeliverable={onUpdateDeliverable} onAddDeliverableFile={onAddDeliverableFile} onRemoveDeliverableFile={onRemoveDeliverableFile} onMoveProjectPhase={onMoveProjectPhase} />}
 
       {/* List */}
       {viewMode === "list" && (
@@ -599,12 +621,18 @@ export default function ProjectsView({ projects, clients, users, onUpdateDeliver
                       : project.deliverables.map((d) => (
                           <DeliverableRow key={d.id} d={d} projectId={project.id} onUpdate={onUpdateDeliverable}
                             onAddFile={(f) => onAddDeliverableFile(project.id, d.id, f)}
-                            onRemoveFile={(fid) => onRemoveDeliverableFile(project.id, d.id, fid)} />
+                            onRemoveFile={(fid) => onRemoveDeliverableFile(project.id, d.id, fid)}
+                            users={users} currentUserId={currentUserId} />
                         ))
                     }
                     {project.description && (
                       <div className="px-5 py-3 bg-surface2 border-t border-line">
                         <p className="text-xs text-muted">{project.description}</p>
+                      </div>
+                    )}
+                    {currentUserId && (
+                      <div className="px-5 py-4 border-t border-line" onClick={(e) => e.stopPropagation()}>
+                        <DiscussionBoard entityType="project" entityId={project.id} users={users} currentUserId={currentUserId} compact />
                       </div>
                     )}
                   </div>
