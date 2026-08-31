@@ -36,14 +36,14 @@ const QUOTES: { text: string; author: string }[] = [
   { text: "El talento gana partidos, el equipo gana campeonatos.", author: "Michael Jordan" },
 ];
 
-/* Frase determinística del día (todos ven la misma) */
-function quoteOfTheDay() {
+/* Índice determinístico del día (todos ven la misma al abrir) */
+function quoteIndexOfTheDay() {
   const now = new Date();
   const key = Number(
     new Intl.DateTimeFormat("en-CA", { timeZone: "America/Puerto_Rico", year: "numeric", month: "2-digit", day: "2-digit" })
       .format(now).replace(/-/g, "")
   );
-  return QUOTES[key % QUOTES.length];
+  return key % QUOTES.length;
 }
 
 /* Códigos WMO de Open-Meteo → emoji + texto */
@@ -63,7 +63,15 @@ function weatherInfo(code: number): { icon: string; label: string } {
 export default function DailyWidget({ userName }: { userName?: string }) {
   const [now, setNow] = useState(new Date());
   const [weather, setWeather] = useState<{ temp: number; code: number } | null>(null);
-  const quote = quoteOfTheDay();
+  const [qIndex, setQIndex] = useState(quoteIndexOfTheDay);
+  const [spin, setSpin] = useState(false);
+  const quote = QUOTES[qIndex];
+
+  const nextQuote = () => {
+    setSpin(true);
+    setQIndex((i) => (i + 1) % QUOTES.length);
+    setTimeout(() => setSpin(false), 400);
+  };
 
   // Reloj vivo
   useEffect(() => {
@@ -116,12 +124,29 @@ export default function DailyWidget({ userName }: { userName?: string }) {
 
         {/* Quote del día */}
         <div className="p-5 flex-1 flex flex-col justify-center">
-          <p className="font-mono text-[10px] text-primary uppercase tracking-widest mb-2">Quote del día</p>
-          <blockquote className="text-ink leading-snug" style={{ fontSize: "clamp(15px, 2vw, 19px)" }}>
+          <div className="flex items-center justify-between mb-2">
+            <p className="font-mono text-[10px] text-primary uppercase tracking-widest">
+              {qIndex === quoteIndexOfTheDay() ? "Quote del día" : "Otra más"}
+            </p>
+            <button
+              onClick={nextQuote}
+              title="Dame otra"
+              className="w-6 h-6 rounded-lg border border-line flex items-center justify-center text-muted hover:text-primary hover:border-primary/40 transition-all"
+            >
+              <svg
+                width="11" height="11" viewBox="0 0 12 12" fill="none"
+                style={{ transition: "transform 0.4s cubic-bezier(0.22,1,0.36,1)", transform: spin ? "rotate(360deg)" : "rotate(0deg)" }}
+              >
+                <path d="M10.5 6a4.5 4.5 0 1 1-1.32-3.18" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                <path d="M10.5 1.5V4H8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </div>
+          <blockquote key={qIndex} className="text-ink leading-snug animate-card-in" style={{ fontSize: "clamp(15px, 2vw, 19px)" }}>
             <span className="text-primary/40 font-display text-2xl leading-none mr-1">&ldquo;</span>
             {quote.text}
           </blockquote>
-          <p className="font-mono text-[11px] text-muted mt-2">— {quote.author}</p>
+          <p key={`a-${qIndex}`} className="font-mono text-[11px] text-muted mt-2 animate-card-in">— {quote.author}</p>
         </div>
       </div>
     </div>
