@@ -129,7 +129,26 @@ export default function PushToggle({ onToast }: { onToast?: (m: string, k?: "suc
       >
         {state === "working" ? "…" : state === "on" ? "Desactivar en este dispositivo" : "🔔 Activar notificaciones"}
       </button>
-      {state === "on" && <span className="text-[10px] font-mono text-primary">✓ activas aquí</span>}
+      {state === "on" && (
+        <>
+          <span className="text-[10px] font-mono text-primary">✓ activas aquí</span>
+          <button
+            onClick={async () => {
+              const reg = await navigator.serviceWorker.ready;
+              await reg.showNotification("Prueba de Epikom Hub", {
+                body: "Si ves esto, tu sistema está mostrando las notificaciones correctamente 🎉",
+                icon: "/icon-192.png",
+                badge: "/badge-72.png",
+                tag: "test-" + Date.now(),
+              });
+              onToast?.("Notificación de prueba enviada. ¿La viste?", "info");
+            }}
+            className="text-[10px] font-mono px-3 py-1.5 rounded-lg border border-line text-muted hover:text-primary hover:border-primary/40 transition-all"
+          >
+            Probar
+          </button>
+        </>
+      )}
     </div>
     {detail && (
       <p className="text-[11px] text-danger bg-danger/10 border border-danger/20 rounded-lg px-3 py-2 leading-relaxed">
@@ -137,10 +156,22 @@ export default function PushToggle({ onToast }: { onToast?: (m: string, k?: "suc
       </p>
     )}
     {state === "on" && (
-      <p className="text-[10px] text-muted leading-relaxed">
-        Si no ves las notificaciones, revisa que el navegador y el sistema las tengan permitidas
-        (en Mac: Configuración → Notificaciones → tu navegador).
-      </p>
+      <div className="text-[10px] text-muted leading-relaxed space-y-1">
+        <p>
+          <span className="font-mono text-primary">Permiso del navegador:</span>{" "}
+          {typeof Notification !== "undefined" ? Notification.permission : "—"}
+        </p>
+        <p>
+          Si el permiso dice <span className="font-mono">granted</span> pero no ves nada, revísalo en el sistema:
+        </p>
+        <p className="pl-3">
+          <strong className="text-ink">Mac:</strong> Configuración del Sistema → Notificaciones → tu navegador → activar
+          <br />
+          <strong className="text-ink">Windows:</strong> Configuración → Sistema → Notificaciones → tu navegador
+          <br />
+          También revisa que no tengas <strong className="text-ink">Concentración / No molestar</strong> activado.
+        </p>
+      </div>
     )}
     </div>
   );
