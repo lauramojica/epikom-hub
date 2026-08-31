@@ -11,16 +11,18 @@ interface Props {
   onToggleAssignment?: (userId: string, clientId: string, assigned: boolean) => void;
   onChangeRole?: (userId: string, roleKey: string) => void;
   onToast?: (m: string, k?: "success" | "error" | "info") => void;
+  onRefresh?: () => void;
 }
 
 const inputCls = "w-full bg-surface2 border border-line rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-primary/40 font-body placeholder:text-muted/50";
 
-export default function RolesView({ users, clients, authUserId, onToggleAssignment, onChangeRole, onToast }: Props) {
+export default function RolesView({ users, clients, authUserId, onToggleAssignment, onChangeRole, onToast, onRefresh }: Props) {
   const p = usePermissions(authUserId);
   const [tab, setTab] = useState<"equipo" | "roles" | "accesos">("equipo");
   const [expandedRole, setExpandedRole] = useState<string | null>(null);
   const [expandedClient, setExpandedClient] = useState<string | null>(null);
   const [showNewRole, setShowNewRole] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
 
   const canManageRoles = p.can("roles.manage");
   const canAssign = p.can("crew.assign");
@@ -58,9 +60,16 @@ export default function RolesView({ users, clients, authUserId, onToggleAssignme
       {/* ── EQUIPO ── */}
       {tab === "equipo" && (
         <div className="space-y-4">
-          <p className="text-xs text-muted max-w-lg leading-relaxed">
-            Todas las personas con acceso al Hub y el rol que tienen asignado.
-          </p>
+          <div className="flex items-start justify-between gap-4">
+            <p className="text-xs text-muted max-w-lg leading-relaxed">
+              Todas las personas con acceso al Hub y el rol que tienen asignado.
+            </p>
+            {(canManageRoles || canAssign) && (
+              <button onClick={() => setShowInvite(true)} className="text-xs font-mono px-4 py-2 rounded-lg bg-primary text-bg font-600 hover:opacity-90 whitespace-nowrap">
+                + Invitar persona
+              </button>
+            )}
+          </div>
           <div className="grid md:grid-cols-2 gap-3">
             {p.roles.map((role) => {
               const members = users.filter((u) => u.role === role.key);
@@ -94,6 +103,25 @@ export default function RolesView({ users, clients, authUserId, onToggleAssignme
                         )}
                         {u.id === authUserId && (
                           <span className="text-[9px] font-mono text-primary">tú</span>
+                        )}
+                        {canManageRoles && u.id !== authUserId && (
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`¿Eliminar a ${u.name} del Hub? Perderá el acceso.`)) return;
+                              const res = await fetch("/api/team/invite", {
+                                method: "DELETE",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ userId: u.id }),
+                              });
+                              const j = await res.json();
+                              if (res.ok) { onToast?.("✓ Persona eliminada.", "success"); onRefresh?.(); }
+                              else onToast?.(j.error ?? "✕ No se pudo eliminar.", "error");
+                            }}
+                            className="text-muted hover:text-danger text-xs px-1 transition-colors"
+                            title="Eliminar del Hub"
+                          >
+                            ✕
+                          </button>
                         )}
                       </div>
                     ))}
@@ -352,6 +380,16 @@ export default function RolesView({ users, clients, authUserId, onToggleAssignme
         </div>
       )}
 
+      {showInvite && (
+        <InviteModal
+          roles={p.roles}
+          clients={clients}
+          canCreateSuperadmin={canManageRoles}
+          onDone={(msg, kind) => { onToast?.(msg, kind); setShowInvite(false); onRefresh?.(); }}
+          onCancel={() => setShowInvite(false)}
+        />
+      )}
+
       {showNewRole && (
         <NewRoleModal
           onAdd={(r) => {
@@ -448,6 +486,121 @@ function NewRoleModal({ onAdd, onCancel }: { onAdd: (r: Partial<HubRole>) => voi
             className="text-xs font-mono px-5 py-2 rounded-lg bg-primary text-bg font-600 hover:opacity-90"
           >
             Crear rol
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Invitar persona ─────────────────────────────────────────────────────── */
+function InviteModal({ roles, clients, canCreateSuperadmin, onDone, onCancel }: {
+  roles: HubRole[];
+  clients: Client[];
+  canCreateSuperadmin: boolean;
+  onDone: (msg: string, kind?: "success" | "error" | "info") => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [roleKey, setRoleKey] = useState(roles.find((r) => r.key === "crew")?.key ?? roles[0]?.key ?? "");
+  const [clientId, setClientId] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const selectedRole = roles.find((r) => r.key === roleKey);
+  const isExternal = selectedRole?.scope === "own_client";
+  const availableRoles = canCreateSuperadmin ? roles : roles.filter((r) => r.key !== "superadmin");
+
+  const submit = async () => {
+    if (!name.trim() || !email.trim()) { setError("El nombre y el email son obligatorios."); return; }
+    if (isExternal && !clientId) { setError("Un cliente externo debe estar vinculado a una cuenta."); return; }
+    setSending(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/team/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), email: email.trim(), role: roleKey, clientId: clientId || undefined }),
+      });
+      const j = await res.json();
+      if (!res.ok) { setError(j.error ?? "No se pudo invitar."); setSending(false); return; }
+      onDone(
+        j.emailSent
+          ? `✓ Invitación enviada a ${email.trim()}`
+          : `✓ Cuenta creada. ${j.note ?? ""}`,
+        "success"
+      );
+    } catch {
+      setError("Error de conexión. Intenta de nuevo.");
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6" onClick={onCancel}>
+      <div className="bg-surface border border-line rounded-2xl w-full max-w-md overflow-hidden animate-pop-in" onClick={(e) => e.stopPropagation()}>
+        <div className="px-6 py-4 border-b border-line flex items-center justify-between">
+          <h2 className="font-display text-2xl font-700 uppercase text-ink">Invitar persona</h2>
+          <button onClick={onCancel} className="text-muted hover:text-ink text-lg">✕</button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Nombre *</label>
+            <input autoFocus value={name} onChange={(e) => { setName(e.target.value); setError(null); }} placeholder="Nombre y apellido" className={inputCls} />
+          </div>
+
+          <div>
+            <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Email *</label>
+            <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setError(null); }} placeholder="persona@epikom.com" className={inputCls} />
+          </div>
+
+          <div>
+            <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Rol</label>
+            <div className="space-y-1.5 max-h-52 overflow-y-auto">
+              {availableRoles.map((r) => (
+                <button
+                  key={r.key}
+                  onClick={() => { setRoleKey(r.key); setError(null); }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border text-left transition-all ${
+                    roleKey === r.key ? "border-primary/50 bg-primary/5" : "border-line hover:border-muted"
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: r.color }} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-500 text-ink">{r.label}</p>
+                    <p className="text-[10px] text-muted truncate">{r.description || SCOPES.find((s) => s.key === r.scope)?.hint}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {isExternal && (
+            <div>
+              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Cuenta del cliente *</label>
+              <select value={clientId} onChange={(e) => { setClientId(e.target.value); setError(null); }} className={inputCls + " cursor-pointer"}>
+                <option value="" className="bg-surface">Selecciona el cliente…</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id} className="bg-surface">{c.company}</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-muted mt-1.5">Solo verá la información de esta cuenta.</p>
+            </div>
+          )}
+
+          {error && <p className="text-xs text-danger bg-danger/10 border border-danger/20 rounded-lg px-3 py-2">{error}</p>}
+
+          <p className="text-[10px] text-muted leading-relaxed">
+            Recibirá un email con un enlace para crear su contraseña y entrar al Hub.
+          </p>
+        </div>
+
+        <div className="px-6 py-4 border-t border-line flex justify-end gap-3">
+          <button onClick={onCancel} className="text-xs font-mono px-4 py-2 rounded-lg border border-line text-muted hover:text-ink">Cancelar</button>
+          <button onClick={submit} disabled={sending} className="text-xs font-mono px-5 py-2 rounded-lg bg-primary text-bg font-600 hover:opacity-90 disabled:opacity-40">
+            {sending ? "Enviando…" : "Enviar invitación"}
           </button>
         </div>
       </div>

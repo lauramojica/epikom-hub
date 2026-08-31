@@ -178,7 +178,7 @@ function AppInner({ authUserId }: { authUserId: string }) {
     deleteClient: dbDeleteClient, moveProjectPhase: dbMovePhase, updateDeliverable: dbUpdateDeliv,
     setDeliverableFiles, addClient: dbAddClient, updateClient: dbUpdateClient,
     addDocument: dbAddDocument, deleteDocument: dbDeleteDocument, uploadFile,
-    agency, saveAgency, toggleCrewAssignment, changeUserRole, updateProfile,
+    agency, saveAgency, toggleCrewAssignment, changeUserRole, updateProfile, reload: reloadData,
   } = useHubData(authUserId);
   // Racha calculada con datos reales
   const users = useMemo(
@@ -612,6 +612,7 @@ function AppInner({ authUserId }: { authUserId: string }) {
             onToggleAssignment={(uid, cid, on) => toggleCrewAssignment(uid, cid, on).then(() => toast(on ? "✓ Cliente asignado." : "✓ Asignación removida.", "success")).catch(() => toast("✕ No se pudo actualizar.", "error"))}
             onChangeRole={(uid, role) => changeUserRole(uid, role).then(() => { toast("✓ Rol actualizado.", "success"); perms.reload(); }).catch((e) => toast(e?.message ?? "✕ No se pudo cambiar el rol.", "error"))}
             onToast={toast}
+            onRefresh={() => { reloadData(); perms.reload(); }}
           />}
           {view === "documents" && <DocumentsView documents={documents} clients={clients} projects={projects} onAdd={addDocument} onDelete={deleteDocument} />}
           {view === "messages" && <MessageCenter
