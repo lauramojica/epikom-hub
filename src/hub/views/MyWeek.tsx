@@ -333,7 +333,7 @@ export default function MyWeek({ posts, projects, clients, users, activeUser, lo
                       </span>
                       {!hasAny && <span className="font-mono text-[9px] text-muted/40 ml-auto">sin contenido esta semana</span>}
                     </div>
-                    <div className="grid grid-cols-7 min-h-[54px]">
+                    <div className="grid grid-cols-7 min-h-[64px]">
                       {weekDates.map((date) => {
                         const cellPosts = clientPosts.filter((p) => p.scheduledDate === date);
                         const isToday = date === today;
@@ -342,15 +342,15 @@ export default function MyWeek({ posts, projects, clients, users, activeUser, lo
                             {cellPosts.map((post) => (
                               <div
                                 key={post.id}
-                                className="rounded-md p-1.5 cursor-pointer hover-lift"
+                                className="rounded-md p-2 cursor-pointer hover-lift"
                                 style={{ background: `${channelColors[post.channel]}15`, borderLeft: `2px solid ${channelColors[post.channel]}` }}
                               >
-                                <p className="text-[10px] font-600 text-ink leading-tight truncate">{post.title}</p>
+                                <p className="text-[11px] font-700 text-ink leading-snug truncate">{post.title}</p>
                                 <div className="flex items-center justify-between mt-0.5">
-                                  <span className="text-[8px] font-mono" style={{ color: channelColors[post.channel] }}>
+                                  <span className="text-[9px] font-mono" style={{ color: channelColors[post.channel] }}>
                                     {post.channel.slice(0, 2).toUpperCase()}
                                   </span>
-                                  <span className="text-[8px] font-mono capitalize" style={{ color: statusColors[post.status] }}>
+                                  <span className="text-[9px] font-mono capitalize" style={{ color: statusColors[post.status] }}>
                                     {post.status}
                                   </span>
                                 </div>
@@ -385,13 +385,13 @@ export default function MyWeek({ posts, projects, clients, users, activeUser, lo
                           className="rounded-lg p-2 cursor-pointer hover-lift"
                           style={{ background: `${channelColors[post.channel]}15`, borderLeft: `2px solid ${channelColors[post.channel]}` }}
                         >
-                          <p className="text-[10px] font-600 text-ink leading-tight truncate">{post.title}</p>
-                          <p className="text-[9px] text-muted truncate">{client?.company}</p>
+                          <p className="text-[11px] font-700 text-ink leading-snug truncate">{post.title}</p>
+                          <p className="text-[10px] text-muted truncate">{client?.company}</p>
                           <div className="flex items-center justify-between mt-1">
-                            <span className="text-[8px] font-mono" style={{ color: channelColors[post.channel] }}>
+                            <span className="text-[9px] font-mono" style={{ color: channelColors[post.channel] }}>
                               {post.channel.slice(0, 2).toUpperCase()}
                             </span>
-                            <span className="text-[8px] font-mono capitalize px-1 rounded" style={{ color: statusColors[post.status] }}>
+                            <span className="text-[9px] font-mono capitalize px-1 rounded" style={{ color: statusColors[post.status] }}>
                               {post.status}
                             </span>
                           </div>

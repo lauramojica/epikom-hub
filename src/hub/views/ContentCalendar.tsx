@@ -324,7 +324,7 @@ function CalendarView({ posts, clients, users, filterClient, onSelectPost, onMov
               onDragOver={(e) => { if (isValid && dragId) { e.preventDefault(); setDragOver(dateStr); } }}
               onDragLeave={() => setDragOver((d) => (d === dateStr ? null : d))}
               onDrop={() => isValid && handleDrop(dateStr)}
-              className={`min-h-[104px] p-1.5 border-b border-r border-line transition-colors
+              className={`min-h-[132px] p-2 border-b border-r border-line transition-colors
                 ${!isValid ? "bg-surface/40" : ""}
                 ${isToday ? "bg-accent/5" : ""}
                 ${isDropTarget ? "bg-primary/10 ring-1 ring-inset ring-primary/40" : ""}`}
@@ -332,15 +332,15 @@ function CalendarView({ posts, clients, users, filterClient, onSelectPost, onMov
               {isValid && (
                 <>
                   <div className="flex items-center justify-between mb-1">
-                    <span className={`font-mono text-xs ${isToday ? "text-accent font-700" : isPast ? "text-muted/40" : "text-muted"}`}>
+                    <span className={`font-mono text-sm ${isToday ? "text-accent font-700" : isPast ? "text-muted/40" : "text-muted"}`}>
                       {dayNum}
                     </span>
                     {dayPosts.length > 0 && (
-                      <span className="font-mono text-[9px] text-muted/60">{dayPosts.length}</span>
+                      <span className="font-mono text-[10px] text-muted/60">{dayPosts.length}</span>
                     )}
                   </div>
 
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     {visible.map((post) => {
                       const client = clients.find((c) => c.id === post.clientId);
                       const st = STATUSES.find((x) => x.key === post.status);
@@ -353,26 +353,26 @@ function CalendarView({ posts, clients, users, filterClient, onSelectPost, onMov
                           onDragEnd={(e) => { setDragId(null); setDragOver(null); (e.currentTarget as HTMLElement).classList.remove("dragging-card"); }}
                           onClick={() => onSelectPost(post)}
                           title={`${post.title}\n${client?.company ?? ""} · ${post.channel} · ${post.format}`}
-                          className="rounded-md px-1.5 py-1 cursor-pointer hover:brightness-110 transition-all"
+                          className="rounded-md px-2 py-1.5 cursor-pointer hover:brightness-110 transition-all"
                           style={{ background: `${chColor}18`, borderLeft: `2px solid ${chColor}` }}
                         >
                           {/* Título */}
-                          <p className="text-[10px] font-600 text-ink leading-tight truncate">{post.title}</p>
+                          <p className="text-[11px] font-700 text-ink leading-snug truncate">{post.title}</p>
                           {/* Cliente */}
                           {client && (
-                            <p className="text-[9px] leading-tight truncate" style={{ color: client.color }}>
+                            <p className="text-[10px] leading-snug truncate mt-0.5" style={{ color: client.color }}>
                               {client.company}
                             </p>
                           )}
                           {/* Canal · formato · estado */}
-                          <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-                            <span className="text-[8px] font-mono px-1 rounded" style={{ background: `${chColor}25`, color: chColor }}>
+                          <div className="flex items-center gap-1 mt-1 flex-wrap">
+                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded" style={{ background: `${chColor}25`, color: chColor }}>
                               {post.channel}
                             </span>
-                            <span className="text-[8px] font-mono text-muted capitalize">{post.format}</span>
+                            <span className="text-[9px] font-mono text-muted capitalize">{post.format}</span>
                             {st && (
-                              <span className="text-[8px] font-mono ml-auto flex items-center gap-0.5" style={{ color: st.color }}>
-                                <span className="w-1 h-1 rounded-full inline-block" style={{ background: st.color }} />
+                              <span className="text-[9px] font-mono ml-auto flex items-center gap-1" style={{ color: st.color }}>
+                                <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: st.color }} />
                                 {st.label}
                               </span>
                             )}
@@ -384,7 +384,7 @@ function CalendarView({ posts, clients, users, filterClient, onSelectPost, onMov
                     {dayPosts.length > 3 && (
                       <button
                         onClick={() => setExpandedDay(showAll ? null : dateStr)}
-                        className="w-full text-[9px] text-muted hover:text-primary font-mono text-left px-1 transition-colors"
+                        className="w-full text-[10px] text-muted hover:text-primary font-mono text-left px-1 py-0.5 transition-colors"
                       >
                         {showAll ? "− menos" : `+${dayPosts.length - 3} más`}
                       </button>
