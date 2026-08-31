@@ -93,7 +93,15 @@ export function useHubData(authUserId: string) {
 
   // ---------------- Realtime: content_items ----------------
   useEffect(() => {
-    const channel = supabase
+    let channel: ReturnType<typeof supabase.channel> | null = null
+    let cancelled = false
+
+    const setup = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) supabase.realtime.setAuth(session.access_token)
+      if (cancelled) return
+
+      channel = supabase
       .channel('hub-content')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'content_items' }, (payload) => {
         if (payload.eventType === 'INSERT') {
@@ -109,13 +117,30 @@ export function useHubData(authUserId: string) {
         }
       })
       .subscribe()
-    return () => { supabase.removeChannel(channel) }
+    }
+
+    setup()
+    return () => {
+      cancelled = true
+      if (channel) supabase.removeChannel(channel)
+    }
   }, [supabase])
 
   // ---------------- Realtime: notificaciones propias ----------------
   useEffect(() => {
-    const channel = supabase
-      .channel('hub-notifications')
+    let channel: ReturnType<typeof supabase.channel> | null = null
+    let cancelled = false
+
+    const setup = async () => {
+      // Realtime con RLS necesita el token del usuario, no la anon key
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) {
+        supabase.realtime.setAuth(session.access_token)
+      }
+      if (cancelled) return
+
+      channel = supabase
+      .channel(`hub-notifications-${authUserId}`)
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${authUserId}` },
         (payload) => {
@@ -133,8 +158,50 @@ export function useHubData(authUserId: string) {
           ))
         }
       )
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('Realtime notificaciones:', status)
+        }
+      })
+    }
+
+    setup()
+    return () => {
+      cancelled = true
+      if (channel) supabase.removeChannel(channel)
+    }
+  }, [supabase, authUserId])
+
+  // Respaldo: refrescar notificaciones cada 45s y al volver a la pestaña.
+  // Garantiza que lleguen aunque el realtime falle (red, proxy, etc).
+  useEffect(() => {
+    const refresh = async () => {
+      if (document.visibilityState !== 'visible') return
+      const { data } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', authUserId)
+        .order('created_at', { ascending: false })
+        .limit(50)
+      if (data) {
+        setNotifications(prev => {
+          const fresh = data.map(notifFromDb)
+          // Solo actualizar si algo cambió, para no re-renderizar de gratis
+          const changed = fresh.length !== prev.length
+            || fresh.some((n, i) => n.id !== prev[i]?.id || n.read !== prev[i]?.read)
+          return changed ? fresh : prev
+        })
+      }
+    }
+
+    const interval = setInterval(refresh, 45000)
+    document.addEventListener('visibilitychange', refresh)
+    window.addEventListener('focus', refresh)
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', refresh)
+      window.removeEventListener('focus', refresh)
+    }
   }, [supabase, authUserId])
 
   // ---------------- Mutaciones ----------------
