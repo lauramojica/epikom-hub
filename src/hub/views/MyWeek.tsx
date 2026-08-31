@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import type { ContentPost, Project, Client, User } from "../types";
+import type { ContentPost, Project, Client, User, HubTask } from "../types";
 import FridayRecap from "./FridayRecap";
 import EmojiReactions from "../components/EmojiReactions";
 import AnimatedNumber from "../components/AnimatedNumber";
@@ -15,6 +15,9 @@ interface Props {
   today: string;
   onMovePost: (id: string, status: ContentPost["status"]) => void;
   onSwitchUser?: (user: User) => void;
+  tasks?: HubTask[];
+  onToggleTask?: (id: string) => void;
+  onOpenTasks?: () => void;
 }
 
 const channelColors: Record<string, string> = {
@@ -54,6 +57,69 @@ const EMPTY_DAY_QUIPS = [
   "No hay nada. Yet. 🌚",
   "Un break merecido 🌴",
 ];
+
+
+/* ─── Mis tareas ──────────────────────────────────────────────────────────── */
+function MyTasksCard({ tasks, clients, today, onToggle, onOpenAll }: {
+  tasks: HubTask[]; clients: Client[]; today: string;
+  onToggle?: (id: string) => void;
+  onOpenAll?: () => void;
+}) {
+  const overdue = tasks.filter((t) => t.dueDate && t.dueDate < today);
+  const thisWeek = tasks.filter((t) => !t.dueDate || t.dueDate >= today).slice(0, 5);
+  const shown = [...overdue, ...thisWeek].slice(0, 6);
+
+  if (tasks.length === 0) return null;
+
+  return (
+    <div className="bg-surface border border-line rounded-xl overflow-hidden">
+      <div className="px-5 py-3 border-b border-line flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h3 className="font-display text-lg font-700 uppercase text-ink">Mis tareas</h3>
+          <span className="font-mono text-[10px] text-muted">{tasks.length}</span>
+          {overdue.length > 0 && (
+            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-danger/10 text-danger border border-danger/30">
+              {overdue.length} atrasada{overdue.length === 1 ? "" : "s"}
+            </span>
+          )}
+        </div>
+        {onOpenAll && (
+          <button onClick={onOpenAll} className="text-[10px] font-mono text-primary hover:opacity-80">
+            ver todas →
+          </button>
+        )}
+      </div>
+      <div className="divide-y divide-line">
+        {shown.map((t) => {
+          const client = clients.find((c) => c.id === t.clientId);
+          const late = t.dueDate && t.dueDate < today;
+          return (
+            <div key={t.id} className="flex items-start gap-3 px-5 py-2.5">
+              <button
+                onClick={() => onToggle?.(t.id)}
+                className="w-4 h-4 rounded-full border-2 border-line hover:border-primary flex-shrink-0 mt-0.5 transition-colors"
+                title="Marcar completada"
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-600 text-ink leading-snug">{t.title}</p>
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  {client && <span className="text-[9px] font-mono" style={{ color: client.color }}>{client.company}</span>}
+                  {t.dueDate && (
+                    <span className={`text-[9px] font-mono ${late ? "text-danger" : "text-muted"}`}>
+                      {new Intl.DateTimeFormat("es-PR", { day: "numeric", month: "short", timeZone: "America/Puerto_Rico" }).format(new Date(t.dueDate + "T12:00:00"))}
+                    </span>
+                  )}
+                  {t.priority === "urgente" && <span className="text-[9px] font-mono text-danger">urgente</span>}
+                  {t.source === "email" && <span className="text-[9px]">📧</span>}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function StreakBadge({ streak, color }: { streak: number; color: string }) {
   const fire = streak >= 14 ? "🔥🔥" : streak >= 7 ? "🔥" : "✨";
@@ -112,7 +178,7 @@ function ShoutoutCard({ users, posts, today }: { users: User[]; posts: ContentPo
   );
 }
 
-export default function MyWeek({ posts, projects, clients, users, activeUser, loggedUser, today, onMovePost, onSwitchUser }: Props) {
+export default function MyWeek({ posts, projects, clients, users, activeUser, loggedUser, today, onMovePost, onSwitchUser, tasks = [], onToggleTask, onOpenTasks }: Props) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [showRecap, setShowRecap] = useState(false);
   const [viewingUser, setViewingUser] = useState(activeUser);
@@ -211,6 +277,15 @@ export default function MyWeek({ posts, projects, clients, users, activeUser, lo
         </div>
 
         <DailyWidget userName={me.name} />
+
+        {/* Mis tareas */}
+        <MyTasksCard
+          tasks={tasks.filter((t) => t.assigneeId === viewingUser.id && t.status !== "completada")}
+          clients={clients}
+          today={today}
+          onToggle={onToggleTask}
+          onOpenAll={onOpenTasks}
+        />
 
         {/* Weekly progress bar */}
         <div className="bg-surface border border-line rounded-xl px-5 py-4">

@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { User, UserStatus } from "../types";
 import Avatar, { contrastColor } from "./Avatar";
 import { useUpload } from "../UploadContext";
+import PasswordInput from "./PasswordInput";
 
 interface Props {
   user: User;
@@ -232,13 +233,15 @@ export default function UserProfilePanel({ user, onClose, onUpdate, onChangePass
               </div>
 
               <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newPass}
-                  onChange={(e) => { setNewPass(e.target.value); setPassMsg(null); setCopied(false); }}
-                  placeholder="Nueva contraseña"
-                  className="flex-1 bg-surface2 border border-line rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-primary/40 font-mono placeholder:text-muted/50"
-                />
+                <div className="flex-1">
+                  <PasswordInput
+                    value={newPass}
+                    onChange={(v) => { setNewPass(v); setPassMsg(null); setCopied(false); }}
+                    placeholder="Nueva contraseña"
+                    autoComplete="new-password"
+                    className="w-full bg-surface2 border border-line rounded-lg pl-3 pr-10 py-2 text-sm text-ink outline-none focus:border-primary/40 font-mono placeholder:text-muted/50"
+                  />
+                </div>
                 <button
                   onClick={() => { setNewPass(generatePassword()); setPassMsg(null); setCopied(false); }}
                   className="text-xs font-mono px-3 py-2 rounded-lg border border-line text-muted hover:text-primary hover:border-primary/40 transition-all whitespace-nowrap"

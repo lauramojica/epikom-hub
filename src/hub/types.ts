@@ -149,7 +149,7 @@ export interface Notification {
   clientId?: string;
 }
 
-export type View = 'myweek' | 'calendar' | 'projects' | 'clients' | 'analytics' | 'notifications' | 'roles' | 'reports' | 'messages' | 'workshop' | 'settings' | 'documents';
+export type View = 'myweek' | 'calendar' | 'projects' | 'clients' | 'analytics' | 'notifications' | 'roles' | 'tasks' | 'reports' | 'messages' | 'workshop' | 'settings' | 'documents';
 
 export interface AttachedFile {
   id: string;
@@ -172,4 +172,28 @@ export interface Document {
   postId?: string;
   category: 'brief' | 'arte' | 'contrato' | 'reporte' | 'referencia' | 'otro';
   notes: string;
+}
+
+// ─── Tareas ───────────────────────────────────────────────────────────────────
+export type TaskStatus = 'pendiente' | 'en_proceso' | 'bloqueada' | 'completada';
+export type TaskPriority = 'baja' | 'media' | 'alta' | 'urgente';
+
+export interface HubTask {
+  id: string;
+  title: string;
+  description: string;
+  clientId?: string | null;
+  projectId?: string | null;
+  assigneeId?: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  dueDate?: string | null;
+  dueTime?: string | null;
+  tags: string[];
+  attachments: AttachedFile[];
+  source: 'hub' | 'email';
+  sourceEmail?: string | null;
+  createdBy?: string | null;
+  completedAt?: string | null;
+  createdAt: string;
 }

@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import PasswordInput from '@/hub/components/PasswordInput'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
@@ -73,14 +74,11 @@ export default function ResetPasswordPage() {
             <p className="text-xs text-muted leading-relaxed">Crea tu contraseña nueva. Mínimo 8 caracteres.</p>
             <div>
               <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Nueva contraseña</label>
-              <input
-                type="password"
+              <PasswordInput
                 value={password}
-                onChange={(e) => { setPassword(e.target.value); setError(null) }}
-                placeholder="••••••••"
+                onChange={(v) => { setPassword(v); setError(null) }}
                 autoComplete="new-password"
                 autoFocus
-                className={inputCls}
               />
               {password.length > 0 && (
                 <div className="flex items-center gap-2 mt-1.5">
@@ -93,14 +91,11 @@ export default function ResetPasswordPage() {
             </div>
             <div>
               <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Confirmar contraseña</label>
-              <input
-                type="password"
+              <PasswordInput
                 value={confirm}
-                onChange={(e) => { setConfirm(e.target.value); setError(null) }}
+                onChange={(v) => { setConfirm(v); setError(null) }}
                 onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-                placeholder="••••••••"
                 autoComplete="new-password"
-                className={inputCls}
               />
             </div>
             {error && <p className="text-xs text-danger bg-danger/10 border border-danger/20 rounded-lg px-3 py-2">{error}</p>}

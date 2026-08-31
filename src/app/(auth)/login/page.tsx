@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import PasswordInput from '@/hub/components/PasswordInput'
 
 type Mode = 'password' | 'magic'
 
@@ -147,14 +148,11 @@ export default function LoginPage() {
                     ¿Olvidaste?
                   </Link>
                 </div>
-                <input
-                  type="password"
+                <PasswordInput
                   value={password}
-                  onChange={(e) => { setPassword(e.target.value); setError(null) }}
+                  onChange={(v) => { setPassword(v); setError(null) }}
                   onKeyDown={(e) => e.key === 'Enter' && handlePasswordLogin()}
-                  placeholder="••••••••"
                   autoComplete="current-password"
-                  className={inputCls}
                 />
               </div>
             )}

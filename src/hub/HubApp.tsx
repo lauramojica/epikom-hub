@@ -22,6 +22,8 @@ import SettingsView from "./views/SettingsView";
 import WorkshopView from "./views/WorkshopView";
 import MessageCenter from "./views/MessageCenter";
 import ClientReport from "./views/ClientReport";
+import TasksView from "./views/TasksView";
+import { useTasks } from "./useTasks";
 import DocumentsView from "./views/DocumentsView";
 import Avatar from "./components/Avatar";
 import UserProfilePanel from "./components/UserProfilePanel";
@@ -31,7 +33,8 @@ import ConfirmModal from "./components/ConfirmModal";
 
 const navItems: { key: View; label: string; icon: React.ReactElement }[] = [
   { key: "myweek", label: "Mi Semana", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="1" y="3" width="16" height="14" rx="2" stroke="currentColor" strokeWidth="1.5"/><path d="M1 7H17" stroke="currentColor" strokeWidth="1.5"/><path d="M5 1V4M13 1V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><rect x="4" y="10" width="2" height="2" rx="0.5" fill="currentColor"/><rect x="8" y="10" width="2" height="2" rx="0.5" fill="currentColor"/></svg> },
-  { key: "calendar", label: "Calendario", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 3H15C16.1 3 17 3.9 17 5V15C17 16.1 16.1 17 15 17H3C1.9 17 1 16.1 1 15V5C1 3.9 1.9 3 3 3Z" stroke="currentColor" strokeWidth="1.5"/><path d="M1 8H17" stroke="currentColor" strokeWidth="1.5"/><circle cx="6" cy="12" r="1" fill="currentColor"/><circle cx="9" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><path d="M5 1V4M13 1V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
+  { key: "tasks", label: "Tareas", icon: (<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M6 4.5h9M6 9h9M6 13.5h9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M2.5 4.5l1 1 1.5-2M2.5 9l1 1 1.5-2M2.5 13.5l1 1 1.5-2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>) },
+          { key: "calendar", label: "Calendario", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 3H15C16.1 3 17 3.9 17 5V15C17 16.1 16.1 17 15 17H3C1.9 17 1 16.1 1 15V5C1 3.9 1.9 3 3 3Z" stroke="currentColor" strokeWidth="1.5"/><path d="M1 8H17" stroke="currentColor" strokeWidth="1.5"/><circle cx="6" cy="12" r="1" fill="currentColor"/><circle cx="9" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><path d="M5 1V4M13 1V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
   { key: "projects", label: "Proyectos", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M1 5C1 3.9 1.9 3 3 3H7L9 5H15C16.1 5 17 5.9 17 7V14C17 15.1 16.1 16 15 16H3C1.9 16 1 15.1 1 14V5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg> },
   { key: "clients", label: "Cuentas", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="1" y="3" width="16" height="12" rx="2" stroke="currentColor" strokeWidth="1.5"/><path d="M1 7H17" stroke="currentColor" strokeWidth="1.5"/><path d="M5 11H8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
   { key: "analytics", label: "Analítica", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M1 14L5 9L8 12L12 6L17 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M1 17H17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
@@ -260,6 +263,7 @@ function AppInner({ authUserId }: { authUserId: string }) {
 
   const workshop = useWorkshop();
   const perms = usePermissions(authUserId);
+  const tasksHook = useTasks(authUserId);
   const myRole = loggedUser?.role ?? "crew";
   // Permisos reales del rol; mientras cargan, se usan los valores base del rol
   const can = (perm: string) =>
@@ -288,6 +292,7 @@ function AppInner({ authUserId }: { authUserId: string }) {
 
   const NAV_PERMISSION: Record<string, string | null> = {
     myweek: null,
+    tasks: null,
     calendar: "calendar.view",
     projects: "projects.view",
     clients: "clients.view",
@@ -595,7 +600,16 @@ function AppInner({ authUserId }: { authUserId: string }) {
           transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           className="flex-1 overflow-y-auto"
         >
-          {view === "myweek" && <MyWeek posts={posts} projects={projects} clients={clients} users={users} activeUser={activeUser} today={todayPR()} loggedUser={loggedUser} onMovePost={movePost} />}
+          {view === "myweek" && <MyWeek posts={posts} projects={projects} clients={clients} users={users} activeUser={activeUser} today={todayPR()} loggedUser={loggedUser} onMovePost={movePost}
+            tasks={tasksHook.tasks}
+            onToggleTask={(id) => tasksHook.toggleComplete(id).then((done) => { if (done) { triggerConfetti(); toast("✓ Tarea completada 🎉", "success"); } })}
+            onOpenTasks={() => setView("tasks")}
+          />}
+          {view === "tasks" && <TasksView
+            clients={clients} projects={projects} users={users}
+            authUserId={authUserId} canEdit={!isClientUser}
+            onConfetti={triggerConfetti} onToast={toast}
+          />}
           {view === "calendar" && <ContentCalendar
             dynamicFormats={workshop.byKind("format").map((o) => ({ value: o.value, label: o.label }))}
             dynamicChannels={workshop.byKind("channel").map((o) => ({ value: o.value, label: o.label, color: o.color }))}
