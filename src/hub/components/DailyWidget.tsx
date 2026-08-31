@@ -24,6 +24,35 @@ const QUOTES: { text: string; author: string }[] = [
   { text: "El caribe no se explica, se siente.", author: "Anónimo" },
   { text: "Cada día es una hoja en blanco. Ensúciala bien.", author: "Anónimo" },
   { text: "La luz es el primer maquillaje.", author: "Roger Deakins" },
+  { text: "Un artista nunca termina una obra: la abandona.", author: "Paul Valéry" },
+  { text: "El buen diseño es lo menos diseño posible.", author: "Dieter Rams" },
+  { text: "Dibuja lo que ves, no lo que crees que ves.", author: "Anónimo" },
+  { text: "El montaje es el corazón del cine.", author: "Walter Murch" },
+  { text: "Escribir mal es mejor que no escribir.", author: "Anónimo" },
+  { text: "La inspiración existe, pero tiene que encontrarte trabajando.", author: "Pablo Picasso" },
+  { text: "No temas la lentitud, teme la parálisis.", author: "Proverbio chino" },
+  { text: "Un buen brief ahorra tres revisiones.", author: "Ley de la agencia" },
+  { text: "La tipografía es la voz del texto.", author: "Ellen Lupton" },
+  { text: "Fotografiar es poner la cabeza, el ojo y el corazón en el mismo eje.", author: "Henri Cartier-Bresson" },
+  { text: "El vacío también compone.", author: "Principio del ma japonés" },
+  { text: "Todo lo que es urgente rara vez es importante.", author: "Eisenhower" },
+  { text: "Hazlo simple, pero significativo.", author: "Don Draper" },
+  { text: "Trabaja como si el resultado dependiera solo de ti.", author: "Refrán" },
+  { text: "La creatividad requiere el coraje de soltar las certezas.", author: "Erich Fromm" },
+  { text: "El sonido es la mitad de la experiencia.", author: "George Lucas" },
+  { text: "La marca es lo que dicen de ti cuando no estás.", author: "Jeff Bezos" },
+  { text: "Boricua, no te rindas.", author: "Anónimo" },
+  { text: "Menos ruido, más señal.", author: "Anónimo" },
+  { text: "Lo importante no es la cámara, es quién está detrás.", author: "Anónimo" },
+  { text: "El color no es un adorno: es información.", author: "Josef Albers" },
+  { text: "La constancia le gana al talento cuando el talento no es constante.", author: "Anónimo" },
+  { text: "Aquí se trabaja con cariño o no se trabaja.", author: "Dicho de taller" },
+  { text: "Si todo es prioridad, nada lo es.", author: "Anónimo" },
+  { text: "La primera versión siempre es un borrador. Siempre.", author: "Anne Lamott" },
+  { text: "Descansar también es parte del proceso.", author: "Anónimo" },
+  { text: "Cada pieza que sale lleva tu nombre, aunque no lo firmes.", author: "Anónimo" },
+  { text: "Los detalles no son detalles: hacen el producto.", author: "Steve Jobs" },
+  { text: "El caribe inventó el color antes que Pantone.", author: "Anónimo" },
   { text: "Haz cosas buenas y déjalas en el camino.", author: "Refrán" },
   { text: "Empieza donde estás. Usa lo que tienes.", author: "Arthur Ashe" },
   { text: "La calma también es productividad.", author: "Anónimo" },
@@ -36,14 +65,21 @@ const QUOTES: { text: string; author: string }[] = [
   { text: "El talento gana partidos, el equipo gana campeonatos.", author: "Michael Jordan" },
 ];
 
-/* Índice determinístico del día (todos ven la misma al abrir) */
+/* Índice determinístico del día — hash disperso para que días seguidos
+   no caigan en frases contiguas de la lista */
 function quoteIndexOfTheDay() {
-  const now = new Date();
-  const key = Number(
-    new Intl.DateTimeFormat("en-CA", { timeZone: "America/Puerto_Rico", year: "numeric", month: "2-digit", day: "2-digit" })
-      .format(now).replace(/-/g, "")
-  );
-  return key % QUOTES.length;
+  const dateStr = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Puerto_Rico", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date());
+  // xmur3: hash de string bien distribuido
+  let h = 1779033703 ^ dateStr.length;
+  for (let i = 0; i < dateStr.length; i++) {
+    h = Math.imul(h ^ dateStr.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  h = Math.imul(h ^ (h >>> 16), 2246822507);
+  h = Math.imul(h ^ (h >>> 13), 3266489909);
+  return Math.abs(h ^ (h >>> 16)) % QUOTES.length;
 }
 
 /* Códigos WMO de Open-Meteo → emoji + texto */
@@ -69,7 +105,12 @@ export default function DailyWidget({ userName }: { userName?: string }) {
 
   const nextQuote = () => {
     setSpin(true);
-    setQIndex((i) => (i + 1) % QUOTES.length);
+    setQIndex((i) => {
+      // Salto aleatorio real, nunca repite la que ya está
+      let next = i;
+      while (next === i) next = Math.floor(Math.random() * QUOTES.length);
+      return next;
+    });
     setTimeout(() => setSpin(false), 400);
   };
 

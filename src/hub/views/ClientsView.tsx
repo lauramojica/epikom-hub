@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import type { Client, Project, ContentPost, BrandColor, BrandFont } from "../types";
+import { useUpload } from "../UploadContext";
 
 interface Props {
   clients: Client[];
@@ -40,11 +41,18 @@ function ColorSwatch({ color, onUpdate, onRemove }: { color: BrandColor; onUpdat
   );
 }
 
-function BrandTab({ client, onUpdate, logoRef }: { client: Client; onUpdate: (u: Partial<Client>) => void; logoRef: React.RefObject<HTMLInputElement | null> }) {
-  const rules = client.brandRules;
+function BrandTab({ client, onUpdate, logoRef, canEdit = true, upload }: {
+  client: Client; onUpdate: (u: Partial<Client>) => void;
+  logoRef: React.RefObject<HTMLInputElement | null>;
+  canEdit?: boolean;
+  upload?: ((f: File, folder?: string) => Promise<{ url: string }>) | null;
+}) {
+  const [rules, setRules] = useState(client.brandRules);
+  useEffect(() => { setRules(client.brandRules); }, [client.id]);
+  const dirty = JSON.stringify(rules) !== JSON.stringify(client.brandRules);
 
-  const updColors = (colors: BrandColor[]) => onUpdate({ brandRules: { ...rules, colors } });
-  const updFonts = (fonts: BrandFont[]) => onUpdate({ brandRules: { ...rules, fonts } });
+  const updColors = (colors: BrandColor[]) => setRules((r) => ({ ...r, colors }));
+  const updFonts = (fonts: BrandFont[]) => setRules((r) => ({ ...r, fonts }));
   const addColor = () => updColors([...rules.colors, { label: "Nuevo color", hex: "#888888" }]);
   const removeColor = (i: number) => updColors(rules.colors.filter((_, j) => j !== i));
   const updateColor = (i: number, c: BrandColor) => updColors(rules.colors.map((x, j) => j === i ? c : x));
@@ -52,11 +60,14 @@ function BrandTab({ client, onUpdate, logoRef }: { client: Client; onUpdate: (u:
   const removeFont = (i: number) => updFonts((rules.fonts || []).filter((_, j) => j !== i));
   const updateFont = (i: number, f: BrandFont) => updFonts((rules.fonts || []).map((x, j) => j === i ? f : x));
 
-  const handleLogo = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    onUpdate({ brandRules: { ...rules, logoUrl: url } });
+    let url = URL.createObjectURL(file);
+    if (upload) {
+      try { url = (await upload(file, "marcas")).url; } catch { /* usa el preview local */ }
+    }
+    setRules((r) => ({ ...r, logoUrl: url }));
   };
 
   return (
@@ -73,7 +84,7 @@ function BrandTab({ client, onUpdate, logoRef }: { client: Client; onUpdate: (u:
         {rules.logoUrl ? (
           <div className="relative w-full h-32 bg-surface2 border border-line rounded-xl overflow-hidden flex items-center justify-center group">
             <img src={rules.logoUrl} alt="Logo" className="max-h-28 max-w-full object-contain" />
-            <button onClick={() => onUpdate({ brandRules: { ...rules, logoUrl: undefined } })} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 w-6 h-6 bg-danger rounded-full text-ink text-xs flex items-center justify-center transition-all">×</button>
+            <button onClick={() => setRules((r) => ({ ...r, logoUrl: undefined }))} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 w-6 h-6 bg-danger rounded-full text-ink text-xs flex items-center justify-center transition-all">×</button>
           </div>
         ) : (
           <button onClick={() => logoRef.current?.click()} className="w-full h-24 bg-surface2 border-2 border-dashed border-line rounded-xl flex flex-col items-center justify-center gap-1 hover:border-muted transition-all">
@@ -145,19 +156,37 @@ function BrandTab({ client, onUpdate, logoRef }: { client: Client; onUpdate: (u:
       {/* Tone + Guidelines + Banned words */}
       <div>
         <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-2">Tono de comunicación</h3>
-        <textarea value={rules.tone} onChange={(e) => onUpdate({ brandRules: { ...rules, tone: e.target.value } })} rows={2} className="w-full bg-surface2 border border-line rounded-lg px-4 py-3 text-sm text-ink outline-none focus:border-primary/40 resize-none" />
+        <textarea value={rules.tone} onChange={(e) => setRules((r) => ({ ...r, tone: e.target.value }))} rows={2} className="w-full bg-surface2 border border-line rounded-lg px-4 py-3 text-sm text-ink outline-none focus:border-primary/40 resize-none" />
       </div>
       <div>
         <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-2">Lineamientos</h3>
-        <textarea value={rules.guidelines} onChange={(e) => onUpdate({ brandRules: { ...rules, guidelines: e.target.value } })} rows={3} className="w-full bg-surface2 border border-line rounded-lg px-4 py-3 text-sm text-ink outline-none focus:border-primary/40 resize-none leading-relaxed" />
+        <textarea value={rules.guidelines} onChange={(e) => setRules((r) => ({ ...r, guidelines: e.target.value }))} rows={3} className="w-full bg-surface2 border border-line rounded-lg px-4 py-3 text-sm text-ink outline-none focus:border-primary/40 resize-none leading-relaxed" />
       </div>
       <div>
         <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-2">Palabras prohibidas</h3>
-        <input value={rules.bannedWords.join(", ")} onChange={(e) => onUpdate({ brandRules: { ...rules, bannedWords: e.target.value.split(",").map((w) => w.trim()).filter(Boolean) } })} placeholder="Separar con comas..." className="w-full bg-surface2 border border-line rounded-lg px-4 py-3 text-sm text-ink outline-none focus:border-primary/40 font-mono" />
+        <input value={rules.bannedWords.join(", ")} onChange={(e) => setRules((r) => ({ ...r, bannedWords: e.target.value.split(",").map((w) => w.trim()).filter(Boolean) }))} placeholder="Separar con comas..." className="w-full bg-surface2 border border-line rounded-lg px-4 py-3 text-sm text-ink outline-none focus:border-primary/40 font-mono" />
         <div className="flex flex-wrap gap-2 mt-2">
           {rules.bannedWords.map((w) => <span key={w} className="text-xs font-mono px-3 py-1 rounded-full bg-danger/10 text-danger border border-danger/20">{w}</span>)}
         </div>
       </div>
+
+      {canEdit && (
+        <div className="flex items-center justify-end gap-3 pt-4 border-t border-line sticky bottom-0 bg-surface">
+          {dirty && <span className="text-[10px] font-mono text-warning">Cambios sin guardar</span>}
+          {dirty && (
+            <button onClick={() => setRules(client.brandRules)} className="text-xs font-mono px-4 py-2 rounded-lg border border-line text-muted hover:text-ink">
+              Descartar
+            </button>
+          )}
+          <button
+            onClick={() => onUpdate({ brandRules: rules })}
+            disabled={!dirty}
+            className="text-xs font-mono px-5 py-2 rounded-lg bg-primary text-bg font-600 hover:opacity-90 disabled:opacity-30 transition-opacity"
+          >
+            Guardar cambios
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -167,6 +196,7 @@ export default function ClientsView({ clients, projects, posts, onUpdateClient, 
   const [showNewClient, setShowNewClient] = useState(false);
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<"profile" | "edit" | "brand" | "crm">("profile");
+  const upload = useUpload();
   const logoRef = useRef<HTMLInputElement>(null);
 
   const filtered = clients.filter((c) =>
@@ -298,7 +328,53 @@ export default function ClientsView({ clients, projects, posts, onUpdateClient, 
               {/* Profile tab */}
               {tab === "profile" && (
                 <div className="space-y-6">
+                  {/* Resumen siempre visible */}
+                  <div>
+                    <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-3">Información</h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        ["Idioma", client.language],
+                        ["Zona horaria", client.timezone?.replace("_", " ") ?? "—"],
+                        ["Email", client.email || "—"],
+                        ["Teléfono", client.phone || "—"],
+                      ].map(([label, value]) => (
+                        <div key={label} className="bg-surface2 border border-line rounded-lg px-3 py-2">
+                          <p className="font-mono text-[9px] text-muted uppercase tracking-widest">{label}</p>
+                          <p className="text-sm text-ink truncate">{value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Servicios contratados */}
+                  <div>
+                    <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-3">Servicios</h3>
+                    {(clientServices[client.id] ?? []).length === 0 ? (
+                      <p className="text-xs text-muted">
+                        Sin servicios asignados. Ve a la pestaña <span className="text-ink">Editar</span> para asignarlos.
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {(clientServices[client.id] ?? []).map((sid) => {
+                          const svc = services.find((x) => x.id === sid);
+                          if (!svc) return null;
+                          return (
+                            <span key={sid} className="text-xs font-mono px-2.5 py-1 rounded-lg" style={{ background: `${svc.color}18`, color: svc.color }}>
+                              {svc.name}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
                   {/* Contacts */}
+                  {client.contacts.length === 0 && (
+                    <div>
+                      <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-3">Contactos</h3>
+                      <p className="text-xs text-muted">Aún no hay contactos. Añádelos desde <span className="text-ink">Editar</span>.</p>
+                    </div>
+                  )}
                   {client.contacts.length > 0 && (
                     <div>
                       <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-3">Contactos</h3>
@@ -323,6 +399,12 @@ export default function ClientsView({ clients, projects, posts, onUpdateClient, 
                   )}
 
                   {/* Projects */}
+                  {clientProjects.length === 0 && (
+                    <div>
+                      <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-3">Proyectos</h3>
+                      <p className="text-xs text-muted">Sin proyectos activos para este cliente.</p>
+                    </div>
+                  )}
                   {clientProjects.length > 0 && (
                     <div>
                       <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-3">Proyectos</h3>
@@ -358,7 +440,7 @@ export default function ClientsView({ clients, projects, posts, onUpdateClient, 
 
               {/* Brand tab */}
               {tab === "brand" && (
-                <BrandTab client={client} onUpdate={(updates) => onUpdateClient?.(client.id, updates)} logoRef={logoRef} />
+                <BrandTab client={client} onUpdate={(updates) => onUpdateClient?.(client.id, updates)} logoRef={logoRef} canEdit={canEdit} upload={upload} />
               )}
 
               {/* CRM tab */}

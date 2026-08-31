@@ -210,7 +210,7 @@ export default function MyWeek({ posts, projects, clients, users, activeUser, lo
           </div>
         </div>
 
-        <DailyWidget userName={viewingUser.name} />
+        <DailyWidget userName={me.name} />
 
         {/* Weekly progress bar */}
         <div className="bg-surface border border-line rounded-xl px-5 py-4">

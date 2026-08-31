@@ -291,6 +291,8 @@ function OptionsTab({ w, kind, title, hint, canEdit, withColor, onToast }: {
               <input
                 value={o.label}
                 onChange={(e) => w.updateOption(o.id, { label: e.target.value })}
+                onBlur={() => onToast?.("✓ Guardado.", "success")}
+                title="Se guarda al salir del campo"
                 className="flex-1 bg-transparent text-sm text-ink outline-none focus:bg-surface2 rounded px-1.5 py-0.5 -ml-1.5 transition-colors"
               />
             ) : (
@@ -328,7 +330,7 @@ function OptionsTab({ w, kind, title, hint, canEdit, withColor, onToast }: {
       </div>
 
       <p className="text-[11px] text-muted/70 leading-relaxed">
-        Las opciones marcadas como <span className="font-mono">sistema</span> no se pueden borrar, solo desactivar.
+        Los cambios en esta lista se guardan automáticamente. Las opciones marcadas como <span className="font-mono">sistema</span> no se pueden borrar, solo desactivar.
         Al desactivar una opción deja de aparecer en los menús, pero el contenido histórico que ya la usaba se mantiene intacto.
       </p>
     </div>
