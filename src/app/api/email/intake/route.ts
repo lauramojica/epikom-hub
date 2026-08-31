@@ -52,7 +52,7 @@ async function processInbox() {
 
   // Gente autorizada a crear tareas por email (solo el crew)
   const { data: crew } = await db
-    .from("users").select("id, email, role");
+    .from("users").select("id, email, name, role");
   const { data: roles } = await db.from("hub_roles").select("key, scope");
   const externalRoles = new Set((roles ?? []).filter(r => r.scope === "own_client").map(r => r.key));
   const allowed = new Map(
@@ -123,13 +123,24 @@ async function processInbox() {
       const { clientId, projectId } = await resolveTarget(db, token);
       const attachments = await downloadAttachments(gmail, msgRef.id!, msg.payload as Record<string, unknown>, db);
 
+      // Directivas en el cuerpo (@para:, fecha:, prioridad:)
+      const directives = parseDirectives(body, (crew ?? []).map(u => ({
+        id: u.id, email: u.email, name: (u as { name?: string }).name ?? null,
+      })));
+
+      // Un destinatario en Cc que sea del crew también sirve para asignar
+      const ccEmails = header(headers, "Cc").split(",").map(parseEmail);
+      const ccAssignee = ccEmails.map(e => allowed.get(e)).find(Boolean) ?? null;
+
       const { data: task, error } = await db.from("hub_tasks").insert({
         title: subject.replace(/^(re|fwd|rv):\s*/i, "").trim().slice(0, 200),
-        description: body.slice(0, 5000),
+        description: directives.body.slice(0, 5000),
         client_id: clientId,
         project_id: projectId,
         created_by: senderId,
-        assignee_id: senderId,       // quien lo manda se la queda por defecto
+        assignee_id: directives.assigneeId ?? ccAssignee ?? senderId,
+        due_date: directives.dueDate,
+        priority: directives.priority ?? "media",
         source: "email",
         source_email: from,
         source_message_id: messageId,
@@ -153,6 +164,72 @@ async function processInbox() {
   }
 
   return NextResponse.json({ ok: true, ...results, details });
+}
+
+/**
+ * Lee directivas al inicio del cuerpo y las quita del texto.
+ *   @para: elissa        → asigna a esa persona
+ *   fecha: 2026-09-15    → fecha límite
+ *   prioridad: alta      → prioridad
+ */
+function parseDirectives(
+  body: string,
+  crew: { id: string; email: string; name: string | null }[]
+) {
+  const lines = body.split("\n");
+  const kept: string[] = [];
+  let assigneeId: string | null = null;
+  let dueDate: string | null = null;
+  let priority: string | null = null;
+
+  const norm = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+  for (const line of lines) {
+    const l = line.trim();
+
+    // @para: nombre / para: nombre / asignar: nombre
+    const asignar = l.match(/^@?(?:para|asignar|assign)\s*:\s*(.+)$/i);
+    if (asignar && !assigneeId) {
+      const target = norm(asignar[1]);
+      const found = crew.find((u) => {
+        const email = norm(u.email);
+        const name = norm(u.name ?? "");
+        const first = name.split(" ")[0];
+        return email === target || email.split("@")[0] === target || name === target || first === target;
+      });
+      if (found) { assigneeId = found.id; continue; }
+    }
+
+    // fecha: 2026-09-15  |  vence: 15/09/2026
+    const fecha = l.match(/^(?:fecha|vence|due|deadline)\s*:\s*(.+)$/i);
+    if (fecha && !dueDate) {
+      const raw = fecha[1].trim();
+      let iso: string | null = null;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) iso = raw;
+      else {
+        const dmy = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+        if (dmy) iso = `${dmy[3]}-${dmy[2].padStart(2, "0")}-${dmy[1].padStart(2, "0")}`;
+      }
+      if (iso) { dueDate = iso; continue; }
+    }
+
+    // prioridad: alta
+    const prio = l.match(/^(?:prioridad|priority)\s*:\s*(baja|media|alta|urgente|low|medium|high|urgent)$/i);
+    if (prio && !priority) {
+      const map: Record<string, string> = {
+        low: "baja", medium: "media", high: "alta", urgent: "urgente",
+      };
+      priority = map[prio[1].toLowerCase()] ?? prio[1].toLowerCase();
+      continue;
+    }
+
+    kept.push(line);
+  }
+
+  return {
+    body: kept.join("\n").trim(),
+    assigneeId, dueDate, priority,
+  };
 }
 
 async function markRead(gmail: NonNullable<Awaited<ReturnType<typeof gmailClient>>>, id: string) {

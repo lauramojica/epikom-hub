@@ -88,6 +88,30 @@ function htmlToText(html: string): string {
 }
 
 /**
+ * Quita la firma del correo (todo lo que sigue a "-- " en su propia línea,
+ * que es el separador estándar, o los avisos de confidencialidad típicos).
+ */
+export function stripSignature(text: string): string {
+  const sigMarkers = [
+    /\n-- ?\n/,                                   // separador estándar
+    /\n_{3,}\n/,                                  // línea de guiones bajos
+    /\n(?:Saludos|Un saludo|Gracias|Best|Regards|Cordialmente|Atentamente)[,.]?\s*\n[\s\S]{0,300}$/i,
+    /\n\s*Este (?:mensaje|correo|e-?mail)[\s\S]{0,200}?confidencial[\s\S]*$/i,
+    /\n\s*This (?:message|e-?mail)[\s\S]{0,200}?confidential[\s\S]*$/i,
+    /\nAVISO(?: LEGAL)?:[\s\S]*$/i,
+  ];
+
+  let cut = text.length;
+  for (const re of sigMarkers) {
+    const m = text.match(re);
+    if (m?.index !== undefined && m.index < cut && m.index > 20) {
+      cut = m.index;
+    }
+  }
+  return text.slice(0, cut).trim();
+}
+
+/**
  * Quita la parte citada de una respuesta de email.
  * Sin esto, cada comentario arrastraría todo el hilo anterior.
  */
@@ -118,7 +142,12 @@ export function stripQuotedReply(text: string): string {
     .filter((line) => !line.trimStart().startsWith(">"))
     .join("\n");
 
-  return body.trim();
+  // Limpiar imágenes rotas y enlaces de tracking que dejan los clientes
+  body = body
+    .replace(/\[image:[^\]]*\]/gi, "")
+    .replace(/\n{3,}/g, "\n\n");
+
+  return stripSignature(body).trim();
 }
 
 /** Lee un header específico del mensaje */

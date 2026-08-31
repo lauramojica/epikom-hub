@@ -663,6 +663,20 @@ function EmailTab({ canEdit, onToast }: {
           <p className="text-[11px] text-muted/70 pt-1">
             Solo el crew de Epikom puede crear tareas por email. Los correos de fuera se ignoran.
           </p>
+
+          <div className="pt-3 mt-1 border-t border-line">
+            <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-2">Atajos en el correo</p>
+            <p className="mb-2">Escribe estas líneas al inicio del mensaje y se aplican a la tarea:</p>
+            <div className="space-y-1.5 font-mono text-[11px]">
+              <p><span className="text-primary">@para:</span> elissa <span className="text-muted/60">— asigna la tarea</span></p>
+              <p><span className="text-primary">fecha:</span> 2026-09-15 <span className="text-muted/60">— fecha límite</span></p>
+              <p><span className="text-primary">prioridad:</span> alta <span className="text-muted/60">— baja · media · alta · urgente</span></p>
+            </div>
+            <p className="text-[11px] text-muted/70 mt-2">
+              También puedes poner en copia (Cc) a alguien del crew y la tarea le queda asignada.
+              Si no indicas nada, la tarea es tuya.
+            </p>
+          </div>
         </div>
       </div>
     </div>
