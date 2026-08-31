@@ -412,6 +412,224 @@ function CalendarView({ posts, clients, users, filterClient, onSelectPost, onMov
   );
 }
 
+
+// ─── Agenda View (lista cronológica, ideal para móvil) ───────────────────────
+function AgendaView({ posts, clients, users, today, onSelectPost, onMovePost }: {
+  posts: ContentPost[]; clients: Client[]; users: User[]; today: string;
+  onSelectPost: (p: ContentPost) => void;
+  onMovePost: (id: string, s: PostStatus) => void;
+}) {
+  const [filter, setFilter] = useState<"upcoming" | "all" | "overdue">("upcoming");
+
+  const sorted = [...posts]
+    .filter((p) => p.scheduledDate)
+    .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
+
+  const overdue = sorted.filter((p) => p.scheduledDate < today && p.status !== "published");
+  const upcoming = sorted.filter((p) => p.scheduledDate >= today);
+  const unscheduled = posts.filter((p) => !p.scheduledDate);
+
+  const visible =
+    filter === "overdue" ? overdue :
+    filter === "all" ? sorted :
+    upcoming;
+
+  // Agrupar por día
+  const byDay: Record<string, ContentPost[]> = {};
+  visible.forEach((p) => { (byDay[p.scheduledDate] ||= []).push(p); });
+  const days = Object.keys(byDay).sort();
+
+  const dayLabel = (d: string) => {
+    const date = new Date(d + "T12:00:00");
+    const diff = Math.round((date.getTime() - new Date(today + "T12:00:00").getTime()) / 86400000);
+    if (diff === 0) return "Hoy";
+    if (diff === 1) return "Mañana";
+    if (diff === -1) return "Ayer";
+    return new Intl.DateTimeFormat("es-PR", {
+      weekday: "long", day: "numeric", month: "long", timeZone: "America/Puerto_Rico",
+    }).format(date);
+  };
+
+  const nextStatus: Record<string, PostStatus | null> = {
+    idea: "creation", creation: "design", design: "review",
+    review: "approved", approved: "scheduled", scheduled: "published", published: null,
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Filtros */}
+      <div className="flex gap-1 bg-surface border border-line rounded-xl p-1 w-fit">
+        {([
+          ["upcoming", `Próximas ${upcoming.length > 0 ? `(${upcoming.length})` : ""}`],
+          ["overdue", `Atrasadas ${overdue.length > 0 ? `(${overdue.length})` : ""}`],
+          ["all", "Todas"],
+        ] as const).map(([k, label]) => (
+          <button
+            key={k}
+            onClick={() => setFilter(k)}
+            className={`px-3 py-1.5 rounded-lg text-[11px] font-mono uppercase tracking-wide transition-all whitespace-nowrap ${
+              filter === k
+                ? k === "overdue" && overdue.length > 0
+                  ? "bg-danger text-white font-600"
+                  : "bg-primary text-bg font-600"
+                : "text-muted hover:text-ink"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {days.length === 0 ? (
+        <div className="bg-surface border border-line rounded-xl py-12 text-center">
+          <p className="text-3xl mb-2">{filter === "overdue" ? "🎉" : "📭"}</p>
+          <p className="text-sm font-600 text-ink">
+            {filter === "overdue" ? "Nada atrasado" : "Nada por aquí"}
+          </p>
+          <p className="text-xs text-muted mt-1">
+            {filter === "overdue" ? "Todo al día." : "No hay publicaciones en este filtro."}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {days.map((day) => {
+            const isToday = day === today;
+            const isPast = day < today;
+            return (
+              <div key={day}>
+                {/* Encabezado del día, pegajoso al hacer scroll */}
+                <div className="sticky top-0 z-10 flex items-baseline gap-2 py-2 bg-bg/95 backdrop-blur-sm">
+                  <span className={`font-display text-base font-700 uppercase tracking-wide ${isToday ? "text-accent" : "text-ink"}`}>
+                    {dayLabel(day)}
+                  </span>
+                  <span className="font-mono text-[10px] text-muted">
+                    {new Intl.DateTimeFormat("es-PR", { day: "numeric", month: "short", timeZone: "America/Puerto_Rico" }).format(new Date(day + "T12:00:00"))}
+                  </span>
+                  <span className="font-mono text-[10px] text-muted ml-auto">
+                    {byDay[day].length} {byDay[day].length === 1 ? "pieza" : "piezas"}
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  {byDay[day].map((post) => {
+                    const client = clients.find((c) => c.id === post.clientId);
+                    const user = users.find((u) => u.id === post.assigneeId);
+                    const st = STATUSES.find((x) => x.key === post.status);
+                    const chColor = channelColors[post.channel] ?? "#8b93a1";
+                    const thumb = post.attachedFiles?.find((f) => f.type?.startsWith("image/"));
+                    const isOverdue = isPast && post.status !== "published";
+                    const next = nextStatus[post.status];
+
+                    return (
+                      <div
+                        key={post.id}
+                        onClick={() => onSelectPost(post)}
+                        className="bg-surface border border-line rounded-xl p-3 cursor-pointer hover-lift animate-card-in"
+                        style={{ borderLeft: `3px solid ${client?.color ?? chColor}` }}
+                      >
+                        <div className="flex gap-3">
+                          <div className="flex-1 min-w-0">
+                            {/* Cliente y hora */}
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              {client && (
+                                <span className="text-[11px] font-600" style={{ color: client.color }}>
+                                  {client.company}
+                                </span>
+                              )}
+                              {post.scheduledTime && (
+                                <span className="font-mono text-[10px] text-muted">{post.scheduledTime}</span>
+                              )}
+                              {isOverdue && (
+                                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-danger/10 text-danger border border-danger/30">
+                                  atrasada
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Título */}
+                            <p className="text-sm font-700 text-ink leading-snug">{post.title}</p>
+
+                            {/* Copy */}
+                            {post.copy && (
+                              <p className="text-xs text-muted leading-relaxed mt-1 line-clamp-2">{post.copy}</p>
+                            )}
+
+                            {/* Metadatos */}
+                            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded" style={{ background: `${chColor}20`, color: chColor }}>
+                                {post.channel}
+                              </span>
+                              <span className="text-[9px] font-mono text-muted capitalize">{post.format}</span>
+                              {st && (
+                                <span className="text-[9px] font-mono flex items-center gap-1" style={{ color: st.color }}>
+                                  <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: st.color }} />
+                                  {st.label}
+                                </span>
+                              )}
+                              {user && (
+                                <span className="ml-auto w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-700 flex-shrink-0" style={{ background: `${user.color}20`, color: user.color }}>
+                                  {user.initials[0]}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Miniatura */}
+                          {thumb && (
+                            <div className="w-16 h-16 rounded-lg overflow-hidden bg-surface2 flex-shrink-0">
+                              <img src={thumb.url} alt="" className="w-full h-full object-cover" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Avanzar de estado sin abrir */}
+                        {next && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onMovePost(post.id, next); }}
+                            className="mt-2.5 w-full text-[10px] font-mono py-1.5 rounded-lg border border-line text-muted hover:text-primary hover:border-primary/40 transition-all"
+                          >
+                            Mover a {STATUSES.find((x) => x.key === next)?.label} →
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Sin fecha */}
+      {filter === "all" && unscheduled.length > 0 && (
+        <div>
+          <div className="flex items-baseline gap-2 py-2">
+            <span className="font-display text-base font-700 uppercase tracking-wide text-muted">Sin fecha</span>
+            <span className="font-mono text-[10px] text-muted ml-auto">{unscheduled.length}</span>
+          </div>
+          <div className="space-y-2">
+            {unscheduled.map((post) => {
+              const client = clients.find((c) => c.id === post.clientId);
+              return (
+                <div
+                  key={post.id}
+                  onClick={() => onSelectPost(post)}
+                  className="bg-surface border border-line border-dashed rounded-xl p-3 cursor-pointer hover-lift"
+                >
+                  {client && <span className="text-[11px] font-600" style={{ color: client.color }}>{client.company}</span>}
+                  <p className="text-sm font-700 text-ink leading-snug">{post.title}</p>
+                  <p className="text-[10px] font-mono text-muted mt-1">Falta programar</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Table View ────────────────────────────────────────────────────────────────
 function TableView({ posts, clients, users, filterClient, onSelectPost, onMovePost }: {
   posts: ContentPost[]; clients: Client[]; users: User[];
@@ -1167,7 +1385,9 @@ export default function ContentCalendar({ posts, clients, users, today, onMovePo
     CHANNELS = dynamicChannels.map((c) => c.label) as Channel[];
     channelColors = { ...channelColors, ...Object.fromEntries(dynamicChannels.map((c) => [c.label, c.color ?? "#8b93a1"])) };
   }
-  const [viewMode, setViewMode] = useState<"board" | "calendar" | "table">("board");
+  const [viewMode, setViewMode] = useState<"agenda" | "board" | "calendar" | "table">(
+    typeof window !== "undefined" && window.innerWidth < 768 ? "agenda" : "board"
+  );
   const [filterClient, setFilterClient] = useState("");
   const [filterChannel, setFilterChannel] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
@@ -1210,9 +1430,9 @@ export default function ContentCalendar({ posts, clients, users, today, onMovePo
       <div className="space-y-3">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex gap-1 bg-surface border border-line rounded-xl p-1">
-            {(["board","calendar","table"] as const).map((m) => (
+            {(["agenda","board","calendar","table"] as const).map((m) => (
               <button key={m} onClick={() => setViewMode(m)} className={`px-4 py-1.5 rounded-lg text-xs font-mono uppercase tracking-wide transition-all ${viewMode === m ? "bg-primary text-bg font-600" : "text-muted hover:text-ink"}`}>
-                {m === "board" ? "Tablero" : m === "calendar" ? "Calendario" : "Tabla"}
+                {m === "agenda" ? "Agenda" : m === "board" ? "Tablero" : m === "calendar" ? "Calendario" : "Tabla"}
               </button>
             ))}
           </div>
@@ -1252,6 +1472,12 @@ export default function ContentCalendar({ posts, clients, users, today, onMovePo
       </div>
 
       {/* Views */}
+      {viewMode === "agenda" && (
+        <AgendaView
+          posts={filtered} clients={clients} users={users} today={today}
+          onSelectPost={setSelectedPost} onMovePost={onMovePost}
+        />
+      )}
       {viewMode === "board" && <BoardView posts={filtered} clients={clients} users={users} filterClient="" onMovePost={onMovePost} onSelectPost={setSelectedPost} />}
       {viewMode === "calendar" && (
         <CalendarView

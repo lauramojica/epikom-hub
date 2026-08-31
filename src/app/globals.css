@@ -243,3 +243,17 @@ button:active:not(:disabled) {
 
 /* Números tabulares en toda la app (mono se alinea) */
 .font-mono { font-variant-numeric: tabular-nums; }
+
+/* Truncado a N líneas */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
