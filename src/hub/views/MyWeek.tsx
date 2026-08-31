@@ -3,6 +3,7 @@ import type { ContentPost, Project, Client, User } from "../types";
 import FridayRecap from "./FridayRecap";
 import EmojiReactions from "../components/EmojiReactions";
 import AnimatedNumber from "../components/AnimatedNumber";
+import DailyWidget from "../components/DailyWidget";
 
 interface Props {
   posts: ContentPost[];
@@ -208,6 +209,8 @@ export default function MyWeek({ posts, projects, clients, users, activeUser, lo
             )}
           </div>
         </div>
+
+        <DailyWidget userName={viewingUser.name} />
 
         {/* Weekly progress bar */}
         <div className="bg-surface border border-line rounded-xl px-5 py-4">
