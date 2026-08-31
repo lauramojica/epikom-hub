@@ -9,6 +9,7 @@ import { useHubData } from "./useHubData";
 import { todayPR, computeStreak } from "./adapters";
 import { UploadContext } from "./UploadContext";
 import { useWorkshop } from "./useWorkshop";
+import { usePermissions } from "./usePermissions";
 import { AnimatePresence, motion } from "motion/react";
 import MyWeek from "./views/MyWeek";
 import ContentCalendar from "./views/ContentCalendar";
@@ -256,14 +257,44 @@ function AppInner({ authUserId }: { authUserId: string }) {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const workshop = useWorkshop();
+  const perms = usePermissions(authUserId);
   const myRole = loggedUser?.role ?? "crew";
-  const isSuperadmin = myRole === "superadmin";
-  const isAdminUp = myRole === "superadmin" || myRole === "admin";
-  const isClientUser = myRole === "client";
+  // Permisos reales del rol; mientras cargan, se usan los valores base del rol
+  const can = (perm: string) =>
+    perms.loading
+      ? (myRole === "superadmin" || myRole === "admin")
+      : perms.can(perm);
+  const isSuperadmin = perms.loading ? myRole === "superadmin" : perms.can("roles.manage");
+  const isAdminUp = perms.loading
+    ? (myRole === "superadmin" || myRole === "admin")
+    : perms.scope === "all";
+  const isClientUser = perms.loading
+    ? (myRole === "client" || myRole === "cliente")
+    : perms.scope === "own_client";
+  const NAV_PERMISSION: Record<string, string | null> = {
+    myweek: null,
+    calendar: "calendar.view",
+    projects: "projects.view",
+    clients: "clients.view",
+    analytics: "analytics.view",
+    messages: "messages.send",
+    notifications: null,
+    roles: "crew.assign",
+    documents: "documents.view",
+    workshop: "workshop.manage",
+    settings: null,
+  };
+
   const visibleNav = navItems.filter((item) => {
-    if (isClientUser) return ["calendar", "documents", "notifications", "settings"].includes(item.key);
-    if (!isAdminUp) return item.key !== "roles";
-    return true;
+    // Los clientes externos no ven Mi Semana ni la gestión interna
+    if (isClientUser && ["myweek", "roles", "workshop", "messages", "analytics"].includes(item.key)) {
+      return false;
+    }
+    const needed = NAV_PERMISSION[item.key];
+    if (!needed) return true;
+    // Roles siempre visible para quien pueda gestionar roles
+    if (item.key === "roles") return can("crew.assign") || can("roles.manage");
+    return can(needed);
   });
 
   // Si la vista actual no está permitida para el rol, redirigir a la primera visible
@@ -552,50 +583,50 @@ function AppInner({ authUserId }: { authUserId: string }) {
           {view === "calendar" && <ContentCalendar
             dynamicFormats={workshop.byKind("format").map((o) => ({ value: o.value, label: o.label }))}
             dynamicChannels={workshop.byKind("channel").map((o) => ({ value: o.value, label: o.label, color: o.color }))}
-            posts={posts} currentUserId={authUserId}
+            posts={posts} currentUserId={authUserId} canViewBudgets={can("budgets.view")}
             clients={workshop.services.length > 0 ? clients.filter((c) => workshop.clientHasContentCalendar(c.id)) : clients}
             users={users} today={todayPR()} onMovePost={movePost} onAddPost={addPost} onUpdatePost={updatePost} onAddPostFile={addPostFile} onRemovePostFile={removePostFile} />}
           {view === "projects" && <ProjectsView projects={projects} clients={clients} users={users} onUpdateDeliverable={updateDeliverable} onAddDeliverableFile={addDeliverableFile} onRemoveDeliverableFile={removeDeliverableFile} onMoveProjectPhase={moveProjectPhase} onAddProject={addProject}
             onUpdateProject={(id, u) => dbUpdateProject(id, u).then(() => toast("✓ Proyecto actualizado.", "success")).catch(() => toast("✕ No se pudo actualizar.", "error"))}
-            onDeleteProject={(id) => dbDeleteProject(id).then(() => toast("✓ Proyecto eliminado.", "success")).catch(() => toast("✕ No se pudo eliminar.", "error"))}
+            onDeleteProject={can("projects.delete") ? (id) => dbDeleteProject(id).then(() => toast("✓ Proyecto eliminado.", "success")).catch(() => toast("✕ No se pudo eliminar.", "error")) : undefined}
             services={workshop.services}
             projectServices={workshop.projectServices}
             onToggleProjectService={(pid, sid, on) => workshop.toggleProjectService(pid, sid, on)}
+            canEdit={can("projects.edit")}
             currentUserId={authUserId}
-            canEdit={isAdminUp}
           />}
           {view === "clients" && <ClientsView
             clients={clients} projects={projects} posts={posts}
             onUpdateClient={updateClient} onAddClient={addClient}
-            onDeleteClient={(id) => dbDeleteClient(id).then(() => toast("✓ Cliente eliminado.", "success")).catch((e) => toast(e.message ?? "✕ No se pudo eliminar.", "error"))}
+            onDeleteClient={can("clients.delete") ? (id) => dbDeleteClient(id).then(() => toast("✓ Cliente eliminado.", "success")).catch((e) => toast(e.message ?? "✕ No se pudo eliminar.", "error")) : undefined}
             interactions={interactions}
             services={workshop.services}
             clientServices={workshop.clientServices}
             onToggleService={(cid, sid, on) => workshop.toggleClientService(cid, sid, on)}
-            canEdit={isAdminUp}
+            canEdit={can("clients.edit")}
           />}
           {view === "analytics" && <Analytics posts={posts} projects={projects} clients={clients} users={users} />}
           {view === "notifications" && <NotificationsView notifications={notifications} clients={clients} onMarkRead={markNotifRead} onMarkAllRead={markAllRead} />}
           {view === "roles" && <RolesView
-            users={users} clients={clients}
-            canManage={isSuperadmin} canAssign={isAdminUp}
+            users={users} clients={clients} authUserId={authUserId}
             onToggleAssignment={(uid, cid, on) => toggleCrewAssignment(uid, cid, on).then(() => toast(on ? "✓ Cliente asignado." : "✓ Asignación removida.", "success")).catch(() => toast("✕ No se pudo actualizar.", "error"))}
-            onChangeRole={(uid, role) => changeUserRole(uid, role).then(() => toast("✓ Rol actualizado.", "success")).catch(() => toast("✕ Solo superadmin puede cambiar roles.", "error"))}
+            onChangeRole={(uid, role) => changeUserRole(uid, role).then(() => { toast("✓ Rol actualizado.", "success"); perms.reload(); }).catch((e) => toast(e?.message ?? "✕ No se pudo cambiar el rol.", "error"))}
+            onToast={toast}
           />}
           {view === "documents" && <DocumentsView documents={documents} clients={clients} projects={projects} onAdd={addDocument} onDelete={deleteDocument} />}
           {view === "messages" && <MessageCenter
-            users={users} posts={posts} currentUserId={authUserId} canSend={isAdminUp}
+            users={users} posts={posts} currentUserId={authUserId} canSend={can("messages.send")}
           />}
           {view === "workshop" && <WorkshopView
             clients={clients}
-            canEdit={isAdminUp}
+            canEdit={can("workshop.manage")}
             agency={agency}
             onSaveAgency={(u, f) => saveAgency(u, f)}
             onToast={toast}
           />}
           {view === "settings" && <SettingsView
             isDark={!lightMode} onToggleTheme={toggleTheme} onConfirm={setConfirm} onToast={toast}
-            agencyData={agency} canEditAgency={isAdminUp}
+            agencyData={agency} canEditAgency={can("workshop.manage")}
             onSaveAgency={(u, f) => saveAgency(u, f).then(() => toast("✓ Configuración guardada.", "success")).catch(() => toast("✕ No se pudo guardar.", "error"))}
           />}
         </motion.main>

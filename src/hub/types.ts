@@ -3,7 +3,8 @@ export type PostFormat = 'reel' | 'carrusel' | 'story' | 'imagen' | 'video' | 'f
 export type PostStatus = 'idea' | 'creation' | 'design' | 'review' | 'approved' | 'scheduled' | 'published';
 export type ProjectPhase = 'discovery' | 'strategy' | 'production' | 'review' | 'launch' | 'reporting';
 export type DeliverableStatus = 'pending' | 'in-review' | 'approved' | 'rejected';
-export type UserRole = 'superadmin' | 'admin' | 'crew' | 'client';
+/** Roles base + cualquiera creado desde el Workshop */
+export type UserRole = 'superadmin' | 'admin' | 'crew' | 'client' | 'cliente' | (string & {});
 export type NotifType = 'alert' | 'approval' | 'mention' | 'publish' | 'system';
 export type UserStatus = 'active' | 'away' | 'offline';
 

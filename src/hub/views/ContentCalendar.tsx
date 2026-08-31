@@ -6,6 +6,7 @@ import DiscussionBoard from "../components/DiscussionBoard";
 
 interface Props {
   currentUserId?: string;
+  canViewBudgets?: boolean;
   dynamicFormats?: { value: string; label: string }[];
   dynamicChannels?: { value: string; label: string; color: string | null }[];
   posts: ContentPost[];
@@ -475,8 +476,8 @@ function TableView({ posts, clients, users, filterClient, onSelectPost, onMovePo
 }
 
 // ─── Post Detail Panel ─────────────────────────────────────────────────────────
-function PostPanel({ post, clients, users, onClose, onUpdate, onMove, onExpand, onAddFile, onRemoveFile }: {
-  post: ContentPost; clients: Client[]; users: User[]; currentUserId?: string;
+function PostPanel({ post, clients, users, onClose, onUpdate, onMove, onExpand, onAddFile, onRemoveFile, canViewBudgets = true }: {
+  post: ContentPost; clients: Client[]; users: User[]; currentUserId?: string; canViewBudgets?: boolean;
   onClose: () => void; onUpdate: (id: string, u: Partial<ContentPost>) => void;
   onMove: (id: string, s: PostStatus) => void; onExpand: () => void;
   onAddFile: (f: AttachedFile) => void; onRemoveFile: (id: string) => void;
@@ -601,7 +602,7 @@ function PostPanel({ post, clients, users, onClose, onUpdate, onMove, onExpand, 
                   ) : <p className="text-sm text-muted">—</p>}
                 </Field>
                 {post.reach && <Field label="Alcance"><p className="text-sm font-mono text-accent">{post.reach.toLocaleString()}</p></Field>}
-                {post.boostBudget && <Field label="Boost"><p className="text-sm font-mono text-ink">${post.boostBudget.toLocaleString()}</p></Field>}
+                {canViewBudgets && post.boostBudget && <Field label="Boost"><p className="text-sm font-mono text-ink">${post.boostBudget.toLocaleString()}</p></Field>}
                 {post.notes && <Field label="Notas"><p className="text-sm text-muted">{post.notes}</p></Field>}
               </div>
 
@@ -637,8 +638,8 @@ function PostPanel({ post, clients, users, onClose, onUpdate, onMove, onExpand, 
 }
 
 // ─── Post Screen (pantalla completa de tarea) ──────────────────────────────────
-function PostScreen({ post, clients, users, onClose, onUpdate, onMove, onAddFile, onRemoveFile, currentUserId }: {
-  post: ContentPost; clients: Client[]; users: User[]; currentUserId?: string;
+function PostScreen({ post, clients, users, onClose, onUpdate, onMove, onAddFile, onRemoveFile, currentUserId, canViewBudgets = true }: {
+  post: ContentPost; clients: Client[]; users: User[]; currentUserId?: string; canViewBudgets?: boolean;
   onClose: () => void; onUpdate: (id: string, u: Partial<ContentPost>) => void; onMove: (id: string, s: PostStatus) => void;
   onAddFile: (f: AttachedFile) => void; onRemoveFile: (id: string) => void;
 }) {
@@ -854,16 +855,16 @@ function PostScreen({ post, clients, users, onClose, onUpdate, onMove, onAddFile
                       : <span className="font-mono text-lg font-700 text-accent">{post.reach ? post.reach.toLocaleString() : "—"}</span>
                   },
                   {
-                    label: "Boost presupuesto", value: editing
+                    label: "Boost presupuesto", hidden: !canViewBudgets, value: editing
                       ? <input type="number" value={draft.boostBudget || ""} onChange={(e) => upd("boostBudget", Number(e.target.value) || undefined)} className="w-full bg-surface2 border border-line rounded px-2 py-1 text-xs text-ink font-mono outline-none" />
                       : <span className="font-mono text-sm text-ink">{post.boostBudget ? `$${post.boostBudget.toLocaleString()}` : "—"}</span>
                   },
                   {
-                    label: "Gasto real", value: editing
+                    label: "Gasto real", hidden: !canViewBudgets, value: editing
                       ? <input type="number" value={draft.actualSpend || ""} onChange={(e) => upd("actualSpend", Number(e.target.value) || undefined)} className="w-full bg-surface2 border border-line rounded px-2 py-1 text-xs text-ink font-mono outline-none" />
                       : <span className="font-mono text-sm text-ink">{post.actualSpend ? `$${post.actualSpend.toLocaleString()}` : "—"}</span>
                   },
-                ].map(({ label, value }) => (
+                ].filter((f) => !("hidden" in f && f.hidden)).map(({ label, value }) => (
                   <div key={label} className="px-4 py-3">
                     <p className="text-[9px] font-mono text-muted uppercase tracking-widest mb-1">{label}</p>
                     {value}
@@ -1158,7 +1159,7 @@ function CSVImportModal({ clients, users, onImport, onCancel }: {
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-export default function ContentCalendar({ posts, clients, users, today, onMovePost, onAddPost, onUpdatePost, onAddPostFile, onRemovePostFile, dynamicFormats, dynamicChannels, currentUserId }: Props) {
+export default function ContentCalendar({ posts, clients, users, today, onMovePost, onAddPost, onUpdatePost, onAddPostFile, onRemovePostFile, dynamicFormats, dynamicChannels, currentUserId, canViewBudgets = true }: Props) {
   // Catálogos configurables desde el Workshop: sincronizan las listas del módulo
   if (dynamicFormats?.length) FORMATS = dynamicFormats.map((f) => f.value) as PostFormat[];
   if (dynamicChannels?.length) {
@@ -1264,6 +1265,7 @@ export default function ContentCalendar({ posts, clients, users, today, onMovePo
       {/* Modals */}
       {selectedPost && (
         <PostPanel
+          canViewBudgets={canViewBudgets}
           post={posts.find((p) => p.id === selectedPost.id) || selectedPost}
           clients={clients} users={users}
           onClose={() => setSelectedPost(null)}
@@ -1277,7 +1279,7 @@ export default function ContentCalendar({ posts, clients, users, today, onMovePo
       {expandedPost && (
         <PostScreen
           post={posts.find((p) => p.id === expandedPost.id) || expandedPost}
-          clients={clients} users={users} currentUserId={currentUserId}
+          clients={clients} users={users} currentUserId={currentUserId} canViewBudgets={canViewBudgets}
           onClose={() => setExpandedPost(null)}
           onUpdate={onUpdatePost}
           onMove={(id, s) => { onMovePost(id, s); }}
