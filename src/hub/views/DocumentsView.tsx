@@ -120,7 +120,7 @@ export default function DocumentsView({ documents, clients, projects, onAdd, onD
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar archivo..." className="bg-surface border border-line rounded-lg pl-8 pr-4 py-2 text-sm text-ink outline-none focus:border-primary/40 w-44 font-body" />
         </div>
         <select value={filterClient} onChange={(e) => setFilterClient(e.target.value)} className="bg-surface2 border border-line rounded-lg px-3 py-2 text-sm text-ink outline-none cursor-pointer font-mono">
-          <option value="">Todos los clientes</option>
+          <option value="">Todas las cuentas</option>
           {clients.map((c) => <option key={c.id} value={c.id} className="bg-surface">{c.company}</option>)}
         </select>
         <div className="flex gap-1">

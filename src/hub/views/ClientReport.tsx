@@ -139,7 +139,7 @@ export default function ClientReport({ clients, posts, projects, users, canViewB
   if (clients.length === 0) {
     return (
       <div className="p-4 md:p-8">
-        <p className="text-sm text-muted">Aún no hay clientes registrados.</p>
+        <p className="text-sm text-muted">Aún no hay cuentas registradas.</p>
       </div>
     );
   }
@@ -148,7 +148,7 @@ export default function ClientReport({ clients, posts, projects, users, canViewB
     <div className="p-4 md:p-8 space-y-6">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
-          <p className="font-mono text-muted text-xs tracking-widest uppercase mb-1">Reporte por cliente</p>
+          <p className="font-mono text-muted text-xs tracking-widest uppercase mb-1">Reporte por cuenta</p>
           <h1 className="font-display text-3xl md:text-5xl font-700 tracking-tight text-ink uppercase">
             {client?.company ?? "—"}
           </h1>

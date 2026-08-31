@@ -140,7 +140,7 @@ function ServicesTab({ w, clients, canEdit, onToast }: {
                   </div>
 
                   <div>
-                    <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-2">Clientes con este servicio</p>
+                    <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-2">Cuentas con este servicio</p>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
                       {clients.map((c) => {
                         const on = (w.clientServices[c.id] ?? []).includes(s.id);

@@ -42,7 +42,7 @@ export const PERMISSION_GROUPS: {
     items: [
       { key: 'clients.view', label: 'Ver la lista de clientes' },
       { key: 'clients.edit', label: 'Crear y editar clientes' },
-      { key: 'clients.delete', label: 'Eliminar clientes' },
+      { key: 'clients.delete', label: 'Eliminar cuentas' },
     ],
   },
   {
@@ -67,7 +67,7 @@ export const PERMISSION_GROUPS: {
 ]
 
 export const SCOPES: { key: HubRole['scope']; label: string; hint: string }[] = [
-  { key: 'all', label: 'Todos los clientes', hint: 'Ve y trabaja con toda la agencia' },
+  { key: 'all', label: 'Todas las cuentas', hint: 'Ve y trabaja con toda la agencia' },
   { key: 'assigned', label: 'Solo asignados', hint: 'Ve únicamente los clientes que le asignen' },
   { key: 'own_client', label: 'Su propia cuenta', hint: 'Cliente externo: solo su información' },
 ]

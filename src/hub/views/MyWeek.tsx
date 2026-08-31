@@ -365,7 +365,7 @@ export default function MyWeek({ posts, projects, clients, users, activeUser, lo
               })}
               {clients.length === 0 && (
                 <div className="py-10 text-center">
-                  <p className="text-sm text-muted">Aún no hay clientes registrados.</p>
+                  <p className="text-sm text-muted">Aún no hay cuentas registradas.</p>
                 </div>
               )}
             </div>

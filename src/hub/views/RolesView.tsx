@@ -21,6 +21,8 @@ export default function RolesView({ users, clients, authUserId, onToggleAssignme
   const [tab, setTab] = useState<"equipo" | "roles" | "accesos">("equipo");
   const [expandedRole, setExpandedRole] = useState<string | null>(null);
   const [expandedClient, setExpandedClient] = useState<string | null>(null);
+  const [expandedPerson, setExpandedPerson] = useState<string | null>(null);
+  const [assignBy, setAssignBy] = useState<"person" | "client">("person");
   const [showNewRole, setShowNewRole] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
 
@@ -44,7 +46,7 @@ export default function RolesView({ users, clients, authUserId, onToggleAssignme
       </div>
 
       <div className="flex gap-1 bg-surface border border-line rounded-xl p-1 w-fit overflow-x-auto">
-        {([["equipo", "Equipo"], ["roles", "Roles"], ["accesos", "Accesos por cliente"]] as const).map(([k, label]) => (
+        {([["equipo", "Equipo"], ["roles", "Roles"], ["accesos", "Accesos"]] as const).map(([k, label]) => (
           <button
             key={k}
             onClick={() => setTab(k)}
@@ -304,79 +306,191 @@ export default function RolesView({ users, clients, authUserId, onToggleAssignme
         </div>
       )}
 
-      {/* ── ACCESOS POR CLIENTE ── */}
+      {/* ── ACCESOS ── */}
       {tab === "accesos" && (
         <div className="space-y-4">
-          <p className="text-xs text-muted max-w-lg leading-relaxed">
-            Qué personas trabajan con cada cliente. Los roles con alcance
-            <span className="text-ink"> Todos los clientes</span> ven todo automáticamente.
-          </p>
-
-          <div className="bg-surface border border-line rounded-xl divide-y divide-line overflow-hidden">
-            {clients.map((c) => {
-              const assigned = crewMembers.filter((u) => u.assignedClientIds.includes(c.id));
-              const isOpen = expandedClient === c.id;
-              return (
-                <div key={c.id}>
-                  <div
-                    className={`flex items-center gap-4 px-5 py-3 ${canAssign ? "cursor-pointer hover:bg-surface2 transition-colors" : ""}`}
-                    onClick={() => canAssign && setExpandedClient(isOpen ? null : c.id)}
-                  >
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-700 flex-shrink-0" style={{ background: `${c.color}20`, color: c.color }}>
-                      {c.initials}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-500 text-ink">{c.company}</p>
-                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                        {assigned.length === 0 ? (
-                          <span className="text-[10px] font-mono text-muted/50">sin crew asignado</span>
-                        ) : assigned.map((u) => (
-                          <span key={u.id} className="text-[9px] font-mono px-1.5 py-0.5 rounded" style={{ background: `${u.color}15`, color: u.color }}>
-                            {u.name.split(" ")[0]}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    {canAssign && <span className="text-[10px] font-mono text-muted">{isOpen ? "▲" : "▼"}</span>}
-                  </div>
-
-                  {isOpen && canAssign && (
-                    <div className="px-5 pb-4 pt-1 bg-surface2/40">
-                      <div className="grid sm:grid-cols-2 gap-2">
-                        {crewMembers.map((u) => {
-                          const role = p.roles.find((r) => r.key === u.role);
-                          const seesAll = role?.scope === "all";
-                          const on = u.assignedClientIds.includes(c.id);
-                          return (
-                            <label
-                              key={u.id}
-                              className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border transition-all ${
-                                seesAll ? "border-line/50 opacity-50" : on ? "border-primary/40 bg-primary/5 cursor-pointer" : "border-line hover:border-muted cursor-pointer"
-                              }`}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={on || seesAll}
-                                disabled={seesAll}
-                                onChange={(e) => onToggleAssignment?.(u.id, c.id, e.target.checked)}
-                                className="accent-[#31b498]"
-                              />
-                              <Avatar initials={u.initials} color={u.color} size="xs" src={u.avatarUrl} />
-                              <div className="min-w-0">
-                                <p className="text-xs font-500 text-ink truncate">{u.name}</p>
-                                {seesAll && <p className="text-[9px] font-mono text-muted">{role?.label} — ve todo</p>}
-                              </div>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <p className="text-xs text-muted max-w-lg leading-relaxed">
+              Quién trabaja con cada cuenta. Los roles con alcance
+              <span className="text-ink"> Todas las cuentas</span> las ven todas automáticamente.
+            </p>
+            <div className="flex gap-1 bg-surface border border-line rounded-lg p-0.5">
+              {([["person", "Por persona"], ["client", "Por cuenta"]] as const).map(([k, label]) => (
+                <button
+                  key={k}
+                  onClick={() => setAssignBy(k)}
+                  className={`px-3 py-1.5 rounded-md text-[10px] font-mono uppercase transition-all whitespace-nowrap ${
+                    assignBy === k ? "bg-primary text-bg font-600" : "text-muted hover:text-ink"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {/* Por persona */}
+          {assignBy === "person" && (
+            <div className="bg-surface border border-line rounded-xl divide-y divide-line overflow-hidden">
+              {crewMembers.map((u) => {
+                const role = p.roles.find((r) => r.key === u.role);
+                const seesAll = role?.scope === "all";
+                const myClients = clients.filter((c) => u.assignedClientIds.includes(c.id));
+                const isOpen = expandedPerson === u.id;
+                return (
+                  <div key={u.id}>
+                    <div
+                      className={`flex items-center gap-3 px-5 py-3 ${canAssign && !seesAll ? "cursor-pointer hover:bg-surface2 transition-colors" : ""}`}
+                      onClick={() => canAssign && !seesAll && setExpandedPerson(isOpen ? null : u.id)}
+                    >
+                      <Avatar initials={u.initials} color={u.color} size="sm" src={u.avatarUrl} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-500 text-ink">{u.name}</p>
+                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded" style={{ background: `${role?.color ?? "#8b93a1"}18`, color: role?.color ?? "#8b93a1" }}>
+                            {role?.label ?? u.role}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          {seesAll ? (
+                            <span className="text-[10px] font-mono text-primary">ve todas las cuentas</span>
+                          ) : myClients.length === 0 ? (
+                            <span className="text-[10px] font-mono text-muted/50">sin cuentas asignadas</span>
+                          ) : myClients.map((c) => (
+                            <span key={c.id} className="text-[9px] font-mono px-1.5 py-0.5 rounded" style={{ background: `${c.color}15`, color: c.color }}>
+                              {c.company}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      {!seesAll && (
+                        <span className="font-mono text-[10px] text-muted whitespace-nowrap">
+                          {myClients.length}/{clients.length}
+                        </span>
+                      )}
+                      {canAssign && !seesAll && <span className="text-[10px] font-mono text-muted">{isOpen ? "▲" : "▼"}</span>}
+                    </div>
+
+                    {isOpen && canAssign && !seesAll && (
+                      <div className="px-5 pb-4 pt-1 bg-surface2/40">
+                        <div className="flex items-center justify-between mb-2.5">
+                          <p className="text-[10px] font-mono text-muted uppercase tracking-widest">
+                            Cuentas de {u.name.split(" ")[0]}
+                          </p>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const allOn = myClients.length === clients.length;
+                              clients.forEach((c) => {
+                                const has = u.assignedClientIds.includes(c.id);
+                                if (allOn && has) onToggleAssignment?.(u.id, c.id, false);
+                                if (!allOn && !has) onToggleAssignment?.(u.id, c.id, true);
+                              });
+                            }}
+                            className="text-[10px] font-mono text-primary hover:opacity-80"
+                          >
+                            {myClients.length === clients.length ? "quitar todas" : "asignar todas"}
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                          {clients.map((c) => {
+                            const on = u.assignedClientIds.includes(c.id);
+                            return (
+                              <label
+                                key={c.id}
+                                className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-xs cursor-pointer transition-all ${
+                                  on ? "border-primary/40 bg-primary/5 text-ink" : "border-line text-muted hover:border-muted"
+                                }`}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={on}
+                                  onChange={(e) => onToggleAssignment?.(u.id, c.id, e.target.checked)}
+                                  className="accent-[#31b498]"
+                                />
+                                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: c.color }} />
+                                <span className="truncate">{c.company}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Por cuenta */}
+          {assignBy === "client" && (
+            <div className="bg-surface border border-line rounded-xl divide-y divide-line overflow-hidden">
+              {clients.map((c) => {
+                const assigned = crewMembers.filter((u) => u.assignedClientIds.includes(c.id));
+                const isOpen = expandedClient === c.id;
+                return (
+                  <div key={c.id}>
+                    <div
+                      className={`flex items-center gap-4 px-5 py-3 ${canAssign ? "cursor-pointer hover:bg-surface2 transition-colors" : ""}`}
+                      onClick={() => canAssign && setExpandedClient(isOpen ? null : c.id)}
+                    >
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-700 flex-shrink-0" style={{ background: `${c.color}20`, color: c.color }}>
+                        {c.initials}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-500 text-ink">{c.company}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          {assigned.length === 0 ? (
+                            <span className="text-[10px] font-mono text-muted/50">sin crew asignado</span>
+                          ) : assigned.map((u) => (
+                            <span key={u.id} className="text-[9px] font-mono px-1.5 py-0.5 rounded" style={{ background: `${u.color}15`, color: u.color }}>
+                              {u.name.split(" ")[0]}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      {canAssign && <span className="text-[10px] font-mono text-muted">{isOpen ? "▲" : "▼"}</span>}
+                    </div>
+
+                    {isOpen && canAssign && (
+                      <div className="px-5 pb-4 pt-1 bg-surface2/40">
+                        <div className="grid sm:grid-cols-2 gap-2">
+                          {crewMembers.map((u) => {
+                            const role = p.roles.find((r) => r.key === u.role);
+                            const seesAll = role?.scope === "all";
+                            const on = u.assignedClientIds.includes(c.id);
+                            return (
+                              <label
+                                key={u.id}
+                                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border transition-all ${
+                                  seesAll ? "border-line/50 opacity-50" : on ? "border-primary/40 bg-primary/5 cursor-pointer" : "border-line hover:border-muted cursor-pointer"
+                                }`}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={on || seesAll}
+                                  disabled={seesAll}
+                                  onChange={(e) => onToggleAssignment?.(u.id, c.id, e.target.checked)}
+                                  className="accent-[#31b498]"
+                                />
+                                <Avatar initials={u.initials} color={u.color} size="xs" src={u.avatarUrl} />
+                                <div className="min-w-0">
+                                  <p className="text-xs font-500 text-ink truncate">{u.name}</p>
+                                  {seesAll && <p className="text-[9px] font-mono text-muted">{role?.label} — ve todo</p>}
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -579,9 +693,9 @@ function InviteModal({ roles, clients, canCreateSuperadmin, onDone, onCancel }: 
 
           {isExternal && (
             <div>
-              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Cuenta del cliente *</label>
+              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Cuenta asignada *</label>
               <select value={clientId} onChange={(e) => { setClientId(e.target.value); setError(null); }} className={inputCls + " cursor-pointer"}>
-                <option value="" className="bg-surface">Selecciona el cliente…</option>
+                <option value="" className="bg-surface">Selecciona la cuenta…</option>
                 {clients.map((c) => (
                   <option key={c.id} value={c.id} className="bg-surface">{c.company}</option>
                 ))}

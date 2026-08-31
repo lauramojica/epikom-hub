@@ -701,7 +701,7 @@ function EditProjectModal({ project, clients, services, activeServiceIds, onTogg
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Cliente</label>
+              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Cuenta</label>
               <select value={draft.clientId} onChange={(e) => upd("clientId", e.target.value)} className={cls + " cursor-pointer"}>
                 {clients.map((c) => <option key={c.id} value={c.id} className="bg-surface">{c.company}</option>)}
               </select>

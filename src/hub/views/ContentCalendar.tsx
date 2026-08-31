@@ -1140,7 +1140,7 @@ function NewPostForm({ clients, users, onAdd, onClose }: {
           ))}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Cliente</label>
+              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Cuenta</label>
               <select value={form.clientId || ""} onChange={(e) => upd("clientId", e.target.value)} className="w-full bg-surface2 border border-line rounded-lg px-3 py-2 text-sm text-ink outline-none cursor-pointer">
                 <option value="">Seleccionar...</option>
                 {clients.map((c) => <option key={c.id} value={c.id} className="bg-surface">{c.company}</option>)}
@@ -1438,7 +1438,7 @@ export default function ContentCalendar({ posts, clients, users, today, onMovePo
           </div>
           {/* Client filter */}
           <select value={filterClient} onChange={(e) => setFilterClient(e.target.value)} className="bg-surface2 border border-line rounded-lg px-3 py-2 text-xs text-ink outline-none cursor-pointer font-mono flex-1 min-w-[140px] md:flex-none">
-            <option value="">Todos los clientes</option>
+            <option value="">Todas las cuentas</option>
             {clients.map((c) => <option key={c.id} value={c.id} className="bg-surface">{c.company}</option>)}
           </select>
           {/* Channel filter */}

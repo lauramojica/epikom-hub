@@ -214,16 +214,16 @@ export default function ClientsView({ clients, projects, posts, onUpdateClient, 
       <div className="flex items-end justify-between">
         <div>
           <p className="font-mono text-muted text-xs tracking-widest uppercase mb-1">CRM — Cartera</p>
-          <h1 className="font-display text-3xl md:text-5xl font-700 tracking-tight text-ink uppercase">Clientes</h1>
+          <h1 className="font-display text-3xl md:text-5xl font-700 tracking-tight text-ink uppercase">Cuentas</h1>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.5"/><path d="M9.5 9.5L12.5 12.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar cliente..." className="bg-surface border border-line rounded-lg pl-9 pr-4 py-2 text-sm text-ink outline-none focus:border-primary/40 w-52 font-body" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar cuenta..." className="bg-surface border border-line rounded-lg pl-9 pr-4 py-2 text-sm text-ink outline-none focus:border-primary/40 w-52 font-body" />
           </div>
           {onAddClient && (
             <button onClick={() => setShowNewClient(true)} className="text-xs font-mono px-4 py-2.5 rounded-lg bg-primary text-bg font-600 hover:opacity-90 transition-opacity flex-shrink-0">
-              + Nuevo cliente
+              + Nueva cuenta
             </button>
           )}
         </div>
@@ -472,7 +472,7 @@ export default function ClientsView({ clients, projects, posts, onUpdateClient, 
         ) : (
           <div className="flex-1 bg-surface border border-line rounded-xl flex items-center justify-center">
             <div className="text-center">
-              <p className="font-display text-4xl font-700 text-muted/20 uppercase mb-2">Clientes</p>
+              <p className="font-display text-4xl font-700 text-muted/20 uppercase mb-2">Cuentas</p>
               <p className="text-sm text-muted">Selecciona un cliente para ver su perfil</p>
             </div>
           </div>
@@ -522,7 +522,7 @@ function NewClientModal({ onAdd, onCancel }: { onAdd: (c: Partial<Client>) => vo
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6" onClick={onCancel}>
       <div className="bg-surface border border-line rounded-2xl w-full max-w-lg overflow-hidden animate-pop-in" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-line flex items-center justify-between">
-          <h2 className="font-display text-2xl font-700 uppercase text-ink">Nuevo cliente</h2>
+          <h2 className="font-display text-2xl font-700 uppercase text-ink">Nueva cuenta</h2>
           <button onClick={onCancel} className="text-muted hover:text-ink text-lg">✕</button>
         </div>
         <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
@@ -577,7 +577,7 @@ function NewClientModal({ onAdd, onCancel }: { onAdd: (c: Partial<Client>) => vo
         </div>
         <div className="px-6 py-4 border-t border-line flex justify-end gap-3">
           <button onClick={onCancel} className="text-xs font-mono px-4 py-2 rounded-lg border border-line text-muted hover:text-ink transition-colors">Cancelar</button>
-          <button onClick={submit} className="text-xs font-mono px-5 py-2 rounded-lg bg-primary text-bg font-600 hover:opacity-90">Crear cliente</button>
+          <button onClick={submit} className="text-xs font-mono px-5 py-2 rounded-lg bg-primary text-bg font-600 hover:opacity-90">Crear cuenta</button>
         </div>
       </div>
     </div>
@@ -613,7 +613,7 @@ function ClientEditTab({ client, canEdit, services, activeServiceIds, onToggleSe
     <div className="space-y-6">
       {/* Datos base */}
       <div>
-        <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-3">Datos del cliente</h3>
+        <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-3">Datos de la cuenta</h3>
         <div className="space-y-4">
           <div className="flex gap-4 items-end">
             <div className="flex-1">
@@ -727,7 +727,7 @@ function ClientEditTab({ client, canEdit, services, activeServiceIds, onToggleSe
               </div>
             ) : (
               <button onClick={() => setConfirmDelete(true)} className="text-xs font-mono text-danger hover:opacity-80">
-                Eliminar cliente
+                Eliminar cuenta
               </button>
             )
           ) : <span />}
