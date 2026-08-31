@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { Client, Project, ContentPost, BrandColor, BrandFont } from "../types";
 import { useUpload } from "../UploadContext";
+import EmailAddress from "../components/EmailAddress";
 
 interface Props {
   clients: Client[];
@@ -652,6 +653,14 @@ function ClientEditTab({ client, canEdit, services, activeServiceIds, onToggleSe
           </label>
         </div>
       </div>
+
+      {/* Email de la cuenta */}
+      {client.slug && client.emailToken && (
+        <div>
+          <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-2">Crear tareas por email</h3>
+          <EmailAddress slug={client.slug} token={client.emailToken} />
+        </div>
+      )}
 
       {/* Servicios contratados */}
       <div>

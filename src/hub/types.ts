@@ -53,6 +53,7 @@ export interface PhaseData {
 
 export interface Project {
   id: string;
+  emailToken?: string | null;
   name: string;
   clientId: string;
   currentPhase: ProjectPhase;
@@ -96,6 +97,7 @@ export interface Client {
   id: string;
   name: string;
   slug?: string;
+  emailToken?: string | null;
   company: string;
   industry: string;
   email: string;

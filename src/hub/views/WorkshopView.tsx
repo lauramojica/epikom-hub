@@ -1,9 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useWorkshop, type WorkshopOption, type Service } from "../useWorkshop";
 import type { Client } from "../types";
+import { createClient } from "@/lib/supabase/client";
 
-type Tab = "servicios" | "formatos" | "canales" | "fases" | "branding";
+type Tab = "servicios" | "formatos" | "canales" | "fases" | "branding" | "email";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "servicios", label: "Servicios" },
@@ -11,6 +12,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "canales", label: "Canales" },
   { key: "fases", label: "Fases" },
   { key: "branding", label: "Branding" },
+  { key: "email", label: "Email" },
 ];
 
 interface Props {
@@ -70,6 +72,7 @@ export default function WorkshopView({ clients, canEdit, agency, onSaveAgency, o
       {tab === "canales" && <OptionsTab w={w} kind="channel" title="Canales" hint="Las plataformas donde publican." canEdit={canEdit} withColor onToast={onToast} />}
       {tab === "fases" && <OptionsTab w={w} kind="phase" title="Fases del Journey" hint="Las etapas por las que pasa un proyecto." canEdit={canEdit} onToast={onToast} />}
       {tab === "branding" && <BrandingTab agency={agency} canEdit={canEdit} onSave={onSaveAgency} onToast={onToast} />}
+      {tab === "email" && <EmailTab canEdit={canEdit} onToast={onToast} />}
     </div>
   );
 }
@@ -486,6 +489,182 @@ function LogoSlot({ label, hint, src, onPick, onClear, canEdit, square, dark, li
           {src && <button onClick={onClear} className="text-[10px] font-mono text-muted hover:text-danger">Quitar</button>}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ─── Email entrante ──────────────────────────────────────────────────────── */
+function EmailTab({ canEdit, onToast }: {
+  canEdit: boolean;
+  onToast?: (m: string, k?: "success" | "error" | "info") => void;
+}) {
+  const [status, setStatus] = useState<{ account_email?: string; connected_at?: string; last_sync_at?: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [checking, setChecking] = useState(false);
+  const [logs, setLogs] = useState<Record<string, unknown>[]>([]);
+
+  const supabase = useMemo(() => createClient(), []);
+
+  const load = useCallback(async () => {
+    const [st, lg] = await Promise.all([
+      supabase.from("integration_status").select("*").eq("provider", "gmail").maybeSingle(),
+      supabase.from("email_intake_log").select("*").order("created_at", { ascending: false }).limit(10),
+    ]);
+    setStatus(st.data ?? null);
+    setLogs(lg.data ?? []);
+    setLoading(false);
+  }, [supabase]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const checkNow = async () => {
+    setChecking(true);
+    try {
+      const res = await fetch("/api/email/intake", { method: "POST" });
+      const j = await res.json();
+      if (j.error) onToast?.(`✕ ${j.error}`, "error");
+      else {
+        const parts = [];
+        if (j.tasks) parts.push(`${j.tasks} tarea${j.tasks === 1 ? "" : "s"}`);
+        if (j.comments) parts.push(`${j.comments} comentario${j.comments === 1 ? "" : "s"}`);
+        onToast?.(parts.length ? `✓ ${parts.join(" · ")}` : "✓ Sin correos nuevos", "success");
+      }
+      load();
+    } finally { setChecking(false); }
+  };
+
+  const disconnect = async () => {
+    if (!confirm("¿Desconectar la cuenta de correo? Dejarán de crearse tareas por email.")) return;
+    await fetch("/api/email/oauth", { method: "DELETE" });
+    onToast?.("Cuenta desconectada.", "info");
+    load();
+  };
+
+  if (loading) return <div className="h-24 rounded-xl skeleton-base" />;
+
+  return (
+    <div className="space-y-5">
+      <p className="text-xs text-muted max-w-lg leading-relaxed">
+        Conecta una cuenta de Gmail para crear tareas mandando correos, y para que
+        las respuestas a las notificaciones entren como comentarios.
+      </p>
+
+      {/* Estado */}
+      <div className="bg-surface border border-line rounded-xl p-5">
+        {status?.account_email ? (
+          <>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-2 h-2 rounded-full bg-success" />
+                  <p className="text-sm font-600 text-ink">Conectado</p>
+                </div>
+                <p className="font-mono text-xs text-muted">{status.account_email}</p>
+                {status.connected_at && (
+                  <p className="font-mono text-[10px] text-muted/70 mt-1">
+                    desde {new Intl.DateTimeFormat("es-PR", { day: "numeric", month: "short", year: "numeric" }).format(new Date(status.connected_at))}
+                  </p>
+                )}
+              </div>
+              {canEdit && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={checkNow}
+                    disabled={checking}
+                    className="text-xs font-mono px-3 py-2 rounded-lg border border-line text-muted hover:text-primary hover:border-primary/40 transition-all disabled:opacity-50"
+                  >
+                    {checking ? "Revisando…" : "Revisar ahora"}
+                  </button>
+                  <button
+                    onClick={disconnect}
+                    className="text-xs font-mono px-3 py-2 rounded-lg border border-line text-muted hover:text-danger hover:border-danger/40 transition-all"
+                  >
+                    Desconectar
+                  </button>
+                </div>
+              )}
+            </div>
+            <p className="text-[11px] text-muted mt-3 leading-relaxed">
+              El Hub revisa la bandeja cada minuto. Cada cuenta y proyecto tiene su
+              dirección propia — la encuentras en su ficha.
+            </p>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-2 h-2 rounded-full bg-muted" />
+              <p className="text-sm font-600 text-ink">Sin conectar</p>
+            </div>
+            <p className="text-xs text-muted leading-relaxed mb-4">
+              Conecta la cuenta desde la que el equipo mandará los correos.
+              Recomendado: una cuenta dedicada como <span className="font-mono text-ink">notifications@epikom.com</span>.
+            </p>
+            {canEdit && (
+              <a
+                href="/api/email/oauth"
+                className="inline-block text-xs font-mono px-5 py-2.5 rounded-lg bg-primary text-bg font-600 hover:opacity-90"
+              >
+                Conectar con Google →
+              </a>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Actividad reciente */}
+      {logs.length > 0 && (
+        <div>
+          <p className="font-mono text-[10px] text-muted uppercase tracking-widest mb-2">Correos procesados</p>
+          <div className="bg-surface border border-line rounded-xl divide-y divide-line overflow-hidden">
+            {logs.map((l) => {
+              const outcome = l.outcome as string;
+              const color =
+                outcome === "task_created" ? "#dbfa45" :
+                outcome === "comment_added" ? "#31b498" :
+                outcome === "rejected" ? "#ef4444" : "#8b93a1";
+              const label =
+                outcome === "task_created" ? "tarea creada" :
+                outcome === "comment_added" ? "comentario" :
+                outcome === "rejected" ? "rechazado" : outcome;
+              return (
+                <div key={l.id as string} className="px-4 py-2.5 flex items-center gap-3">
+                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-ink truncate">{(l.subject as string) || "(sin asunto)"}</p>
+                    <p className="font-mono text-[10px] text-muted truncate">
+                      {l.from_email as string}
+                      {l.note ? ` · ${l.note}` : ""}
+                    </p>
+                  </div>
+                  <span className="font-mono text-[9px] whitespace-nowrap" style={{ color }}>{label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Cómo funciona */}
+      <div className="bg-surface2/40 border border-line rounded-xl p-5">
+        <p className="font-mono text-[10px] text-muted uppercase tracking-widest mb-3">Cómo funciona</p>
+        <div className="space-y-2.5 text-xs text-muted leading-relaxed">
+          <p>
+            <span className="text-ink font-500">1.</span> Cada cuenta y proyecto tiene su dirección,
+            visible en su ficha con botón de copiar. Guárdala como contacto en tu correo.
+          </p>
+          <p>
+            <span className="text-ink font-500">2.</span> Le escribes: el asunto se vuelve el título
+            de la tarea y el cuerpo la descripción. Los adjuntos se suben también.
+          </p>
+          <p>
+            <span className="text-ink font-500">3.</span> Cuando alguien comenta en una tarea, respondes
+            ese correo y tu respuesta entra como comentario.
+          </p>
+          <p className="text-[11px] text-muted/70 pt-1">
+            Solo el crew de Epikom puede crear tareas por email. Los correos de fuera se ignoran.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

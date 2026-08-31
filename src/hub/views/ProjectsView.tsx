@@ -3,6 +3,7 @@ import type { Project, Client, User, DeliverableStatus, ProjectPhase, AttachedFi
 import FileUpload from "../components/FileUpload";
 import EmojiReactions from "../components/EmojiReactions";
 import DiscussionBoard from "../components/DiscussionBoard";
+import EmailAddress from "../components/EmailAddress";
 
 interface Props {
   projects: Project[];
@@ -730,6 +731,15 @@ function EditProjectModal({ project, clients, services, activeServiceIds, onTogg
               <input type="number" value={draft.budget} onChange={(e) => upd("budget", Number(e.target.value))} className={cls} />
             </div>
           </div>
+
+          {project.emailToken && (
+            <EmailAddress
+              slug={project.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 20)}
+              token={project.emailToken}
+              label="Email de este proyecto"
+              hint="Los correos a esta dirección crean tareas dentro del proyecto."
+            />
+          )}
 
           {services.length > 0 && (
             <div>

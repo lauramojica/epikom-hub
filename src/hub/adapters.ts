@@ -139,6 +139,7 @@ export function clientFromDb(row: any): Client {
     id: row.id,
     name: row.nombre,
     slug: row.slug,
+    emailToken: row.email_token ?? null,
     company: row.nombre,
     industry: '',
     email: (row.contactos?.[0]?.email) ?? '',
@@ -288,6 +289,7 @@ export function projectFromDb(row: any, deliverables: Deliverable[] = []): Proje
   return {
     id: row.id,
     name: row.name,
+    emailToken: row.email_token ?? null,
     clientId: row.client_id,
     currentPhase: (row.current_phase ?? 'discovery') as ProjectPhase,
     phases,
