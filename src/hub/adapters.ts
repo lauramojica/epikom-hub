@@ -29,16 +29,23 @@ const VALID_FORMATS: PostFormat[] = ['reel','carrusel','story','imagen','video',
 // ---------- Fechas ----------
 const TZ = 'America/Puerto_Rico'
 
+/** timestamptz → "HH:MM" en hora de PR */
+export function toTimeStr(ts: string | null): string | null {
+  if (!ts) return null
+  return new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(ts))
+}
+
 /** timestamptz → "YYYY-MM-DD" en hora de PR */
 export function toDateStr(ts: string | null): string {
   if (!ts) return ''
   return new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ts))
 }
 
-/** "YYYY-MM-DD" → timestamptz a las 10:00 AM PR (hora editable después) */
-export function toTimestamp(dateStr: string): string | null {
+/** "YYYY-MM-DD" + "HH:MM" → timestamptz en hora de PR (10:00 por defecto) */
+export function toTimestamp(dateStr: string, timeStr?: string | null): string | null {
   if (!dateStr) return null
-  return `${dateStr}T10:00:00-04:00`
+  const t = timeStr && /^\d{2}:\d{2}$/.test(timeStr) ? `${timeStr}:00` : '10:00:00'
+  return `${dateStr}T${t}-04:00`
 }
 
 export function todayPR(): string {
@@ -87,6 +94,9 @@ export function postFromDb(row: any, boost?: any): ContentPost {
     campaign: row.campana ?? '',
     status: STATUS_DB_TO_UI[row.status] ?? 'idea',
     scheduledDate: toDateStr(row.publica_at),
+    scheduledTime: row.hora_definida ? toTimeStr(row.publica_at) : null,
+    reminderEnabled: row.recordatorio_activo ?? true,
+    reminderMinutes: row.recordatorio_minutos ?? 120,
     publishedDate: row.status === 'publicado' ? toDateStr(row.updated_at) : undefined,
     boostBudget: boost?.presupuesto != null ? Number(boost.presupuesto) : (row.boosted ? 0 : undefined),
     actualSpend: boost?.gasto_real != null ? Number(boost.gasto_real) : undefined,
@@ -105,7 +115,10 @@ export function postToDb(p: Partial<ContentPost>): Record<string, any> {
   if (p.channel !== undefined) out.canal = CHANNEL_UI_TO_DB[p.channel]
   if (p.format !== undefined) out.formato = p.format
   if (p.angle !== undefined) out.angulo = p.angle
-  if (p.scheduledDate !== undefined) out.publica_at = toTimestamp(p.scheduledDate)
+  if (p.scheduledDate !== undefined) out.publica_at = toTimestamp(p.scheduledDate, p.scheduledTime)
+  if (p.scheduledTime !== undefined) out.hora_definida = !!p.scheduledTime
+  if (p.reminderEnabled !== undefined) out.recordatorio_activo = p.reminderEnabled
+  if (p.reminderMinutes !== undefined) out.recordatorio_minutos = p.reminderMinutes
   if (p.copy !== undefined) out.copy = p.copy
   if (p.brand !== undefined) out.marca_producto = p.brand
   if (p.assigneeId !== undefined) out.asignado_a = p.assigneeId || null

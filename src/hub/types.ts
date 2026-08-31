@@ -22,6 +22,9 @@ export interface ContentPost {
   campaign: string;
   status: PostStatus;
   scheduledDate: string;
+  scheduledTime?: string | null;      // "14:30" · opcional
+  reminderEnabled?: boolean;          // ¿avisar antes de publicar?
+  reminderMinutes?: number;           // 60 = 1h · 180 = 3h · 1440 = 1 día
   publishedDate?: string;
   boostBudget?: number;
   actualSpend?: number;

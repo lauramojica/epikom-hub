@@ -63,8 +63,8 @@ function exportCSV(posts: ContentPost[], clients: Client[], users: User[]) {
 }
 
 function downloadTemplate() {
-  const headers = ["titulo","cliente","fecha","hora","canal","formato","status","angulo","copy","marca_producto","asignado","campana","hashtags","pauta","presupuesto_pauta","notas"];
-  const example = ["Tip: prepara tu casa para huracanes","national","2026-09-02","10:00","fb_ig","carrusel","idea","tip educativo","Temporada de huracanes: 5 cosas que no pueden faltar 🌀","Generadores","alexander@epikom.com","temporada-huracanes","#FerreteriasNational #PreparatePR","si","150","Usar fotos de tienda Bayamón"];
+  const headers = ["titulo","cliente","fecha","hora","canal","formato","status","angulo","copy","marca_producto","asignado","campana","hashtags","pauta","presupuesto_pauta","recordatorio","notas"];
+  const example = ["Tip: prepara tu casa para huracanes","national","2026-09-02","10:00","fb_ig","carrusel","idea","tip educativo","Temporada de huracanes: 5 cosas que no pueden faltar 🌀","Generadores","alexander@epikom.com","temporada-huracanes","#FerreteriasNational #PreparatePR","si","150","3h","Usar fotos de tienda Bayamón"];
   const csv = [headers, example].map((r) => r.map((v) => (v.includes(",") ? `"${v}"` : v)).join(",")).join("\n");
   const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
@@ -149,11 +149,104 @@ function BoardView({ posts, clients, users, filterClient, onMovePost, onSelectPo
 }
 
 // ─── Calendar View ─────────────────────────────────────────────────────────────
-function CalendarView({ posts, clients, filterClient, onSelectPost }: {
-  posts: ContentPost[]; clients: Client[]; filterClient: string; onSelectPost: (p: ContentPost) => void;
+
+/* ─── Programación: fecha + hora opcional + recordatorio ─────────────────── */
+function ScheduleFields({ draft, upd, compact = false }: {
+  draft: Partial<ContentPost>;
+  upd: (k: keyof ContentPost, v: unknown) => void;
+  compact?: boolean;
 }) {
-  const [year, setYear] = useState(2026);
-  const [month, setMonth] = useState(7); // Aug = 7
+  const inputCls = compact
+    ? "w-full bg-surface2 border border-line rounded px-2 py-1 text-xs text-ink outline-none"
+    : "w-full bg-surface2 border border-line rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-primary/40";
+  const hasTime = !!draft.scheduledTime;
+  const reminderOn = draft.reminderEnabled !== false;
+
+  const REMINDERS = [
+    { min: 60, label: "1 hora antes" },
+    { min: 180, label: "3 horas antes" },
+    { min: 1440, label: "1 día antes" },
+  ];
+
+  return (
+    <div className="space-y-2.5">
+      <div className="flex gap-2">
+        <input
+          type="date"
+          value={draft.scheduledDate ?? ""}
+          onChange={(e) => upd("scheduledDate", e.target.value)}
+          className={inputCls + " flex-1"}
+        />
+        {hasTime ? (
+          <div className="flex items-center gap-1">
+            <input
+              type="time"
+              value={draft.scheduledTime ?? ""}
+              onChange={(e) => upd("scheduledTime", e.target.value)}
+              className={inputCls + " w-28"}
+            />
+            <button
+              onClick={() => upd("scheduledTime", null)}
+              className="text-muted hover:text-danger text-xs px-1"
+              title="Quitar hora"
+            >
+              ✕
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => upd("scheduledTime", "10:00")}
+            className="text-[10px] font-mono px-3 rounded-lg border border-line text-muted hover:text-primary hover:border-primary/40 transition-all whitespace-nowrap"
+          >
+            + Hora
+          </button>
+        )}
+      </div>
+
+      <label className="flex items-center gap-2 text-xs text-ink cursor-pointer">
+        <input
+          type="checkbox"
+          checked={reminderOn}
+          onChange={(e) => upd("reminderEnabled", e.target.checked)}
+          className="accent-[#31b498]"
+        />
+        Avisarme antes de publicar
+      </label>
+
+      {reminderOn && (
+        <div className="flex gap-1.5 flex-wrap pl-5">
+          {REMINDERS.map((r) => {
+            const active = (draft.reminderMinutes ?? 120) === r.min;
+            return (
+              <button
+                key={r.min}
+                onClick={() => upd("reminderMinutes", r.min)}
+                className={`text-[10px] font-mono px-2.5 py-1 rounded-lg border transition-all ${
+                  active ? "border-primary/50 bg-primary/10 text-primary" : "border-line text-muted hover:text-ink"
+                }`}
+              >
+                {r.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CalendarView({ posts, clients, users, filterClient, onSelectPost, onMovePostDate, today }: {
+  posts: ContentPost[]; clients: Client[]; users: User[]; filterClient: string;
+  onSelectPost: (p: ContentPost) => void;
+  onMovePostDate?: (postId: string, newDate: string) => void;
+  today: string;
+}) {
+  const todayDate = new Date(today + "T12:00:00");
+  const [year, setYear] = useState(todayDate.getFullYear());
+  const [month, setMonth] = useState(todayDate.getMonth());
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null);
+  const [expandedDay, setExpandedDay] = useState<string | null>(null);
 
   const filtered = filterClient ? posts.filter((p) => p.clientId === filterClient) : posts;
 
@@ -164,45 +257,138 @@ function CalendarView({ posts, clients, filterClient, onSelectPost }: {
 
   const postsByDate: Record<string, ContentPost[]> = {};
   filtered.forEach((p) => {
-    if (!postsByDate[p.scheduledDate]) postsByDate[p.scheduledDate] = [];
-    postsByDate[p.scheduledDate].push(p);
+    if (!p.scheduledDate) return;
+    (postsByDate[p.scheduledDate] ||= []).push(p);
   });
 
   const prevMonth = () => { if (month === 0) { setMonth(11); setYear((y) => y - 1); } else setMonth((m) => m - 1); };
   const nextMonth = () => { if (month === 11) { setMonth(0); setYear((y) => y + 1); } else setMonth((m) => m + 1); };
+  const goToday = () => { setYear(todayDate.getFullYear()); setMonth(todayDate.getMonth()); };
+
+  const monthPosts = Object.entries(postsByDate)
+    .filter(([d]) => d.startsWith(`${year}-${String(month + 1).padStart(2, "0")}`))
+    .reduce((n, [, list]) => n + list.length, 0);
+
+  const handleDrop = (dateStr: string) => {
+    if (dragId && onMovePostDate) onMovePostDate(dragId, dateStr);
+    setDragId(null);
+    setDragOver(null);
+  };
 
   return (
     <div className="bg-surface border border-line rounded-xl overflow-hidden">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-line">
-        <button onClick={prevMonth} className="text-muted hover:text-ink"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 4L6 8L10 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
-        <h3 className="font-display text-xl font-700 uppercase tracking-wide text-ink">{MONTHS_ES[month]} {year}</h3>
-        <button onClick={nextMonth} className="text-muted hover:text-ink"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
+      {/* Cabecera */}
+      <div className="flex items-center justify-between px-4 md:px-6 py-4 border-b border-line gap-3">
+        <div className="flex items-center gap-2">
+          <button onClick={prevMonth} className="w-8 h-8 rounded-lg border border-line flex items-center justify-center text-muted hover:text-ink hover:border-muted transition-all">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 4L6 8L10 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+          </button>
+          <button onClick={nextMonth} className="w-8 h-8 rounded-lg border border-line flex items-center justify-center text-muted hover:text-ink hover:border-muted transition-all">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+          </button>
+          <button onClick={goToday} className="text-[10px] font-mono px-2.5 py-1.5 rounded-lg border border-line text-muted hover:text-primary hover:border-primary/40 transition-all">
+            Hoy
+          </button>
+        </div>
+        <h3 className="font-display text-lg md:text-xl font-700 uppercase tracking-wide text-ink">
+          {MONTHS_ES[month]} {year}
+        </h3>
+        <span className="font-mono text-[10px] text-muted whitespace-nowrap">
+          {monthPosts} {monthPosts === 1 ? "pieza" : "piezas"}
+        </span>
       </div>
+
+      {/* Días de la semana */}
       <div className="grid grid-cols-7 border-b border-line">
-        {DAYS_ES.map((d) => <div key={d} className="py-2 text-center font-mono text-[10px] text-muted uppercase tracking-widest">{d}</div>)}
+        {DAYS_ES.map((d) => (
+          <div key={d} className="py-2 text-center font-mono text-[10px] text-muted uppercase tracking-widest">{d}</div>
+        ))}
       </div>
+
+      {/* Celdas */}
       <div className="grid grid-cols-7">
         {Array.from({ length: totalCells }, (_, i) => {
           const dayNum = i - startPad + 1;
           const isValid = dayNum >= 1 && dayNum <= lastDay.getDate();
           const dateStr = isValid ? `${year}-${String(month + 1).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}` : "";
           const dayPosts = dateStr ? (postsByDate[dateStr] || []) : [];
-          const isToday = dateStr === "2026-08-28";
+          const isToday = dateStr === today;
+          const isPast = isValid && dateStr < today;
+          const isDropTarget = dragOver === dateStr;
+          const showAll = expandedDay === dateStr;
+          const visible = showAll ? dayPosts : dayPosts.slice(0, 3);
+
           return (
-            <div key={i} className={`min-h-[90px] p-1.5 border-b border-r border-line ${!isValid ? "bg-surface/50" : ""} ${isToday ? "bg-accent/5" : ""}`}>
+            <div
+              key={i}
+              onDragOver={(e) => { if (isValid && dragId) { e.preventDefault(); setDragOver(dateStr); } }}
+              onDragLeave={() => setDragOver((d) => (d === dateStr ? null : d))}
+              onDrop={() => isValid && handleDrop(dateStr)}
+              className={`min-h-[104px] p-1.5 border-b border-r border-line transition-colors
+                ${!isValid ? "bg-surface/40" : ""}
+                ${isToday ? "bg-accent/5" : ""}
+                ${isDropTarget ? "bg-primary/10 ring-1 ring-inset ring-primary/40" : ""}`}
+            >
               {isValid && (
                 <>
-                  <p className={`font-mono text-xs mb-1 ${isToday ? "text-accent font-700" : "text-muted"}`}>{dayNum}</p>
-                  <div className="space-y-0.5">
-                    {dayPosts.slice(0, 3).map((post) => {
-                      const st = STATUSES.find((s) => s.key === post.status);
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`font-mono text-xs ${isToday ? "text-accent font-700" : isPast ? "text-muted/40" : "text-muted"}`}>
+                      {dayNum}
+                    </span>
+                    {dayPosts.length > 0 && (
+                      <span className="font-mono text-[9px] text-muted/60">{dayPosts.length}</span>
+                    )}
+                  </div>
+
+                  <div className="space-y-1">
+                    {visible.map((post) => {
+                      const client = clients.find((c) => c.id === post.clientId);
+                      const st = STATUSES.find((x) => x.key === post.status);
+                      const chColor = channelColors[post.channel] ?? "#8b93a1";
                       return (
-                        <button key={post.id} onClick={() => onSelectPost(post)} className="w-full text-left rounded px-1 py-0.5 text-[9px] font-500 truncate hover:opacity-90" style={{ background: `${channelColors[post.channel]}20`, color: channelColors[post.channel] }}>
-                          {post.title}
-                        </button>
+                        <div
+                          key={post.id}
+                          draggable={!!onMovePostDate}
+                          onDragStart={(e) => { setDragId(post.id); (e.currentTarget as HTMLElement).classList.add("dragging-card"); }}
+                          onDragEnd={(e) => { setDragId(null); setDragOver(null); (e.currentTarget as HTMLElement).classList.remove("dragging-card"); }}
+                          onClick={() => onSelectPost(post)}
+                          title={`${post.title}\n${client?.company ?? ""} · ${post.channel} · ${post.format}`}
+                          className="rounded-md px-1.5 py-1 cursor-pointer hover:brightness-110 transition-all"
+                          style={{ background: `${chColor}18`, borderLeft: `2px solid ${chColor}` }}
+                        >
+                          {/* Título */}
+                          <p className="text-[10px] font-600 text-ink leading-tight truncate">{post.title}</p>
+                          {/* Cliente */}
+                          {client && (
+                            <p className="text-[9px] leading-tight truncate" style={{ color: client.color }}>
+                              {client.company}
+                            </p>
+                          )}
+                          {/* Canal · formato · estado */}
+                          <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                            <span className="text-[8px] font-mono px-1 rounded" style={{ background: `${chColor}25`, color: chColor }}>
+                              {post.channel}
+                            </span>
+                            <span className="text-[8px] font-mono text-muted capitalize">{post.format}</span>
+                            {st && (
+                              <span className="text-[8px] font-mono ml-auto flex items-center gap-0.5" style={{ color: st.color }}>
+                                <span className="w-1 h-1 rounded-full inline-block" style={{ background: st.color }} />
+                                {st.label}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       );
                     })}
-                    {dayPosts.length > 3 && <p className="text-[9px] text-muted font-mono">+{dayPosts.length - 3} más</p>}
+
+                    {dayPosts.length > 3 && (
+                      <button
+                        onClick={() => setExpandedDay(showAll ? null : dateStr)}
+                        className="w-full text-[9px] text-muted hover:text-primary font-mono text-left px-1 transition-colors"
+                      >
+                        {showAll ? "− menos" : `+${dayPosts.length - 3} más`}
+                      </button>
+                    )}
                   </div>
                 </>
               )}
@@ -210,6 +396,14 @@ function CalendarView({ posts, clients, filterClient, onSelectPost }: {
           );
         })}
       </div>
+
+      {onMovePostDate && (
+        <div className="px-4 py-2.5 border-t border-line">
+          <p className="text-[10px] font-mono text-muted">
+            Arrastra una pieza a otro día para reprogramarla · Click para abrir el detalle
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -359,8 +553,8 @@ function PostPanel({ post, clients, users, onClose, onUpdate, onMove, onExpand, 
                     {FORMATS.map((f) => <option key={f} value={f} className="bg-surface">{f}</option>)}
                   </select>
                 </Field>
-                <Field label="Fecha programada">
-                  <input type="date" value={draft.scheduledDate} onChange={(e) => upd("scheduledDate", e.target.value)} className="w-full bg-surface2 border border-line rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-primary/40" />
+                <Field label="Programación">
+                  <ScheduleFields draft={draft} upd={upd} />
                 </Field>
                 <Field label="Asignado">
                   <select value={draft.assigneeId} onChange={(e) => upd("assigneeId", e.target.value)} className="w-full bg-surface2 border border-line rounded-lg px-3 py-2 text-sm text-ink outline-none cursor-pointer">
@@ -607,7 +801,7 @@ function PostScreen({ post, clients, users, onClose, onUpdate, onMove, onAddFile
                   },
                   {
                     label: "Fecha", content: editing ? (
-                      <input type="date" value={draft.scheduledDate} onChange={(e) => upd("scheduledDate", e.target.value)} className="w-full bg-surface2 border border-line rounded px-2 py-1 text-xs text-ink outline-none" />
+                      <ScheduleFields draft={draft} upd={upd} compact />
                     ) : <span className="text-sm font-mono text-ink">{post.scheduledDate}</span>
                   },
                   {
@@ -830,6 +1024,13 @@ function CSVImportModal({ clients, users, onImport, onCancel }: {
         const assignee = users.find((u) => u.email.toLowerCase() === asignadoEmail);
         const pautaSi = get("pauta", 13).toLowerCase() === "si";
         const presupuesto = parseFloat(get("presupuesto_pauta", 14));
+        const horaRaw = get("hora", 3).trim();
+        const recRaw = get("recordatorio", 15).toLowerCase().trim();
+        const REC_MAP: Record<string, number> = {
+          "1h": 60, "1 hora": 60, "60": 60,
+          "3h": 180, "3 horas": 180, "180": 180,
+          "1d": 1440, "1 dia": 1440, "1 día": 1440, "1440": 1440,
+        };
         return {
           ok: true,
           data: {
@@ -847,7 +1048,10 @@ function CSVImportModal({ clients, users, onImport, onCancel }: {
             scheduledDate: get("fecha", 2),
             assigneeId: assignee?.id || "",
             boostBudget: pautaSi && !isNaN(presupuesto) ? presupuesto : undefined,
-            notes: get("notas", 15),
+            scheduledTime: /^\d{1,2}:\d{2}$/.test(horaRaw) ? horaRaw.padStart(5, "0") : null,
+            reminderEnabled: recRaw !== "no",
+            reminderMinutes: REC_MAP[recRaw] ?? 120,
+            notes: get("notas", 16),
             attachedFiles: [],
           },
         };
@@ -1038,7 +1242,14 @@ export default function ContentCalendar({ posts, clients, users, today, onMovePo
 
       {/* Views */}
       {viewMode === "board" && <BoardView posts={filtered} clients={clients} users={users} filterClient="" onMovePost={onMovePost} onSelectPost={setSelectedPost} />}
-      {viewMode === "calendar" && <CalendarView posts={filtered} clients={clients} filterClient="" onSelectPost={setSelectedPost} />}
+      {viewMode === "calendar" && (
+        <CalendarView
+          posts={filtered} clients={clients} users={users} filterClient=""
+          onSelectPost={setSelectedPost}
+          onMovePostDate={(id, date) => onUpdatePost(id, { scheduledDate: date })}
+          today={today}
+        />
+      )}
       {viewMode === "table" && <TableView posts={filtered} clients={clients} users={users} filterClient="" onSelectPost={setSelectedPost} onMovePost={onMovePost} />}
 
       {/* Modals */}
