@@ -149,7 +149,7 @@ export default function DiscussionBoard({ entityType, entityId, users, currentUs
   const normalize = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const mentionMatches = mentionQuery !== null
     ? users
-        .filter((u) => u.role !== "client")
+        .filter((u) => u.role !== "client" && u.role !== "cliente")
         .filter((u) => normalize(u.name).includes(normalize(mentionQuery)))
         .slice(0, 5)
     : [];

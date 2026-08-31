@@ -64,7 +64,7 @@ export default function MessageCenter({ users, posts, currentUserId, canSend }: 
   const [channels, setChannels] = useState<string[]>(["hub", "email", "push"]);
   const [feedback, setFeedback] = useState<string | null>(null);
 
-  const crew = users.filter((u) => u.role !== "client");
+  const crew = users.filter((u) => u.role !== "client" && u.role !== "cliente");
   const today = todayPR();
 
   const pendingByUser = useMemo(() => {

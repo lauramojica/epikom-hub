@@ -170,9 +170,8 @@ export function clientFromDb(row: any): Client {
 // users (DB) → User (UI)
 // ============================================================================
 export function userFromDb(row: any, assignedClientIds: string[] = []): User {
-  const roleMap: Record<string, User['role']> = {
-    superadmin: 'superadmin', admin: 'admin', crew: 'crew', cliente: 'client', client: 'client',
-  }
+  // El rol viaja tal cual está en la base de datos, para que los roles
+  // personalizados creados en el Workshop también funcionen.
   const nice = displayName(row.name, row.email)
   return {
     id: row.id,
@@ -180,7 +179,7 @@ export function userFromDb(row: any, assignedClientIds: string[] = []): User {
     avatarUrl: row.avatar_url ?? null,
     email: row.email,
     phone: row.phone ?? '',
-    role: roleMap[row.role] ?? 'crew',
+    role: (row.role ?? 'crew') as User['role'],
     initials: initialsOf(nice),
     color: colorForId(row.id),
     assignedClientIds,
