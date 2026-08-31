@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -16,6 +16,14 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [brand, setBrand] = useState<{ icon_url?: string | null; wordmark?: string; wordmark_sub?: string } | null>(null)
+
+  useEffect(() => {
+    supabase.from('agency_settings').select('icon_url, logo_url, wordmark, wordmark_sub').eq('id', 1).single()
+      .then(({ data }) => {
+        if (data) setBrand({ icon_url: data.icon_url ?? data.logo_url, wordmark: data.wordmark, wordmark_sub: data.wordmark_sub })
+      })
+  }, [supabase])
 
   const handlePasswordLogin = async () => {
     if (!email || !password) { setError('Escribe tu email y contraseña.'); return }
@@ -62,14 +70,20 @@ export default function LoginPage() {
     <div className="min-h-dvh bg-bg text-ink flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-accent mb-5">
-            <svg width="24" height="24" viewBox="0 0 14 14" fill="none">
-              <path d="M2 9L5 5L7.5 7.5L10 4L13 6.5" stroke="#0a0a0d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-              <circle cx="12" cy="11" r="2.5" fill="#0a0a0d" />
-            </svg>
-          </div>
-          <h1 className="font-display text-3xl font-800 uppercase tracking-widest leading-none">Epikom</h1>
-          <p className="font-mono text-[10px] text-muted uppercase tracking-widest mt-1.5">Hub Interno</p>
+          {brand?.icon_url ? (
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl overflow-hidden mb-5 bg-surface2">
+              <img src={brand.icon_url} alt="Logo" className="w-full h-full object-contain" />
+            </div>
+          ) : (
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-accent mb-5">
+              <svg width="24" height="24" viewBox="0 0 14 14" fill="none">
+                <path d="M2 9L5 5L7.5 7.5L10 4L13 6.5" stroke="#0a0a0d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="12" cy="11" r="2.5" fill="#0a0a0d" />
+              </svg>
+            </div>
+          )}
+          <h1 className="font-display text-3xl font-800 uppercase tracking-widest leading-none">{brand?.wordmark ?? 'Epikom'}</h1>
+          <p className="font-mono text-[10px] text-muted uppercase tracking-widest mt-1.5">{brand?.wordmark_sub ?? 'Hub Interno'}</p>
         </div>
 
         {sent ? (

@@ -4,6 +4,8 @@ import type { ContentPost, Client, User, Channel, PostFormat, PostStatus, Attach
 import FileUpload from "../components/FileUpload";
 
 interface Props {
+  dynamicFormats?: { value: string; label: string }[];
+  dynamicChannels?: { value: string; label: string; color: string | null }[];
   posts: ContentPost[];
   clients: Client[];
   users: User[];
@@ -25,10 +27,10 @@ const STATUSES: { key: PostStatus; label: string; color: string }[] = [
   { key: "published", label: "Publicado", color: "#dbfa45" },
 ];
 
-const CHANNELS: Channel[] = ["Instagram", "Facebook", "FB + IG", "TikTok", "LinkedIn", "YouTube", "Email"];
-const FORMATS: PostFormat[] = ["reel", "carrusel", "story", "imagen", "video", "foto", "texto", "evento", "shopper", "email"];
+let CHANNELS: Channel[] = ["Instagram", "Facebook", "FB + IG", "TikTok", "LinkedIn", "YouTube", "Email"];
+let FORMATS: PostFormat[] = ["reel", "carrusel", "story", "imagen", "video", "foto", "texto", "evento", "shopper", "email"];
 
-const channelColors: Record<string, string> = {
+let channelColors: Record<string, string> = {
   Instagram: "#e1306c", Facebook: "#1877f2", "FB + IG": "#a855f7", TikTok: "#00f2ea",
   LinkedIn: "#0a66c2", YouTube: "#ff0000", Email: "#f59e0b",
 };
@@ -943,7 +945,13 @@ function CSVImportModal({ clients, users, onImport, onCancel }: {
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-export default function ContentCalendar({ posts, clients, users, today, onMovePost, onAddPost, onUpdatePost, onAddPostFile, onRemovePostFile }: Props) {
+export default function ContentCalendar({ posts, clients, users, today, onMovePost, onAddPost, onUpdatePost, onAddPostFile, onRemovePostFile, dynamicFormats, dynamicChannels }: Props) {
+  // Catálogos configurables desde el Workshop: sincronizan las listas del módulo
+  if (dynamicFormats?.length) FORMATS = dynamicFormats.map((f) => f.value) as PostFormat[];
+  if (dynamicChannels?.length) {
+    CHANNELS = dynamicChannels.map((c) => c.label) as Channel[];
+    channelColors = { ...channelColors, ...Object.fromEntries(dynamicChannels.map((c) => [c.label, c.color ?? "#8b93a1"])) };
+  }
   const [viewMode, setViewMode] = useState<"board" | "calendar" | "table">("board");
   const [filterClient, setFilterClient] = useState("");
   const [filterChannel, setFilterChannel] = useState("");

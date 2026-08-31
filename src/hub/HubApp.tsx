@@ -8,6 +8,7 @@ import type { ContentPost, Project, Client, User, Notification, View, Deliverabl
 import { useHubData } from "./useHubData";
 import { todayPR, computeStreak } from "./adapters";
 import { UploadContext } from "./UploadContext";
+import { useWorkshop } from "./useWorkshop";
 import { AnimatePresence, motion } from "motion/react";
 import MyWeek from "./views/MyWeek";
 import ContentCalendar from "./views/ContentCalendar";
@@ -17,6 +18,7 @@ import Analytics from "./views/Analytics";
 import NotificationsView from "./views/NotificationsView";
 import RolesView from "./views/RolesView";
 import SettingsView from "./views/SettingsView";
+import WorkshopView from "./views/WorkshopView";
 import DocumentsView from "./views/DocumentsView";
 import Avatar from "./components/Avatar";
 import UserProfilePanel from "./components/UserProfilePanel";
@@ -33,7 +35,8 @@ const navItems: { key: View; label: string; icon: React.ReactElement }[] = [
   { key: "notifications", label: "Notificaciones", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2C9 2 4 5 4 10V13H14V10C14 5 9 2 9 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/><path d="M7 13V14C7 15.1 7.9 16 9 16C10.1 16 11 15.1 11 14V13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><circle cx="9" cy="2" r="1" fill="currentColor"/></svg> },
   { key: "roles", label: "Roles", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="6" cy="6" r="2.5" stroke="currentColor" strokeWidth="1.5"/><circle cx="12" cy="6" r="2.5" stroke="currentColor" strokeWidth="1.5"/><path d="M1 15C1 12.8 3.2 11 6 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M17 15C17 12.8 14.8 11 12 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
   { key: "documents", label: "Documentos", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 2H11L15 6V16C15 16.6 14.6 17 14 17H4C3.4 17 3 16.6 3 16V3C3 2.4 3.4 2 4 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><path d="M11 2V6H15" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><path d="M6 10H12M6 13H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
-  { key: "settings", label: "Configuración", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5"/><path d="M9 1.5V3M9 15V16.5M16.5 9H15M3 9H1.5M14.6 3.4L13.5 4.5M4.5 13.5L3.4 14.6M14.6 14.6L13.5 13.5M4.5 4.5L3.4 3.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
+  { key: "workshop", label: "Workshop", icon: (<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M7.5 2.5L9 4l-5 5-1.5-1.5L7.5 2.5z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M11.5 6.5l4 4-2 2-4-4M3 15h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>) },
+          { key: "settings", label: "Configuración", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5"/><path d="M9 1.5V3M9 15V16.5M16.5 9H15M3 9H1.5M14.6 3.4L13.5 4.5M4.5 13.5L3.4 14.6M14.6 14.6L13.5 13.5M4.5 4.5L3.4 3.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
 ];
 
 function timeAgo(ts: string) {
@@ -249,6 +252,7 @@ function AppInner({ authUserId }: { authUserId: string }) {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
+  const workshop = useWorkshop();
   const myRole = loggedUser?.role ?? "crew";
   const isSuperadmin = myRole === "superadmin";
   const isAdminUp = myRole === "superadmin" || myRole === "admin";
@@ -538,7 +542,10 @@ function AppInner({ authUserId }: { authUserId: string }) {
           className="flex-1 overflow-y-auto"
         >
           {view === "myweek" && <MyWeek posts={posts} projects={projects} clients={clients} users={users} activeUser={activeUser} today={todayPR()} loggedUser={loggedUser} onMovePost={movePost} />}
-          {view === "calendar" && <ContentCalendar posts={posts} clients={clients} users={users} today={todayPR()} onMovePost={movePost} onAddPost={addPost} onUpdatePost={updatePost} onAddPostFile={addPostFile} onRemovePostFile={removePostFile} />}
+          {view === "calendar" && <ContentCalendar
+            dynamicFormats={workshop.byKind("format").map((o) => ({ value: o.value, label: o.label }))}
+            dynamicChannels={workshop.byKind("channel").map((o) => ({ value: o.value, label: o.label, color: o.color }))}
+            posts={posts} clients={clients} users={users} today={todayPR()} onMovePost={movePost} onAddPost={addPost} onUpdatePost={updatePost} onAddPostFile={addPostFile} onRemovePostFile={removePostFile} />}
           {view === "projects" && <ProjectsView projects={projects} clients={clients} users={users} onUpdateDeliverable={updateDeliverable} onAddDeliverableFile={addDeliverableFile} onRemoveDeliverableFile={removeDeliverableFile} onMoveProjectPhase={moveProjectPhase} onAddProject={addProject} />}
           {view === "clients" && <ClientsView clients={clients} projects={projects} posts={posts} onUpdateClient={updateClient} onAddClient={addClient} interactions={interactions} />}
           {view === "analytics" && <Analytics posts={posts} projects={projects} clients={clients} users={users} />}
@@ -550,6 +557,13 @@ function AppInner({ authUserId }: { authUserId: string }) {
             onChangeRole={(uid, role) => changeUserRole(uid, role).then(() => toast("✓ Rol actualizado.", "success")).catch(() => toast("✕ Solo superadmin puede cambiar roles.", "error"))}
           />}
           {view === "documents" && <DocumentsView documents={documents} clients={clients} projects={projects} onAdd={addDocument} onDelete={deleteDocument} />}
+          {view === "workshop" && <WorkshopView
+            clients={clients}
+            canEdit={isAdminUp}
+            agency={agency}
+            onSaveAgency={(u, f) => saveAgency(u, f)}
+            onToast={toast}
+          />}
           {view === "settings" && <SettingsView
             isDark={!lightMode} onToggleTheme={toggleTheme} onConfirm={setConfirm}
             agencyData={agency} canEditAgency={isAdminUp}

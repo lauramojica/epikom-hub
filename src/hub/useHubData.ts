@@ -335,14 +335,27 @@ export function useHubData(authUserId: string) {
       .then(({ data }) => { if (data) setAgency(data) })
   }, [supabase])
 
-  const saveAgency = useCallback(async (updates: Record<string, any>, logoFile?: File) => {
-    let logo_url = updates.logo_url ?? agency?.logo_url ?? null
-    if (logoFile) {
-      const up = await uploadFile(logoFile, 'branding')
-      logo_url = up.url
-    }
-    const payload: Record<string, any> = { ...updates, logo_url, updated_at: new Date().toISOString() }
+  const saveAgency = useCallback(async (updates: Record<string, any>, files?: File | Record<string, File>) => {
+    const payload: Record<string, any> = { ...updates, updated_at: new Date().toISOString() }
     delete payload.id
+
+    // Compat: un solo File = logo principal
+    if (files instanceof File) {
+      const up = await uploadFile(files, 'branding')
+      payload.logo_url = up.url
+    } else if (files && typeof files === 'object') {
+      const keyMap: Record<string, string> = {
+        logo: 'logo_url', icon: 'icon_url', portal_logo: 'portal_logo_url', favicon: 'favicon_url',
+      }
+      for (const [k, f] of Object.entries(files)) {
+        const col = keyMap[k]
+        if (col && f instanceof File) {
+          const up = await uploadFile(f, 'branding')
+          payload[col] = up.url
+        }
+      }
+    }
+    if (payload.logo_url === undefined) payload.logo_url = agency?.logo_url ?? null
     setAgency(prev => ({ ...(prev ?? {}), ...payload, id: 1 }))
     const { error } = await supabase.from('agency_settings').update(payload).eq('id', 1)
     if (error) { console.error(error); throw error }
