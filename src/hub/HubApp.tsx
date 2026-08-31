@@ -594,7 +594,7 @@ function AppInner({ authUserId }: { authUserId: string }) {
             onToast={toast}
           />}
           {view === "settings" && <SettingsView
-            isDark={!lightMode} onToggleTheme={toggleTheme} onConfirm={setConfirm}
+            isDark={!lightMode} onToggleTheme={toggleTheme} onConfirm={setConfirm} onToast={toast}
             agencyData={agency} canEditAgency={isAdminUp}
             onSaveAgency={(u, f) => saveAgency(u, f).then(() => toast("✓ Configuración guardada.", "success")).catch(() => toast("✕ No se pudo guardar.", "error"))}
           />}

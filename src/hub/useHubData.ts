@@ -112,6 +112,31 @@ export function useHubData(authUserId: string) {
     return () => { supabase.removeChannel(channel) }
   }, [supabase])
 
+  // ---------------- Realtime: notificaciones propias ----------------
+  useEffect(() => {
+    const channel = supabase
+      .channel('hub-notifications')
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${authUserId}` },
+        (payload) => {
+          setNotifications(prev => {
+            const incoming = notifFromDb(payload.new)
+            return prev.some(n => n.id === incoming.id) ? prev : [incoming, ...prev]
+          })
+        }
+      )
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${authUserId}` },
+        (payload) => {
+          setNotifications(prev => prev.map(n =>
+            n.id === (payload.new as { id: string }).id ? notifFromDb(payload.new) : n
+          ))
+        }
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [supabase, authUserId])
+
   // ---------------- Mutaciones ----------------
   const movePost = useCallback(async (postId: string, newStatus: PostStatus) => {
     // Optimista

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import PushToggle from "../components/PushToggle";
 
 const INTEGRATIONS = [
   { name: "Meta Business Suite", desc: "Publicar en Facebook e Instagram", icon: "📘", connected: true },
@@ -26,7 +27,7 @@ const NOTIF_EVENTS = [
   { key: "new_project",      label: "Nuevo proyecto",           desc: "Cuando se asigna un proyecto nuevo" },
 ];
 
-function NotifPrefsSection() {
+function NotifPrefsSection({ onToast }: { onToast?: (m: string, k?: "success" | "error" | "info") => void }) {
   type Channel = "push" | "email" | "sms";
   const [prefs, setPrefs] = useState<Record<string, Record<Channel, boolean>>>(() =>
     Object.fromEntries(NOTIF_EVENTS.map((e) => [e.key, { push: true, email: e.key !== "post_published", sms: false }]))
@@ -42,6 +43,16 @@ function NotifPrefsSection() {
         <h2 className="font-display text-xl font-700 uppercase text-ink">Preferencias de notificaciones</h2>
         <p className="text-xs text-muted mt-0.5">Elige cómo y cuándo te avisamos de cada evento.</p>
       </div>
+
+      {/* Activación de push en este dispositivo */}
+      <div className="px-5 py-4 border-b border-line bg-surface2/30">
+        <p className="font-mono text-[10px] text-muted uppercase tracking-widest mb-1.5">Notificaciones en este dispositivo</p>
+        <p className="text-xs text-muted mb-3 leading-relaxed">
+          Recibe avisos aunque tengas el Hub cerrado. Se activa por dispositivo y navegador.
+        </p>
+        <PushToggle onToast={onToast} />
+      </div>
+
       <div className="divide-y divide-line">
         {/* Table header */}
         <div className="flex items-center gap-4 px-5 py-2 bg-surface2">
@@ -97,12 +108,13 @@ interface Props {
   agencyData?: AgencyData | null;
   onSaveAgency?: (updates: Record<string, unknown>, logoFile?: File) => Promise<void> | void;
   canEditAgency?: boolean;
+  onToast?: (m: string, k?: "success" | "error" | "info") => void;
   isDark?: boolean;
   onToggleTheme?: () => void;
   onConfirm?: (config: { title: string; message: string; danger?: boolean; onConfirm: () => void }) => void;
 }
 
-export default function SettingsView({ isDark = true, onToggleTheme, agencyData, onSaveAgency, canEditAgency = false }: Props) {
+export default function SettingsView({ isDark = true, onToggleTheme, agencyData, onSaveAgency, canEditAgency = false, onToast }: Props) {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [fontSize, setFontSize] = useState(16);
@@ -376,7 +388,7 @@ export default function SettingsView({ isDark = true, onToggleTheme, agencyData,
       </section>
 
       {/* Notification preferences */}
-      <NotifPrefsSection />
+      <NotifPrefsSection onToast={onToast} />
 
       {/* Danger zone */}
       <section className="bg-surface border border-danger/20 rounded-xl overflow-hidden">

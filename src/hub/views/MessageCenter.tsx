@@ -61,6 +61,7 @@ export default function MessageCenter({ users, posts, currentUserId, canSend }: 
   const [body, setBody] = useState(TEMPLATES[0].body);
   const [selected, setSelected] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
+  const [channels, setChannels] = useState<string[]>(["hub", "email", "push"]);
   const [feedback, setFeedback] = useState<string | null>(null);
 
   const crew = users.filter((u) => u.role !== "client");
@@ -103,42 +104,44 @@ export default function MessageCenter({ users, posts, currentUserId, canSend }: 
       .replace(/\{pendientes\}/g, String(pendingByUser[u.id] ?? 0));
 
   const send = async () => {
-    if (selected.length === 0 || !subject.trim() || !body.trim()) return;
+    if (selected.length === 0 || !subject.trim() || !body.trim() || channels.length === 0) return;
     setSending(true);
     setFeedback(null);
 
-    // Registrar el envío
-    const { error: msgErr } = await supabase.from("hub_messages").insert({
-      subject: subject.trim(),
-      body: body.trim(),
-      sender_id: currentUserId,
-      recipient_ids: selected,
-      template_key: template.key,
-      channels: ["hub"],
-    });
+    try {
+      const res = await fetch("/api/messages/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: subject.trim(),
+          message: body.trim(),
+          recipientIds: selected,
+          channels,
+          templateKey: template.key,
+          pendingByUser,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Error al enviar");
 
-    // Crear una notificación personalizada por destinatario
-    const notifs = selected.map((uid) => {
-      const u = users.find((x) => x.id === uid)!;
-      return {
-        user_id: uid,
-        type: "message",
-        priority: "medium",
-        title: personalize(subject.trim(), u),
-        message: personalize(body.trim(), u),
-        read: false,
-      };
-    });
-    const { error: notifErr } = await supabase.from("notifications").insert(notifs);
-
-    setSending(false);
-    if (msgErr || notifErr) {
-      setFeedback("✕ No se pudo enviar. Intenta de nuevo.");
-      return;
+      const r = json.results ?? {};
+      const parts: string[] = [];
+      if (r.hub) parts.push(`${r.hub} en el Hub`);
+      if (r.email) parts.push(`${r.email} por email`);
+      if (r.push) parts.push(`${r.push} push`);
+      const diag = (json.diagnostics ?? []) as string[];
+      setFeedback(
+        parts.length
+          ? `✓ Enviado: ${parts.join(" · ")}${r.failed ? ` · ${r.failed} fallaron` : ""}${diag.length ? ` — ${diag.join("; ")}` : ""}`
+          : `✓ Registrado${diag.length ? ` — ${diag.join("; ")}` : ""}`
+      );
+      setSelected([]);
+      load();
+    } catch (err) {
+      setFeedback(`✕ ${err instanceof Error ? err.message : "No se pudo enviar."}`);
+    } finally {
+      setSending(false);
     }
-    setFeedback(`✓ Enviado a ${selected.length} ${selected.length === 1 ? "persona" : "personas"}.`);
-    setSelected([]);
-    load();
   };
 
   const previewUser = users.find((u) => u.id === selected[0]) ?? crew[0];
@@ -234,9 +237,35 @@ export default function MessageCenter({ users, posts, currentUserId, canSend }: 
               </p>
             )}
 
+            {/* Canales de envío */}
+            <div>
+              <p className="font-mono text-[10px] text-muted uppercase tracking-widest mb-2">Enviar por</p>
+              <div className="flex gap-2 flex-wrap">
+                {([
+                  ["hub", "🔔 Hub", "Aparece en sus notificaciones"],
+                  ["email", "✉️ Email", "Llega a su correo"],
+                  ["push", "📱 Push", "Aviso en su dispositivo"],
+                ] as const).map(([key, label, hint]) => {
+                  const on = channels.includes(key);
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setChannels((prev) => on ? prev.filter((c) => c !== key) : [...prev, key])}
+                      title={hint}
+                      className={`text-xs font-mono px-3 py-2 rounded-lg border transition-all ${
+                        on ? "border-primary/50 bg-primary/10 text-primary" : "border-line text-muted hover:text-ink"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <button
               onClick={send}
-              disabled={sending || selected.length === 0 || !subject.trim() || !body.trim()}
+              disabled={sending || selected.length === 0 || !subject.trim() || !body.trim() || channels.length === 0}
               className="text-xs font-mono px-5 py-2.5 rounded-lg bg-primary text-bg font-600 hover:opacity-90 disabled:opacity-30 transition-opacity"
             >
               {sending ? "Enviando…" : selected.length === 0 ? "Selecciona destinatarios" : `Enviar a ${selected.length} ${selected.length === 1 ? "persona" : "personas"}`}

@@ -73,17 +73,25 @@ export default function DiscussionBoard({ entityType, entityId, users, currentUs
     return () => { supabase.removeChannel(ch); };
   }, [supabase, entityType, entityId, load]);
 
-  /* Detecta @menciones mientras se escribe */
-  const handleDraftChange = (v: string) => {
+  /* Detecta @menciones mientras se escribe (soporta acentos y ñ) */
+  const MENTION_RE = /@([\p{L}\p{N}_]*)$/u;
+
+  const handleDraftChange = (v: string, cursorPos?: number) => {
     setDraft(v);
-    const match = v.slice(0, v.length).match(/@(\w*)$/);
+    const upToCursor = cursorPos !== undefined ? v.slice(0, cursorPos) : v;
+    const match = upToCursor.match(MENTION_RE);
     setMentionQuery(match ? match[1].toLowerCase() : null);
   };
 
   const insertMention = (u: User) => {
     const firstName = u.name.split(" ")[0];
-    setDraft((d) => d.replace(/@\w*$/, `@${firstName} `));
+    setDraft((d) => d.replace(MENTION_RE, `@${firstName} `));
     setMentionQuery(null);
+    // Devolver el foco al campo
+    setTimeout(() => {
+      const el = document.querySelector<HTMLTextAreaElement>("[data-comment-input]");
+      el?.focus();
+    }, 0);
   };
 
   const send = async () => {
@@ -91,8 +99,14 @@ export default function DiscussionBoard({ entityType, entityId, users, currentUs
     if (!body) return;
     setSending(true);
     // Resolver @menciones a user ids
+    const norm = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const bodyNorm = norm(body);
     const mentioned = users
-      .filter((u) => new RegExp(`@${u.name.split(" ")[0]}\\b`, "i").test(body))
+      .filter((u) => {
+        const first = norm(u.name.split(" ")[0]);
+        const full = norm(u.name).replace(/\s+/g, "");
+        return bodyNorm.includes(`@${first}`) || bodyNorm.includes(`@${full}`);
+      })
       .map((u) => u.id);
     const { error } = await supabase.from("hub_comments").insert({
       entity_type: entityType,
@@ -132,8 +146,12 @@ export default function DiscussionBoard({ entityType, entityId, users, currentUs
 
   const roots = comments.filter((c) => !c.parent_id);
   const repliesOf = (id: string) => comments.filter((c) => c.parent_id === id);
+  const normalize = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const mentionMatches = mentionQuery !== null
-    ? users.filter((u) => u.name.toLowerCase().includes(mentionQuery)).slice(0, 5)
+    ? users
+        .filter((u) => u.role !== "client")
+        .filter((u) => normalize(u.name).includes(normalize(mentionQuery)))
+        .slice(0, 5)
     : [];
 
   const renderComment = (c: HubComment, isReply = false) => {
@@ -226,18 +244,39 @@ export default function DiscussionBoard({ entityType, entityId, users, currentUs
 
         {/* Caja de respuesta */}
         {replyTo === c.id && (
-          <div className="ml-9 mt-2 flex gap-2">
-            <input
-              autoFocus
-              value={draft}
-              onChange={(e) => handleDraftChange(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-              placeholder={`Responder a ${author?.name.split(" ")[0]}…`}
-              className="flex-1 bg-surface2 border border-line rounded-lg px-3 py-1.5 text-xs text-ink outline-none focus:border-primary/40"
-            />
-            <button onClick={send} disabled={sending || !draft.trim()} className="text-[10px] font-mono px-3 rounded-lg bg-primary text-bg font-600 disabled:opacity-40">
-              Enviar
-            </button>
+          <div className="ml-9 mt-2 relative">
+            <div className="flex gap-2">
+              <input
+                autoFocus
+                data-comment-input
+                value={draft}
+                onChange={(e) => handleDraftChange(e.target.value, e.target.selectionStart ?? undefined)}
+                onKeyDown={(e) => {
+                  if (mentionMatches.length > 0 && (e.key === "Tab" || e.key === "Enter")) {
+                    e.preventDefault();
+                    insertMention(mentionMatches[0]);
+                    return;
+                  }
+                  if (e.key === "Escape") { setMentionQuery(null); return; }
+                  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+                }}
+                placeholder={`Responder a ${author?.name.split(" ")[0]}… usa @ para mencionar`}
+                className="flex-1 bg-surface2 border border-line rounded-lg px-3 py-1.5 text-xs text-ink outline-none focus:border-primary/40"
+              />
+              <button onClick={send} disabled={sending || !draft.trim()} className="text-[10px] font-mono px-3 rounded-lg bg-primary text-bg font-600 disabled:opacity-40">
+                Enviar
+              </button>
+            </div>
+            {mentionMatches.length > 0 && (
+              <div className="absolute left-0 bottom-full mb-1 w-56 border border-line rounded-xl overflow-hidden z-30 dropdown-solid">
+                {mentionMatches.map((u) => (
+                  <button key={u.id} onClick={() => insertMention(u)} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-surface2 transition-colors text-left">
+                    <Avatar initials={u.initials} color={u.color} size="xs" src={u.avatarUrl} />
+                    <span className="text-xs text-ink">{u.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -267,9 +306,18 @@ export default function DiscussionBoard({ entityType, entityId, users, currentUs
         <div className="relative">
           <div className="flex gap-2">
             <textarea
+              data-comment-input
               value={draft}
-              onChange={(e) => handleDraftChange(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+              onChange={(e) => handleDraftChange(e.target.value, e.target.selectionStart)}
+              onKeyDown={(e) => {
+                if (mentionMatches.length > 0 && (e.key === "Tab" || e.key === "Enter") && !e.shiftKey) {
+                  e.preventDefault();
+                  insertMention(mentionMatches[0]);
+                  return;
+                }
+                if (e.key === "Escape") { setMentionQuery(null); return; }
+                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+              }}
               placeholder="Escribe un comentario… usa @ para mencionar"
               rows={2}
               className="flex-1 bg-surface2 border border-line rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-primary/40 resize-none placeholder:text-muted/50"
@@ -293,7 +341,16 @@ export default function DiscussionBoard({ entityType, entityId, users, currentUs
           )}
 
           <div className="flex items-center justify-between mt-1.5">
-            <span className="font-mono text-[9px] text-muted/60">Enter para enviar · Shift+Enter para salto de línea</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => { setDraft((d) => d + "@"); setMentionQuery(""); setTimeout(() => document.querySelector<HTMLTextAreaElement>("[data-comment-input]")?.focus(), 0); }}
+                className="text-[11px] font-mono text-muted hover:text-primary transition-colors"
+                title="Mencionar a alguien"
+              >
+                @ mencionar
+              </button>
+              <span className="font-mono text-[9px] text-muted/60">Enter envía · Shift+Enter salta línea</span>
+            </div>
             <button
               onClick={send}
               disabled={sending || !draft.trim()}
