@@ -21,6 +21,7 @@ import RolesView from "./views/RolesView";
 import SettingsView from "./views/SettingsView";
 import WorkshopView from "./views/WorkshopView";
 import MessageCenter from "./views/MessageCenter";
+import ClientReport from "./views/ClientReport";
 import DocumentsView from "./views/DocumentsView";
 import Avatar from "./components/Avatar";
 import UserProfilePanel from "./components/UserProfilePanel";
@@ -34,7 +35,8 @@ const navItems: { key: View; label: string; icon: React.ReactElement }[] = [
   { key: "projects", label: "Proyectos", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M1 5C1 3.9 1.9 3 3 3H7L9 5H15C16.1 5 17 5.9 17 7V14C17 15.1 16.1 16 15 16H3C1.9 16 1 15.1 1 14V5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg> },
   { key: "clients", label: "Clientes", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="1" y="3" width="16" height="12" rx="2" stroke="currentColor" strokeWidth="1.5"/><path d="M1 7H17" stroke="currentColor" strokeWidth="1.5"/><path d="M5 11H8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
   { key: "analytics", label: "Analítica", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M1 14L5 9L8 12L12 6L17 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M1 17H17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
-  { key: "messages", label: "Mensajes", icon: (<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M15 3H3a1 1 0 00-1 1v8a1 1 0 001 1h3l3 3 3-3h3a1 1 0 001-1V4a1 1 0 00-1-1z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></svg>) },
+  { key: "reports", label: "Reportes", icon: (<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 14V8M9 14V4M14 14v-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/><path d="M2 16h14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>) },
+          { key: "messages", label: "Mensajes", icon: (<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M15 3H3a1 1 0 00-1 1v8a1 1 0 001 1h3l3 3 3-3h3a1 1 0 001-1V4a1 1 0 00-1-1z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></svg>) },
           { key: "notifications", label: "Notificaciones", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2C9 2 4 5 4 10V13H14V10C14 5 9 2 9 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/><path d="M7 13V14C7 15.1 7.9 16 9 16C10.1 16 11 15.1 11 14V13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><circle cx="9" cy="2" r="1" fill="currentColor"/></svg> },
   { key: "roles", label: "Roles", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="6" cy="6" r="2.5" stroke="currentColor" strokeWidth="1.5"/><circle cx="12" cy="6" r="2.5" stroke="currentColor" strokeWidth="1.5"/><path d="M1 15C1 12.8 3.2 11 6 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M17 15C17 12.8 14.8 11 12 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
   { key: "documents", label: "Documentos", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 2H11L15 6V16C15 16.6 14.6 17 14 17H4C3.4 17 3 16.6 3 16V3C3 2.4 3.4 2 4 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><path d="M11 2V6H15" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><path d="M6 10H12M6 13H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
@@ -171,12 +173,12 @@ function AppInner({ authUserId }: { authUserId: string }) {
   const supabase = useMemo(() => createClient(), []);
   const [view, setView] = useState<View>("myweek");
   const {
-    posts, clients, users: rawUsers, notifications, projects, documents, interactions, loading, error,
+    posts, clients: allClients, users: rawUsers, notifications, projects: allProjects, documents: allDocuments, interactions, myClientId, loading, error,
     movePost: dbMovePost, addPost: dbAddPost, updatePost: dbUpdatePost,
     markNotifRead, markAllRead: dbMarkAllRead,
     addProject: dbAddProject, updateProject: dbUpdateProject, deleteProject: dbDeleteProject,
     deleteClient: dbDeleteClient, moveProjectPhase: dbMovePhase, updateDeliverable: dbUpdateDeliv,
-    setDeliverableFiles, addClient: dbAddClient, updateClient: dbUpdateClient,
+    setDeliverableFiles, addClient: dbAddClient, updateClient: dbUpdateClient, logImport,
     addDocument: dbAddDocument, deleteDocument: dbDeleteDocument, uploadFile,
     agency, saveAgency, toggleCrewAssignment, changeUserRole, updateProfile, reload: reloadData,
   } = useHubData(authUserId);
@@ -271,12 +273,26 @@ function AppInner({ authUserId }: { authUserId: string }) {
   const isClientUser = perms.loading
     ? (myRole === "client" || myRole === "cliente")
     : perms.scope === "own_client";
+  // ── Aislamiento del cliente externo ──
+  // Aunque RLS ya filtra en la base de datos, filtramos también aquí
+  // para que nunca se muestre nada que no le corresponda.
+  const clients = isClientUser && myClientId
+    ? allClients.filter((c) => c.id === myClientId)
+    : allClients;
+  const projects = isClientUser && myClientId
+    ? allProjects.filter((p) => p.clientId === myClientId)
+    : allProjects;
+  const documents = isClientUser && myClientId
+    ? allDocuments.filter((d) => d.clientId === myClientId)
+    : allDocuments;
+
   const NAV_PERMISSION: Record<string, string | null> = {
     myweek: null,
     calendar: "calendar.view",
     projects: "projects.view",
     clients: "clients.view",
     analytics: "analytics.view",
+    reports: "analytics.view",
     messages: "messages.send",
     notifications: null,
     roles: "crew.assign",
@@ -287,7 +303,7 @@ function AppInner({ authUserId }: { authUserId: string }) {
 
   const visibleNav = navItems.filter((item) => {
     // Los clientes externos no ven Mi Semana ni la gestión interna
-    if (isClientUser && ["myweek", "roles", "workshop", "messages", "analytics"].includes(item.key)) {
+    if (isClientUser && ["myweek", "roles", "workshop", "messages", "analytics", "reports"].includes(item.key)) {
       return false;
     }
     const needed = NAV_PERMISSION[item.key];
@@ -585,7 +601,8 @@ function AppInner({ authUserId }: { authUserId: string }) {
             dynamicChannels={workshop.byKind("channel").map((o) => ({ value: o.value, label: o.label, color: o.color }))}
             posts={posts} currentUserId={authUserId} canViewBudgets={can("budgets.view")}
             clients={workshop.services.length > 0 ? clients.filter((c) => workshop.clientHasContentCalendar(c.id)) : clients}
-            users={users} today={todayPR()} onMovePost={movePost} onAddPost={addPost} onUpdatePost={updatePost} onAddPostFile={addPostFile} onRemovePostFile={removePostFile} />}
+            users={users} today={todayPR()} onMovePost={movePost} onAddPost={addPost} onUpdatePost={updatePost} onAddPostFile={addPostFile} onRemovePostFile={removePostFile}
+            onImportLogged={(n) => logImport(n).catch(() => {})} />}
           {view === "projects" && <ProjectsView projects={projects} clients={clients} users={users} onUpdateDeliverable={updateDeliverable} onAddDeliverableFile={addDeliverableFile} onRemoveDeliverableFile={removeDeliverableFile} onMoveProjectPhase={moveProjectPhase} onAddProject={addProject}
             onUpdateProject={(id, u) => dbUpdateProject(id, u).then(() => toast("✓ Proyecto actualizado.", "success")).catch(() => toast("✕ No se pudo actualizar.", "error"))}
             onDeleteProject={can("projects.delete") ? (id) => dbDeleteProject(id).then(() => toast("✓ Proyecto eliminado.", "success")).catch(() => toast("✕ No se pudo eliminar.", "error")) : undefined}
@@ -615,6 +632,10 @@ function AppInner({ authUserId }: { authUserId: string }) {
             onRefresh={() => { reloadData(); perms.reload(); }}
           />}
           {view === "documents" && <DocumentsView documents={documents} clients={clients} projects={projects} onAdd={addDocument} onDelete={deleteDocument} />}
+          {view === "reports" && <ClientReport
+            clients={clients} posts={posts} projects={projects} users={users}
+            canViewBudgets={can("budgets.view")}
+          />}
           {view === "messages" && <MessageCenter
             users={users} posts={posts} currentUserId={authUserId} canSend={can("messages.send")}
           />}
@@ -626,6 +647,7 @@ function AppInner({ authUserId }: { authUserId: string }) {
             onToast={toast}
           />}
           {view === "settings" && <SettingsView
+            profileOnly={isClientUser}
             isDark={!lightMode} onToggleTheme={toggleTheme} onConfirm={setConfirm} onToast={toast}
             agencyData={agency} canEditAgency={can("workshop.manage")}
             onSaveAgency={(u, f) => saveAgency(u, f).then(() => toast("✓ Configuración guardada.", "success")).catch(() => toast("✕ No se pudo guardar.", "error"))}

@@ -7,6 +7,7 @@ import DiscussionBoard from "../components/DiscussionBoard";
 interface Props {
   currentUserId?: string;
   canViewBudgets?: boolean;
+  onImportLogged?: (count: number) => void;
   dynamicFormats?: { value: string; label: string }[];
   dynamicChannels?: { value: string; label: string; color: string | null }[];
   posts: ContentPost[];
@@ -1159,7 +1160,7 @@ function CSVImportModal({ clients, users, onImport, onCancel }: {
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-export default function ContentCalendar({ posts, clients, users, today, onMovePost, onAddPost, onUpdatePost, onAddPostFile, onRemovePostFile, dynamicFormats, dynamicChannels, currentUserId, canViewBudgets = true }: Props) {
+export default function ContentCalendar({ posts, clients, users, today, onMovePost, onAddPost, onUpdatePost, onAddPostFile, onRemovePostFile, dynamicFormats, dynamicChannels, currentUserId, canViewBudgets = true, onImportLogged }: Props) {
   // Catálogos configurables desde el Workshop: sincronizan las listas del módulo
   if (dynamicFormats?.length) FORMATS = dynamicFormats.map((f) => f.value) as PostFormat[];
   if (dynamicChannels?.length) {
@@ -1293,6 +1294,7 @@ export default function ContentCalendar({ posts, clients, users, today, onMovePo
           clients={clients} users={users}
           onImport={(newPosts) => {
             newPosts.forEach((p) => onAddPost({ ...p, id: "" } as ContentPost));
+            onImportLogged?.(newPosts.length);
             setShowImport(false);
           }}
           onCancel={() => setShowImport(false)}

@@ -17,6 +17,7 @@ export function useHubData(authUserId: string) {
   const [projects, setProjects] = useState<Project[]>([])
   const [documents, setDocuments] = useState<HubDocument[]>([])
   const [interactions, setInteractions] = useState<Record<string, ClientInteraction[]>>({})
+  const [myClientId, setMyClientId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -37,6 +38,12 @@ export function useHubData(authUserId: string) {
         supabase.from('hub_documents').select('*').order('created_at', { ascending: false }),
         supabase.from('client_interactions').select('*').order('created_at', { ascending: false }).limit(200),
       ])
+
+      // ¿Soy un contacto externo de algún cliente?
+      const { data: myLink } = await supabase
+        .from('client_users').select('client_id')
+        .eq('user_id', authUserId).eq('activo', true).maybeSingle()
+      setMyClientId(myLink?.client_id ?? null)
 
       if (postsRes.error) throw postsRes.error
       if (clientsRes.error) throw clientsRes.error
@@ -389,6 +396,42 @@ export function useHubData(authUserId: string) {
     }
   }, [supabase, documents])
 
+  // ---------------- Auditoría de importaciones ----------------
+  const logImport = useCallback(async (count: number) => {
+    const me = users.find(u => u.id === authUserId)
+    const nombre = me?.name ?? 'Alguien'
+
+    await supabase.from('audit_log').insert({
+      entidad: 'content_items',
+      entidad_id: authUserId,
+      accion: 'csv_import',
+      actor_id: authUserId,
+      actor_nombre: nombre,
+      despues: { cantidad: count },
+    })
+
+    // Avisar a quienes puedan ver la operación
+    const { data: admins } = await supabase
+      .from('users').select('id, role').neq('id', authUserId)
+    const { data: roles } = await supabase
+      .from('hub_roles').select('key, scope')
+    const allScope = new Set((roles ?? []).filter(r => r.scope === 'all').map(r => r.key))
+    const targets = (admins ?? []).filter(a => allScope.has(a.role))
+
+    if (targets.length) {
+      await supabase.from('notifications').insert(
+        targets.map(a => ({
+          user_id: a.id,
+          type: 'system',
+          priority: 'low',
+          title: `${nombre} importó ${count} ${count === 1 ? 'publicación' : 'publicaciones'}`,
+          message: `Importación por CSV al calendario de contenido.`,
+          read: false,
+        }))
+      )
+    }
+  }, [supabase, authUserId, users])
+
   // ---------------- Proyectos: editar y borrar ----------------
   const updateProject = useCallback(async (id: string, updates: Partial<Project>) => {
     setProjects(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p))
@@ -482,11 +525,11 @@ export function useHubData(authUserId: string) {
   }, [supabase, agency, uploadFile])
 
   return {
-    posts, clients, users, notifications, projects, documents, interactions, loading, error,
+    posts, clients, users, notifications, projects, documents, interactions, myClientId, loading, error,
     agency, saveAgency, toggleCrewAssignment, changeUserRole, updateProfile,
     addProject, updateProject, deleteProject, moveProjectPhase, updateDeliverable, addDeliverable, setDeliverableFiles,
     deleteClient,
-    addClient, updateClient, addInteraction,
+    addClient, updateClient, addInteraction, logImport,
     addDocument, deleteDocument, uploadFile,
     movePost, addPost, updatePost, deletePost,
     markNotifRead, markAllRead,

@@ -108,13 +108,14 @@ interface Props {
   agencyData?: AgencyData | null;
   onSaveAgency?: (updates: Record<string, unknown>, logoFile?: File) => Promise<void> | void;
   canEditAgency?: boolean;
+  profileOnly?: boolean;
   onToast?: (m: string, k?: "success" | "error" | "info") => void;
   isDark?: boolean;
   onToggleTheme?: () => void;
   onConfirm?: (config: { title: string; message: string; danger?: boolean; onConfirm: () => void }) => void;
 }
 
-export default function SettingsView({ isDark = true, onToggleTheme, agencyData, onSaveAgency, canEditAgency = false, onToast }: Props) {
+export default function SettingsView({ isDark = true, onToggleTheme, agencyData, onSaveAgency, canEditAgency = false, onToast, profileOnly = false }: Props) {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [fontSize, setFontSize] = useState(16);
@@ -153,8 +154,12 @@ export default function SettingsView({ isDark = true, onToggleTheme, agencyData,
   return (
     <div className="p-4 md:p-8 space-y-8 max-w-3xl">
       <div>
-        <p className="font-mono text-muted text-xs tracking-widest uppercase mb-1">Preferencias del sistema</p>
-        <h1 className="font-display text-3xl md:text-5xl font-700 tracking-tight text-ink uppercase">Configuración</h1>
+        <p className="font-mono text-muted text-xs tracking-widest uppercase mb-1">
+          {profileOnly ? "Tus preferencias" : "Preferencias del sistema"}
+        </p>
+        <h1 className="font-display text-3xl md:text-5xl font-700 tracking-tight text-ink uppercase">
+          {profileOnly ? "Mi configuración" : "Configuración"}
+        </h1>
       </div>
 
       {/* Appearance */}
@@ -225,6 +230,7 @@ export default function SettingsView({ isDark = true, onToggleTheme, agencyData,
       </section>
 
       {/* Agency identity */}
+      {!profileOnly && (
       <section className="bg-surface border border-line rounded-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-line">
           <h2 className="font-display text-xl font-700 uppercase text-ink">Identidad de la agencia</h2>
@@ -312,8 +318,10 @@ export default function SettingsView({ isDark = true, onToggleTheme, agencyData,
           >{saving ? "Guardando…" : canEditAgency ? "Guardar cambios" : "Solo admins pueden editar"}</button>
         </div>
       </section>
+      )}
 
       {/* Workflow preferences */}
+      {!profileOnly && (
       <section className="bg-surface border border-line rounded-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-line">
           <h2 className="font-display text-xl font-700 uppercase text-ink">Flujo de trabajo</h2>
@@ -362,8 +370,10 @@ export default function SettingsView({ isDark = true, onToggleTheme, agencyData,
           </div>
         </div>
       </section>
+      )}
 
       {/* Integrations */}
+      {!profileOnly && (
       <section className="bg-surface border border-line rounded-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-line">
           <h2 className="font-display text-xl font-700 uppercase text-ink">Integraciones</h2>
@@ -386,11 +396,13 @@ export default function SettingsView({ isDark = true, onToggleTheme, agencyData,
           ))}
         </div>
       </section>
+      )}
 
       {/* Notification preferences */}
       <NotifPrefsSection onToast={onToast} />
 
       {/* Danger zone */}
+      {!profileOnly && (
       <section className="bg-surface border border-danger/20 rounded-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-danger/20">
           <h2 className="font-display text-xl font-700 uppercase text-danger">Zona de peligro</h2>
@@ -413,6 +425,7 @@ export default function SettingsView({ isDark = true, onToggleTheme, agencyData,
           ))}
         </div>
       </section>
+      )}
     </div>
   );
 }
