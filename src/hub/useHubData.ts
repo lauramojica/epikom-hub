@@ -17,7 +17,6 @@ export function useHubData(authUserId: string) {
   const [projects, setProjects] = useState<Project[]>([])
   const [documents, setDocuments] = useState<HubDocument[]>([])
   const [interactions, setInteractions] = useState<Record<string, ClientInteraction[]>>({})
-  const [myClientId, setMyClientId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -38,12 +37,6 @@ export function useHubData(authUserId: string) {
         supabase.from('hub_documents').select('*').order('created_at', { ascending: false }),
         supabase.from('client_interactions').select('*').order('created_at', { ascending: false }).limit(200),
       ])
-
-      // ¿Soy un contacto externo de algún cliente?
-      const { data: myLink } = await supabase
-        .from('client_users').select('client_id')
-        .eq('user_id', authUserId).eq('activo', true).maybeSingle()
-      setMyClientId(myLink?.client_id ?? null)
 
       if (postsRes.error) throw postsRes.error
       if (clientsRes.error) throw clientsRes.error
@@ -100,15 +93,7 @@ export function useHubData(authUserId: string) {
 
   // ---------------- Realtime: content_items ----------------
   useEffect(() => {
-    let channel: ReturnType<typeof supabase.channel> | null = null
-    let cancelled = false
-
-    const setup = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.access_token) supabase.realtime.setAuth(session.access_token)
-      if (cancelled) return
-
-      channel = supabase
+    const channel = supabase
       .channel('hub-content')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'content_items' }, (payload) => {
         if (payload.eventType === 'INSERT') {
@@ -124,92 +109,8 @@ export function useHubData(authUserId: string) {
         }
       })
       .subscribe()
-    }
-
-    setup()
-    return () => {
-      cancelled = true
-      if (channel) supabase.removeChannel(channel)
-    }
+    return () => { supabase.removeChannel(channel) }
   }, [supabase])
-
-  // ---------------- Realtime: notificaciones propias ----------------
-  useEffect(() => {
-    let channel: ReturnType<typeof supabase.channel> | null = null
-    let cancelled = false
-
-    const setup = async () => {
-      // Realtime con RLS necesita el token del usuario, no la anon key
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.access_token) {
-        supabase.realtime.setAuth(session.access_token)
-      }
-      if (cancelled) return
-
-      channel = supabase
-      .channel(`hub-notifications-${authUserId}`)
-      .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${authUserId}` },
-        (payload) => {
-          setNotifications(prev => {
-            const incoming = notifFromDb(payload.new)
-            return prev.some(n => n.id === incoming.id) ? prev : [incoming, ...prev]
-          })
-        }
-      )
-      .on('postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${authUserId}` },
-        (payload) => {
-          setNotifications(prev => prev.map(n =>
-            n.id === (payload.new as { id: string }).id ? notifFromDb(payload.new) : n
-          ))
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          console.warn('Realtime notificaciones:', status)
-        }
-      })
-    }
-
-    setup()
-    return () => {
-      cancelled = true
-      if (channel) supabase.removeChannel(channel)
-    }
-  }, [supabase, authUserId])
-
-  // Respaldo: refrescar notificaciones cada 45s y al volver a la pestaña.
-  // Garantiza que lleguen aunque el realtime falle (red, proxy, etc).
-  useEffect(() => {
-    const refresh = async () => {
-      if (document.visibilityState !== 'visible') return
-      const { data } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', authUserId)
-        .order('created_at', { ascending: false })
-        .limit(50)
-      if (data) {
-        setNotifications(prev => {
-          const fresh = data.map(notifFromDb)
-          // Solo actualizar si algo cambió, para no re-renderizar de gratis
-          const changed = fresh.length !== prev.length
-            || fresh.some((n, i) => n.id !== prev[i]?.id || n.read !== prev[i]?.read)
-          return changed ? fresh : prev
-        })
-      }
-    }
-
-    const interval = setInterval(refresh, 45000)
-    document.addEventListener('visibilitychange', refresh)
-    window.addEventListener('focus', refresh)
-    return () => {
-      clearInterval(interval)
-      document.removeEventListener('visibilitychange', refresh)
-      window.removeEventListener('focus', refresh)
-    }
-  }, [supabase, authUserId])
 
   // ---------------- Mutaciones ----------------
   const movePost = useCallback(async (postId: string, newStatus: PostStatus) => {
@@ -396,68 +297,6 @@ export function useHubData(authUserId: string) {
     }
   }, [supabase, documents])
 
-  // ---------------- Auditoría de importaciones ----------------
-  const logImport = useCallback(async (count: number) => {
-    const me = users.find(u => u.id === authUserId)
-    const nombre = me?.name ?? 'Alguien'
-
-    await supabase.from('audit_log').insert({
-      entidad: 'content_items',
-      entidad_id: authUserId,
-      accion: 'csv_import',
-      actor_id: authUserId,
-      actor_nombre: nombre,
-      despues: { cantidad: count },
-    })
-
-    // Avisar a quienes puedan ver la operación
-    const { data: admins } = await supabase
-      .from('users').select('id, role').neq('id', authUserId)
-    const { data: roles } = await supabase
-      .from('hub_roles').select('key, scope')
-    const allScope = new Set((roles ?? []).filter(r => r.scope === 'all').map(r => r.key))
-    const targets = (admins ?? []).filter(a => allScope.has(a.role))
-
-    if (targets.length) {
-      await supabase.from('notifications').insert(
-        targets.map(a => ({
-          user_id: a.id,
-          type: 'system',
-          priority: 'low',
-          title: `${nombre} importó ${count} ${count === 1 ? 'publicación' : 'publicaciones'}`,
-          message: `Importación por CSV al calendario de contenido.`,
-          read: false,
-        }))
-      )
-    }
-  }, [supabase, authUserId, users])
-
-  // ---------------- Proyectos: editar y borrar ----------------
-  const updateProject = useCallback(async (id: string, updates: Partial<Project>) => {
-    setProjects(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p))
-    const payload = projectToDb(updates)
-    if (Object.keys(payload).length === 0) return
-    const { error } = await supabase.from('projects').update(payload).eq('id', id)
-    if (error) { console.error('updateProject:', error); loadAll(); throw error }
-  }, [supabase, loadAll])
-
-  const deleteProject = useCallback(async (id: string) => {
-    setProjects(prev => prev.filter(p => p.id !== id))
-    const { error } = await supabase.from('projects').delete().eq('id', id)
-    if (error) { console.error('deleteProject:', error); loadAll(); throw error }
-  }, [supabase, loadAll])
-
-  const deleteClient = useCallback(async (id: string) => {
-    const { count } = await supabase.from('content_items')
-      .select('id', { count: 'exact', head: true }).eq('client_id', id)
-    if ((count ?? 0) > 0) {
-      throw new Error(`Este cliente tiene ${count} publicaciones. Muévelas o elimínalas primero.`)
-    }
-    setClients(prev => prev.filter(c => c.id !== id))
-    const { error } = await supabase.from('hub_clients').delete().eq('id', id)
-    if (error) { console.error('deleteClient:', error); loadAll(); throw error }
-  }, [supabase, loadAll])
-
   // ---------------- Crew, roles, agencia y perfil ----------------
   const toggleCrewAssignment = useCallback(async (userId: string, clientId: string, assigned: boolean) => {
     setUsers(prev => prev.map(u => u.id !== userId ? u : {
@@ -484,8 +323,8 @@ export function useHubData(authUserId: string) {
     if (error) { console.error(error); loadAll(); throw error }
   }, [supabase, loadAll])
 
-  const updateProfile = useCallback(async (updates: { name?: string; phone?: string; avatar_url?: string | null }) => {
-    setUsers(prev => prev.map(u => u.id === authUserId ? { ...u, name: updates.name ?? u.name, phone: updates.phone ?? u.phone, avatarUrl: updates.avatar_url !== undefined ? updates.avatar_url : u.avatarUrl } : u))
+  const updateProfile = useCallback(async (updates: { name?: string; phone?: string }) => {
+    setUsers(prev => prev.map(u => u.id === authUserId ? { ...u, ...updates } : u))
     const { error } = await supabase.from('users').update(updates).eq('id', authUserId)
     if (error) { console.error(error); loadAll(); throw error }
   }, [supabase, authUserId, loadAll])
@@ -496,40 +335,24 @@ export function useHubData(authUserId: string) {
       .then(({ data }) => { if (data) setAgency(data) })
   }, [supabase])
 
-  const saveAgency = useCallback(async (updates: Record<string, any>, files?: File | Record<string, File>) => {
-    const payload: Record<string, any> = { ...updates, updated_at: new Date().toISOString() }
-    delete payload.id
-
-    // Compat: un solo File = logo principal
-    if (files instanceof File) {
-      const up = await uploadFile(files, 'branding')
-      payload.logo_url = up.url
-    } else if (files && typeof files === 'object') {
-      const keyMap: Record<string, string> = {
-        logo: 'logo_url', logo_light: 'logo_url_light',
-        icon: 'icon_url', icon_light: 'icon_url_light',
-        portal_logo: 'portal_logo_url', favicon: 'favicon_url',
-      }
-      for (const [k, f] of Object.entries(files)) {
-        const col = keyMap[k]
-        if (col && f instanceof File) {
-          const up = await uploadFile(f, 'branding')
-          payload[col] = up.url
-        }
-      }
+  const saveAgency = useCallback(async (updates: Record<string, any>, logoFile?: File) => {
+    let logo_url = updates.logo_url ?? agency?.logo_url ?? null
+    if (logoFile) {
+      const up = await uploadFile(logoFile, 'branding')
+      logo_url = up.url
     }
-    if (payload.logo_url === undefined) payload.logo_url = agency?.logo_url ?? null
+    const payload: Record<string, any> = { ...updates, logo_url, updated_at: new Date().toISOString() }
+    delete payload.id
     setAgency(prev => ({ ...(prev ?? {}), ...payload, id: 1 }))
     const { error } = await supabase.from('agency_settings').update(payload).eq('id', 1)
     if (error) { console.error(error); throw error }
   }, [supabase, agency, uploadFile])
 
   return {
-    posts, clients, users, notifications, projects, documents, interactions, myClientId, loading, error,
+    posts, clients, users, notifications, projects, documents, interactions, loading, error,
     agency, saveAgency, toggleCrewAssignment, changeUserRole, updateProfile,
-    addProject, updateProject, deleteProject, moveProjectPhase, updateDeliverable, addDeliverable, setDeliverableFiles,
-    deleteClient,
-    addClient, updateClient, addInteraction, logImport,
+    addProject, moveProjectPhase, updateDeliverable, addDeliverable, setDeliverableFiles,
+    addClient, updateClient, addInteraction,
     addDocument, deleteDocument, uploadFile,
     movePost, addPost, updatePost, deletePost,
     markNotifRead, markAllRead,

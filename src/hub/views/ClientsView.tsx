@@ -1,7 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import type { Client, Project, ContentPost, BrandColor, BrandFont } from "../types";
-import { useUpload } from "../UploadContext";
-import EmailAddress from "../components/EmailAddress";
 
 interface Props {
   clients: Client[];
@@ -9,12 +7,7 @@ interface Props {
   posts: ContentPost[];
   onUpdateClient?: (id: string, updates: Partial<Client>) => void;
   onAddClient?: (c: Partial<Client>) => void;
-  onDeleteClient?: (id: string) => void;
   interactions?: Record<string, import("../types").ClientInteraction[]>;
-  services?: { id: string; name: string; color: string; enables_content_calendar: boolean }[];
-  clientServices?: Record<string, string[]>;
-  onToggleService?: (clientId: string, serviceId: string, on: boolean) => void;
-  canEdit?: boolean;
 }
 
 const interactionIcons: Record<string, string> = {
@@ -42,18 +35,11 @@ function ColorSwatch({ color, onUpdate, onRemove }: { color: BrandColor; onUpdat
   );
 }
 
-function BrandTab({ client, onUpdate, logoRef, canEdit = true, upload }: {
-  client: Client; onUpdate: (u: Partial<Client>) => void;
-  logoRef: React.RefObject<HTMLInputElement | null>;
-  canEdit?: boolean;
-  upload?: ((f: File, folder?: string) => Promise<{ url: string }>) | null;
-}) {
-  const [rules, setRules] = useState(client.brandRules);
-  useEffect(() => { setRules(client.brandRules); }, [client.id]);
-  const dirty = JSON.stringify(rules) !== JSON.stringify(client.brandRules);
+function BrandTab({ client, onUpdate, logoRef }: { client: Client; onUpdate: (u: Partial<Client>) => void; logoRef: React.RefObject<HTMLInputElement | null> }) {
+  const rules = client.brandRules;
 
-  const updColors = (colors: BrandColor[]) => setRules((r) => ({ ...r, colors }));
-  const updFonts = (fonts: BrandFont[]) => setRules((r) => ({ ...r, fonts }));
+  const updColors = (colors: BrandColor[]) => onUpdate({ brandRules: { ...rules, colors } });
+  const updFonts = (fonts: BrandFont[]) => onUpdate({ brandRules: { ...rules, fonts } });
   const addColor = () => updColors([...rules.colors, { label: "Nuevo color", hex: "#888888" }]);
   const removeColor = (i: number) => updColors(rules.colors.filter((_, j) => j !== i));
   const updateColor = (i: number, c: BrandColor) => updColors(rules.colors.map((x, j) => j === i ? c : x));
@@ -61,14 +47,11 @@ function BrandTab({ client, onUpdate, logoRef, canEdit = true, upload }: {
   const removeFont = (i: number) => updFonts((rules.fonts || []).filter((_, j) => j !== i));
   const updateFont = (i: number, f: BrandFont) => updFonts((rules.fonts || []).map((x, j) => j === i ? f : x));
 
-  const handleLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogo = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    let url = URL.createObjectURL(file);
-    if (upload) {
-      try { url = (await upload(file, "marcas")).url; } catch { /* usa el preview local */ }
-    }
-    setRules((r) => ({ ...r, logoUrl: url }));
+    const url = URL.createObjectURL(file);
+    onUpdate({ brandRules: { ...rules, logoUrl: url } });
   };
 
   return (
@@ -85,7 +68,7 @@ function BrandTab({ client, onUpdate, logoRef, canEdit = true, upload }: {
         {rules.logoUrl ? (
           <div className="relative w-full h-32 bg-surface2 border border-line rounded-xl overflow-hidden flex items-center justify-center group">
             <img src={rules.logoUrl} alt="Logo" className="max-h-28 max-w-full object-contain" />
-            <button onClick={() => setRules((r) => ({ ...r, logoUrl: undefined }))} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 w-6 h-6 bg-danger rounded-full text-ink text-xs flex items-center justify-center transition-all">×</button>
+            <button onClick={() => onUpdate({ brandRules: { ...rules, logoUrl: undefined } })} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 w-6 h-6 bg-danger rounded-full text-ink text-xs flex items-center justify-center transition-all">×</button>
           </div>
         ) : (
           <button onClick={() => logoRef.current?.click()} className="w-full h-24 bg-surface2 border-2 border-dashed border-line rounded-xl flex flex-col items-center justify-center gap-1 hover:border-muted transition-all">
@@ -157,47 +140,28 @@ function BrandTab({ client, onUpdate, logoRef, canEdit = true, upload }: {
       {/* Tone + Guidelines + Banned words */}
       <div>
         <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-2">Tono de comunicación</h3>
-        <textarea value={rules.tone} onChange={(e) => setRules((r) => ({ ...r, tone: e.target.value }))} rows={2} className="w-full bg-surface2 border border-line rounded-lg px-4 py-3 text-sm text-ink outline-none focus:border-primary/40 resize-none" />
+        <textarea value={rules.tone} onChange={(e) => onUpdate({ brandRules: { ...rules, tone: e.target.value } })} rows={2} className="w-full bg-surface2 border border-line rounded-lg px-4 py-3 text-sm text-ink outline-none focus:border-primary/40 resize-none" />
       </div>
       <div>
         <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-2">Lineamientos</h3>
-        <textarea value={rules.guidelines} onChange={(e) => setRules((r) => ({ ...r, guidelines: e.target.value }))} rows={3} className="w-full bg-surface2 border border-line rounded-lg px-4 py-3 text-sm text-ink outline-none focus:border-primary/40 resize-none leading-relaxed" />
+        <textarea value={rules.guidelines} onChange={(e) => onUpdate({ brandRules: { ...rules, guidelines: e.target.value } })} rows={3} className="w-full bg-surface2 border border-line rounded-lg px-4 py-3 text-sm text-ink outline-none focus:border-primary/40 resize-none leading-relaxed" />
       </div>
       <div>
         <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-2">Palabras prohibidas</h3>
-        <input value={rules.bannedWords.join(", ")} onChange={(e) => setRules((r) => ({ ...r, bannedWords: e.target.value.split(",").map((w) => w.trim()).filter(Boolean) }))} placeholder="Separar con comas..." className="w-full bg-surface2 border border-line rounded-lg px-4 py-3 text-sm text-ink outline-none focus:border-primary/40 font-mono" />
+        <input value={rules.bannedWords.join(", ")} onChange={(e) => onUpdate({ brandRules: { ...rules, bannedWords: e.target.value.split(",").map((w) => w.trim()).filter(Boolean) } })} placeholder="Separar con comas..." className="w-full bg-surface2 border border-line rounded-lg px-4 py-3 text-sm text-ink outline-none focus:border-primary/40 font-mono" />
         <div className="flex flex-wrap gap-2 mt-2">
           {rules.bannedWords.map((w) => <span key={w} className="text-xs font-mono px-3 py-1 rounded-full bg-danger/10 text-danger border border-danger/20">{w}</span>)}
         </div>
       </div>
-
-      {canEdit && (
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-line sticky bottom-0 bg-surface">
-          {dirty && <span className="text-[10px] font-mono text-warning">Cambios sin guardar</span>}
-          {dirty && (
-            <button onClick={() => setRules(client.brandRules)} className="text-xs font-mono px-4 py-2 rounded-lg border border-line text-muted hover:text-ink">
-              Descartar
-            </button>
-          )}
-          <button
-            onClick={() => onUpdate({ brandRules: rules })}
-            disabled={!dirty}
-            className="text-xs font-mono px-5 py-2 rounded-lg bg-primary text-bg font-600 hover:opacity-90 disabled:opacity-30 transition-opacity"
-          >
-            Guardar cambios
-          </button>
-        </div>
-      )}
     </div>
   );
 }
 
-export default function ClientsView({ clients, projects, posts, onUpdateClient, onAddClient, onDeleteClient, interactions = {}, services = [], clientServices = {}, onToggleService, canEdit = true }: Props) {
+export default function ClientsView({ clients, projects, posts, onUpdateClient, onAddClient, interactions = {} }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
   const [showNewClient, setShowNewClient] = useState(false);
   const [search, setSearch] = useState("");
-  const [tab, setTab] = useState<"profile" | "edit" | "brand" | "crm">("profile");
-  const upload = useUpload();
+  const [tab, setTab] = useState<"profile" | "brand" | "crm">("profile");
   const logoRef = useRef<HTMLInputElement>(null);
 
   const filtered = clients.filter((c) =>
@@ -215,16 +179,16 @@ export default function ClientsView({ clients, projects, posts, onUpdateClient, 
       <div className="flex items-end justify-between">
         <div>
           <p className="font-mono text-muted text-xs tracking-widest uppercase mb-1">CRM — Cartera</p>
-          <h1 className="font-display text-3xl md:text-5xl font-700 tracking-tight text-ink uppercase">Cuentas</h1>
+          <h1 className="font-display text-3xl md:text-5xl font-700 tracking-tight text-ink uppercase">Clientes</h1>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.5"/><path d="M9.5 9.5L12.5 12.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar cuenta..." className="bg-surface border border-line rounded-lg pl-9 pr-4 py-2 text-sm text-ink outline-none focus:border-primary/40 w-52 font-body" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar cliente..." className="bg-surface border border-line rounded-lg pl-9 pr-4 py-2 text-sm text-ink outline-none focus:border-primary/40 w-52 font-body" />
           </div>
           {onAddClient && (
             <button onClick={() => setShowNewClient(true)} className="text-xs font-mono px-4 py-2.5 rounded-lg bg-primary text-bg font-600 hover:opacity-90 transition-opacity flex-shrink-0">
-              + Nueva cuenta
+              + Nuevo cliente
             </button>
           )}
         </div>
@@ -318,9 +282,9 @@ export default function ClientsView({ clients, projects, posts, onUpdateClient, 
 
             {/* Tabs */}
             <div className="flex border-b border-line">
-              {(["profile", "edit", "brand", "crm"] as const).map((t) => (
+              {(["profile", "brand", "crm"] as const).map((t) => (
                 <button key={t} onClick={() => setTab(t)} className={`px-5 py-3 text-xs font-mono uppercase tracking-widest transition-all border-b-2 -mb-px ${tab === t ? "text-primary border-primary" : "text-muted border-transparent hover:text-ink"}`}>
-                  {t === "profile" ? "Perfil" : t === "edit" ? "Editar" : t === "brand" ? "Marca" : "CRM"}
+                  {t === "profile" ? "Perfil" : t === "brand" ? "Marca" : "CRM"}
                 </button>
               ))}
             </div>
@@ -329,53 +293,7 @@ export default function ClientsView({ clients, projects, posts, onUpdateClient, 
               {/* Profile tab */}
               {tab === "profile" && (
                 <div className="space-y-6">
-                  {/* Resumen siempre visible */}
-                  <div>
-                    <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-3">Información</h3>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[
-                        ["Idioma", client.language],
-                        ["Zona horaria", client.timezone?.replace("_", " ") ?? "—"],
-                        ["Email", client.email || "—"],
-                        ["Teléfono", client.phone || "—"],
-                      ].map(([label, value]) => (
-                        <div key={label} className="bg-surface2 border border-line rounded-lg px-3 py-2">
-                          <p className="font-mono text-[9px] text-muted uppercase tracking-widest">{label}</p>
-                          <p className="text-sm text-ink truncate">{value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Servicios contratados */}
-                  <div>
-                    <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-3">Servicios</h3>
-                    {(clientServices[client.id] ?? []).length === 0 ? (
-                      <p className="text-xs text-muted">
-                        Sin servicios asignados. Ve a la pestaña <span className="text-ink">Editar</span> para asignarlos.
-                      </p>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {(clientServices[client.id] ?? []).map((sid) => {
-                          const svc = services.find((x) => x.id === sid);
-                          if (!svc) return null;
-                          return (
-                            <span key={sid} className="text-xs font-mono px-2.5 py-1 rounded-lg" style={{ background: `${svc.color}18`, color: svc.color }}>
-                              {svc.name}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-
                   {/* Contacts */}
-                  {client.contacts.length === 0 && (
-                    <div>
-                      <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-3">Contactos</h3>
-                      <p className="text-xs text-muted">Aún no hay contactos. Añádelos desde <span className="text-ink">Editar</span>.</p>
-                    </div>
-                  )}
                   {client.contacts.length > 0 && (
                     <div>
                       <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-3">Contactos</h3>
@@ -400,12 +318,6 @@ export default function ClientsView({ clients, projects, posts, onUpdateClient, 
                   )}
 
                   {/* Projects */}
-                  {clientProjects.length === 0 && (
-                    <div>
-                      <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-3">Proyectos</h3>
-                      <p className="text-xs text-muted">Sin proyectos activos para este cliente.</p>
-                    </div>
-                  )}
                   {clientProjects.length > 0 && (
                     <div>
                       <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-3">Proyectos</h3>
@@ -426,22 +338,9 @@ export default function ClientsView({ clients, projects, posts, onUpdateClient, 
                 </div>
               )}
 
-              {/* Edit tab */}
-              {tab === "edit" && (
-                <ClientEditTab
-                  client={client}
-                  canEdit={canEdit}
-                  services={services}
-                  activeServiceIds={clientServices[client.id] ?? []}
-                  onToggleService={(sid, on) => onToggleService?.(client.id, sid, on)}
-                  onSave={(updates) => onUpdateClient?.(client.id, updates)}
-                  onDelete={onDeleteClient ? () => onDeleteClient(client.id) : undefined}
-                />
-              )}
-
               {/* Brand tab */}
               {tab === "brand" && (
-                <BrandTab client={client} onUpdate={(updates) => onUpdateClient?.(client.id, updates)} logoRef={logoRef} canEdit={canEdit} upload={upload} />
+                <BrandTab client={client} onUpdate={(updates) => onUpdateClient?.(client.id, updates)} logoRef={logoRef} />
               )}
 
               {/* CRM tab */}
@@ -473,7 +372,7 @@ export default function ClientsView({ clients, projects, posts, onUpdateClient, 
         ) : (
           <div className="flex-1 bg-surface border border-line rounded-xl flex items-center justify-center">
             <div className="text-center">
-              <p className="font-display text-4xl font-700 text-muted/20 uppercase mb-2">Cuentas</p>
+              <p className="font-display text-4xl font-700 text-muted/20 uppercase mb-2">Clientes</p>
               <p className="text-sm text-muted">Selecciona un cliente para ver su perfil</p>
             </div>
           </div>
@@ -523,7 +422,7 @@ function NewClientModal({ onAdd, onCancel }: { onAdd: (c: Partial<Client>) => vo
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6" onClick={onCancel}>
       <div className="bg-surface border border-line rounded-2xl w-full max-w-lg overflow-hidden animate-pop-in" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-line flex items-center justify-between">
-          <h2 className="font-display text-2xl font-700 uppercase text-ink">Nueva cuenta</h2>
+          <h2 className="font-display text-2xl font-700 uppercase text-ink">Nuevo cliente</h2>
           <button onClick={onCancel} className="text-muted hover:text-ink text-lg">✕</button>
         </div>
         <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
@@ -578,181 +477,9 @@ function NewClientModal({ onAdd, onCancel }: { onAdd: (c: Partial<Client>) => vo
         </div>
         <div className="px-6 py-4 border-t border-line flex justify-end gap-3">
           <button onClick={onCancel} className="text-xs font-mono px-4 py-2 rounded-lg border border-line text-muted hover:text-ink transition-colors">Cancelar</button>
-          <button onClick={submit} className="text-xs font-mono px-5 py-2 rounded-lg bg-primary text-bg font-600 hover:opacity-90">Crear cuenta</button>
+          <button onClick={submit} className="text-xs font-mono px-5 py-2 rounded-lg bg-primary text-bg font-600 hover:opacity-90">Crear cliente</button>
         </div>
       </div>
-    </div>
-  );
-}
-
-/* ─── Editar cliente ──────────────────────────────────────────────────────── */
-function ClientEditTab({ client, canEdit, services, activeServiceIds, onToggleService, onSave, onDelete }: {
-  client: Client;
-  canEdit: boolean;
-  services: { id: string; name: string; color: string; enables_content_calendar: boolean }[];
-  activeServiceIds: string[];
-  onToggleService: (serviceId: string, on: boolean) => void;
-  onSave: (updates: Partial<Client>) => void;
-  onDelete?: () => void;
-}) {
-  const [draft, setDraft] = useState<Client>({ ...client });
-  const [confirmDelete, setConfirmDelete] = useState(false);
-
-  useEffect(() => { setDraft({ ...client }); }, [client.id]);
-
-  const dirty = JSON.stringify(draft) !== JSON.stringify(client);
-  const upd = (k: keyof Client, v: unknown) => setDraft((p) => ({ ...p, [k]: v }));
-  const cls = "w-full bg-surface2 border border-line rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-primary/40 font-body placeholder:text-muted/50";
-
-  const updContact = (i: number, field: string, value: string) => {
-    const next = [...draft.contacts];
-    next[i] = { ...next[i], [field]: value };
-    upd("contacts", next);
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Datos base */}
-      <div>
-        <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-3">Datos de la cuenta</h3>
-        <div className="space-y-4">
-          <div className="flex gap-4 items-end">
-            <div className="flex-1">
-              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Nombre</label>
-              <input value={draft.name} disabled={!canEdit} onChange={(e) => { upd("name", e.target.value); upd("company", e.target.value); }} className={cls} />
-            </div>
-            <div>
-              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Color</label>
-              <div className="w-10 h-10 rounded-lg border border-line relative cursor-pointer" style={{ background: draft.color }}>
-                {canEdit && <input type="color" value={draft.color} onChange={(e) => upd("color", e.target.value)} className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" />}
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Idioma</label>
-              <select value={draft.language} disabled={!canEdit} onChange={(e) => upd("language", e.target.value)} className={cls + " cursor-pointer"}>
-                <option className="bg-surface">Español</option>
-                <option className="bg-surface">English</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Zona horaria</label>
-              <select value={draft.timezone} disabled={!canEdit} onChange={(e) => upd("timezone", e.target.value)} className={cls + " cursor-pointer"}>
-                {["America/Puerto_Rico", "America/New_York", "America/Chicago", "America/Los_Angeles"].map((tz) => (
-                  <option key={tz} value={tz} className="bg-surface">{tz.replace("_", " ")}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <label className="flex items-center gap-2 text-xs text-ink cursor-pointer">
-            <input type="checkbox" checked={draft.notifyEmail} disabled={!canEdit} onChange={(e) => upd("notifyEmail", e.target.checked)} className="accent-[#31b498]" />
-            Recibe notificaciones por email
-          </label>
-        </div>
-      </div>
-
-      {/* Email de la cuenta */}
-      {client.slug && (
-        <div>
-          <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-2">Crear tareas por email</h3>
-          <EmailAddress slug={client.slug} token={client.emailToken} kind="client" entityId={client.id} />
-        </div>
-      )}
-
-      {/* Servicios contratados */}
-      <div>
-        <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest mb-1">Servicios contratados</h3>
-        <p className="text-[11px] text-muted mb-3">Definen qué módulos se activan para este cliente.</p>
-        {services.length === 0 ? (
-          <p className="text-xs text-muted">Aún no hay servicios. Créalos en Workshop → Servicios.</p>
-        ) : (
-          <div className="grid grid-cols-2 gap-2">
-            {services.map((s) => {
-              const on = activeServiceIds.includes(s.id);
-              return (
-                <label key={s.id} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border text-xs cursor-pointer transition-all ${on ? "border-primary/40 bg-primary/5 text-ink" : "border-line text-muted hover:border-muted"}`}>
-                  <input type="checkbox" checked={on} disabled={!canEdit} onChange={(e) => onToggleService(s.id, e.target.checked)} className="accent-[#31b498]" />
-                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }} />
-                  <span className="truncate flex-1">{s.name}</span>
-                  {s.enables_content_calendar && on && <span className="text-[9px] font-mono text-primary">📅</span>}
-                </label>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Contactos */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-mono text-[10px] text-muted uppercase tracking-widest">Contactos</h3>
-          {canEdit && (
-            <button
-              onClick={() => upd("contacts", [...draft.contacts, { name: "", role: "", email: "", phone: "" }])}
-              className="text-[10px] font-mono text-primary hover:opacity-80"
-            >
-              + Añadir contacto
-            </button>
-          )}
-        </div>
-        <div className="space-y-2">
-          {draft.contacts.map((c, i) => (
-            <div key={i} className="bg-surface2 border border-line rounded-lg p-3 space-y-2">
-              <div className="flex gap-2">
-                <input value={c.name} disabled={!canEdit} onChange={(e) => updContact(i, "name", e.target.value)} placeholder="Nombre" className={cls} />
-                <input value={c.role} disabled={!canEdit} onChange={(e) => updContact(i, "role", e.target.value)} placeholder="Puesto" className={cls} />
-                {canEdit && (
-                  <button
-                    onClick={() => upd("contacts", draft.contacts.filter((_, j) => j !== i))}
-                    className="text-danger hover:opacity-70 px-2 flex-shrink-0"
-                    title="Quitar contacto"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <input value={c.email} disabled={!canEdit} onChange={(e) => updContact(i, "email", e.target.value)} placeholder="email@cliente.com" className={cls} />
-                <input value={c.phone} disabled={!canEdit} onChange={(e) => updContact(i, "phone", e.target.value)} placeholder="787-000-0000" className={cls} />
-              </div>
-            </div>
-          ))}
-          {draft.contacts.length === 0 && <p className="text-xs text-muted">Sin contactos registrados.</p>}
-        </div>
-      </div>
-
-      {/* Acciones */}
-      {canEdit && (
-        <div className="flex items-center justify-between pt-4 border-t border-line">
-          {onDelete ? (
-            confirmDelete ? (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-danger">¿Seguro?</span>
-                <button onClick={onDelete} className="text-xs font-mono px-3 py-1.5 rounded-lg bg-danger text-white font-600">Sí, eliminar</button>
-                <button onClick={() => setConfirmDelete(false)} className="text-xs font-mono px-3 py-1.5 rounded-lg border border-line text-muted">Cancelar</button>
-              </div>
-            ) : (
-              <button onClick={() => setConfirmDelete(true)} className="text-xs font-mono text-danger hover:opacity-80">
-                Eliminar cuenta
-              </button>
-            )
-          ) : <span />}
-
-          <div className="flex items-center gap-3">
-            {dirty && <span className="text-[10px] font-mono text-warning">Cambios sin guardar</span>}
-            <button
-              onClick={() => onSave(draft)}
-              disabled={!dirty}
-              className="text-xs font-mono px-5 py-2 rounded-lg bg-primary text-bg font-600 hover:opacity-90 disabled:opacity-30 transition-opacity"
-            >
-              Guardar cambios
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

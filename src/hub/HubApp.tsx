@@ -8,8 +8,6 @@ import type { ContentPost, Project, Client, User, Notification, View, Deliverabl
 import { useHubData } from "./useHubData";
 import { todayPR, computeStreak } from "./adapters";
 import { UploadContext } from "./UploadContext";
-import { useWorkshop } from "./useWorkshop";
-import { usePermissions } from "./usePermissions";
 import { AnimatePresence, motion } from "motion/react";
 import MyWeek from "./views/MyWeek";
 import ContentCalendar from "./views/ContentCalendar";
@@ -19,11 +17,6 @@ import Analytics from "./views/Analytics";
 import NotificationsView from "./views/NotificationsView";
 import RolesView from "./views/RolesView";
 import SettingsView from "./views/SettingsView";
-import WorkshopView from "./views/WorkshopView";
-import MessageCenter from "./views/MessageCenter";
-import ClientReport from "./views/ClientReport";
-import TasksView from "./views/TasksView";
-import { useTasks } from "./useTasks";
 import DocumentsView from "./views/DocumentsView";
 import Avatar from "./components/Avatar";
 import UserProfilePanel from "./components/UserProfilePanel";
@@ -33,18 +26,14 @@ import ConfirmModal from "./components/ConfirmModal";
 
 const navItems: { key: View; label: string; icon: React.ReactElement }[] = [
   { key: "myweek", label: "Mi Semana", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="1" y="3" width="16" height="14" rx="2" stroke="currentColor" strokeWidth="1.5"/><path d="M1 7H17" stroke="currentColor" strokeWidth="1.5"/><path d="M5 1V4M13 1V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><rect x="4" y="10" width="2" height="2" rx="0.5" fill="currentColor"/><rect x="8" y="10" width="2" height="2" rx="0.5" fill="currentColor"/></svg> },
-  { key: "tasks", label: "Tareas", icon: (<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M6 4.5h9M6 9h9M6 13.5h9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M2.5 4.5l1 1 1.5-2M2.5 9l1 1 1.5-2M2.5 13.5l1 1 1.5-2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>) },
-          { key: "calendar", label: "Calendario", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 3H15C16.1 3 17 3.9 17 5V15C17 16.1 16.1 17 15 17H3C1.9 17 1 16.1 1 15V5C1 3.9 1.9 3 3 3Z" stroke="currentColor" strokeWidth="1.5"/><path d="M1 8H17" stroke="currentColor" strokeWidth="1.5"/><circle cx="6" cy="12" r="1" fill="currentColor"/><circle cx="9" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><path d="M5 1V4M13 1V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
+  { key: "calendar", label: "Calendario", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 3H15C16.1 3 17 3.9 17 5V15C17 16.1 16.1 17 15 17H3C1.9 17 1 16.1 1 15V5C1 3.9 1.9 3 3 3Z" stroke="currentColor" strokeWidth="1.5"/><path d="M1 8H17" stroke="currentColor" strokeWidth="1.5"/><circle cx="6" cy="12" r="1" fill="currentColor"/><circle cx="9" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><path d="M5 1V4M13 1V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
   { key: "projects", label: "Proyectos", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M1 5C1 3.9 1.9 3 3 3H7L9 5H15C16.1 5 17 5.9 17 7V14C17 15.1 16.1 16 15 16H3C1.9 16 1 15.1 1 14V5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg> },
-  { key: "clients", label: "Cuentas", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="1" y="3" width="16" height="12" rx="2" stroke="currentColor" strokeWidth="1.5"/><path d="M1 7H17" stroke="currentColor" strokeWidth="1.5"/><path d="M5 11H8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
+  { key: "clients", label: "Clientes", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="1" y="3" width="16" height="12" rx="2" stroke="currentColor" strokeWidth="1.5"/><path d="M1 7H17" stroke="currentColor" strokeWidth="1.5"/><path d="M5 11H8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
   { key: "analytics", label: "Analítica", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M1 14L5 9L8 12L12 6L17 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M1 17H17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
-  { key: "reports", label: "Reportes", icon: (<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 14V8M9 14V4M14 14v-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/><path d="M2 16h14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>) },
-          { key: "messages", label: "Mensajes", icon: (<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M15 3H3a1 1 0 00-1 1v8a1 1 0 001 1h3l3 3 3-3h3a1 1 0 001-1V4a1 1 0 00-1-1z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></svg>) },
-          { key: "notifications", label: "Notificaciones", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2C9 2 4 5 4 10V13H14V10C14 5 9 2 9 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/><path d="M7 13V14C7 15.1 7.9 16 9 16C10.1 16 11 15.1 11 14V13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><circle cx="9" cy="2" r="1" fill="currentColor"/></svg> },
+  { key: "notifications", label: "Notificaciones", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2C9 2 4 5 4 10V13H14V10C14 5 9 2 9 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/><path d="M7 13V14C7 15.1 7.9 16 9 16C10.1 16 11 15.1 11 14V13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><circle cx="9" cy="2" r="1" fill="currentColor"/></svg> },
   { key: "roles", label: "Roles", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="6" cy="6" r="2.5" stroke="currentColor" strokeWidth="1.5"/><circle cx="12" cy="6" r="2.5" stroke="currentColor" strokeWidth="1.5"/><path d="M1 15C1 12.8 3.2 11 6 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M17 15C17 12.8 14.8 11 12 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
   { key: "documents", label: "Documentos", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 2H11L15 6V16C15 16.6 14.6 17 14 17H4C3.4 17 3 16.6 3 16V3C3 2.4 3.4 2 4 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><path d="M11 2V6H15" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><path d="M6 10H12M6 13H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
-  { key: "workshop", label: "Workshop", icon: (<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M7.5 2.5L9 4l-5 5-1.5-1.5L7.5 2.5z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M11.5 6.5l4 4-2 2-4-4M3 15h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>) },
-          { key: "settings", label: "Configuración", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5"/><path d="M9 1.5V3M9 15V16.5M16.5 9H15M3 9H1.5M14.6 3.4L13.5 4.5M4.5 13.5L3.4 14.6M14.6 14.6L13.5 13.5M4.5 4.5L3.4 3.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
+  { key: "settings", label: "Configuración", icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5"/><path d="M9 1.5V3M9 15V16.5M16.5 9H15M3 9H1.5M14.6 3.4L13.5 4.5M4.5 13.5L3.4 14.6M14.6 14.6L13.5 13.5M4.5 4.5L3.4 3.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
 ];
 
 function timeAgo(ts: string) {
@@ -76,7 +65,7 @@ function NotifDropdown({ notifications, onMarkRead, onMarkAllRead, onViewAll, on
       {unread.length === 0 ? (
         <div className="py-8 text-center">
           <p className="text-2xl mb-1">🎊</p>
-          <p className="text-xs text-muted">Estás al día</p>
+          <p className="text-xs text-muted">Estás al día, bestie</p>
         </div>
       ) : (
         <div className="divide-y divide-line max-h-72 overflow-y-auto">
@@ -176,14 +165,13 @@ function AppInner({ authUserId }: { authUserId: string }) {
   const supabase = useMemo(() => createClient(), []);
   const [view, setView] = useState<View>("myweek");
   const {
-    posts, clients: allClients, users: rawUsers, notifications, projects: allProjects, documents: allDocuments, interactions, myClientId, loading, error,
+    posts, clients, users: rawUsers, notifications, projects, documents, interactions, loading, error,
     movePost: dbMovePost, addPost: dbAddPost, updatePost: dbUpdatePost,
     markNotifRead, markAllRead: dbMarkAllRead,
-    addProject: dbAddProject, updateProject: dbUpdateProject, deleteProject: dbDeleteProject,
-    deleteClient: dbDeleteClient, moveProjectPhase: dbMovePhase, updateDeliverable: dbUpdateDeliv,
-    setDeliverableFiles, addClient: dbAddClient, updateClient: dbUpdateClient, logImport,
+    addProject: dbAddProject, moveProjectPhase: dbMovePhase, updateDeliverable: dbUpdateDeliv,
+    setDeliverableFiles, addClient: dbAddClient, updateClient: dbUpdateClient,
     addDocument: dbAddDocument, deleteDocument: dbDeleteDocument, uploadFile,
-    agency, saveAgency, toggleCrewAssignment, changeUserRole, updateProfile, reload: reloadData,
+    agency, saveAgency, toggleCrewAssignment, changeUserRole, updateProfile,
   } = useHubData(authUserId);
   // Racha calculada con datos reales
   const users = useMemo(
@@ -195,7 +183,8 @@ function AppInner({ authUserId }: { authUserId: string }) {
   const [showProfile, setShowProfile] = useState(false);
   // Usuario activo = el logueado; admins pueden "ver como" otro en Mi Semana
   const loggedUser = users.find((u) => u.id === authUserId);
-  const activeUser = loggedUser ?? {
+  const [viewAsId, setViewAsId] = useState<string | null>(null);
+  const activeUser = users.find((u) => u.id === (viewAsId ?? authUserId)) ?? loggedUser ?? {
     id: authUserId, name: "Cargando…", email: "", phone: "", role: "crew" as const,
     initials: "…", color: "#31b498", assignedClientIds: [], alertThresholdDays: 3,
     emailNotifications: true, status: "active" as const, joinDate: "", skills: [], streak: 0,
@@ -217,41 +206,22 @@ function AppInner({ authUserId }: { authUserId: string }) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Tema: "dark" | "light" | "auto" (auto = claro 7am–7pm, oscuro el resto)
-  const [themeMode, setThemeMode] = useState<"dark" | "light" | "auto">("dark");
-
-  const isLightByClock = () => {
-    const h = Number(new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone: "America/Puerto_Rico" }).format(new Date()));
-    return h >= 7 && h < 19;
-  };
-
-  const applyTheme = useCallback((mode: "dark" | "light" | "auto") => {
-    const light = mode === "light" || (mode === "auto" && isLightByClock());
-    document.documentElement.classList.toggle("light", light);
-    setLightMode(light);
+  useEffect(() => {
+    const saved = localStorage.getItem("epikom-theme");
+    if (saved === "light") {
+      setLightMode(true);
+      document.documentElement.classList.add("light");
+    }
   }, []);
 
-  useEffect(() => {
-    const saved = (localStorage.getItem("epikom-theme") as "dark" | "light" | "auto") ?? "dark";
-    setThemeMode(saved);
-    applyTheme(saved);
-    // En modo auto, revisar cada 5 minutos por si cruzó el umbral
-    const t = setInterval(() => {
-      if ((localStorage.getItem("epikom-theme") ?? "dark") === "auto") applyTheme("auto");
-    }, 300000);
-    return () => clearInterval(t);
-  }, [applyTheme]);
-
-  const setTheme = (mode: "dark" | "light" | "auto") => {
-    setThemeMode(mode);
-    localStorage.setItem("epikom-theme", mode);
-    applyTheme(mode);
-    toast(mode === "auto" ? "🕐 Tema automático según la hora" : mode === "light" ? "☀️ Modo claro" : "🌙 Modo oscuro", "info");
-  };
-
   const toggleTheme = () => {
-    // Ciclo: dark → light → auto → dark
-    setTheme(themeMode === "dark" ? "light" : themeMode === "light" ? "auto" : "dark");
+    setLightMode((v) => {
+      const next = !v;
+      document.documentElement.classList.toggle("light", next);
+      localStorage.setItem("epikom-theme", next ? "light" : "dark");
+      toast(next ? "☀️ Modo claro, fresh!" : "🌙 Modo oscuro activado", "info");
+      return next;
+    });
   };
 
   const triggerConfetti = useCallback(() => {
@@ -261,61 +231,14 @@ function AppInner({ authUserId }: { authUserId: string }) {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const workshop = useWorkshop();
-  const perms = usePermissions(authUserId);
-  const tasksHook = useTasks(authUserId);
   const myRole = loggedUser?.role ?? "crew";
-  // Permisos reales del rol; mientras cargan, se usan los valores base del rol
-  const can = (perm: string) =>
-    perms.loading
-      ? (myRole === "superadmin" || myRole === "admin")
-      : perms.can(perm);
-  const isSuperadmin = perms.loading ? myRole === "superadmin" : perms.can("roles.manage");
-  const isAdminUp = perms.loading
-    ? (myRole === "superadmin" || myRole === "admin")
-    : perms.scope === "all";
-  const isClientUser = perms.loading
-    ? (myRole === "client" || myRole === "cliente")
-    : perms.scope === "own_client";
-  // ── Aislamiento del cliente externo ──
-  // Aunque RLS ya filtra en la base de datos, filtramos también aquí
-  // para que nunca se muestre nada que no le corresponda.
-  const clients = isClientUser && myClientId
-    ? allClients.filter((c) => c.id === myClientId)
-    : allClients;
-  const projects = isClientUser && myClientId
-    ? allProjects.filter((p) => p.clientId === myClientId)
-    : allProjects;
-  const documents = isClientUser && myClientId
-    ? allDocuments.filter((d) => d.clientId === myClientId)
-    : allDocuments;
-
-  const NAV_PERMISSION: Record<string, string | null> = {
-    myweek: null,
-    tasks: null,
-    calendar: "calendar.view",
-    projects: "projects.view",
-    clients: "clients.view",
-    analytics: "analytics.view",
-    reports: "analytics.view",
-    messages: "messages.send",
-    notifications: null,
-    roles: "crew.assign",
-    documents: "documents.view",
-    workshop: "workshop.manage",
-    settings: null,
-  };
-
+  const isSuperadmin = myRole === "superadmin";
+  const isAdminUp = myRole === "superadmin" || myRole === "admin";
+  const isClientUser = myRole === "client";
   const visibleNav = navItems.filter((item) => {
-    // Los clientes externos no ven Mi Semana ni la gestión interna
-    if (isClientUser && ["myweek", "roles", "workshop", "messages", "analytics", "reports"].includes(item.key)) {
-      return false;
-    }
-    const needed = NAV_PERMISSION[item.key];
-    if (!needed) return true;
-    // Roles siempre visible para quien pueda gestionar roles
-    if (item.key === "roles") return can("crew.assign") || can("roles.manage");
-    return can(needed);
+    if (isClientUser) return ["calendar", "documents", "notifications", "settings"].includes(item.key);
+    if (!isAdminUp) return item.key !== "roles";
+    return true;
   });
 
   // Si la vista actual no está permitida para el rol, redirigir a la primera visible
@@ -443,17 +366,13 @@ function AppInner({ authUserId }: { authUserId: string }) {
       <aside className={`flex-shrink-0 flex flex-col border-r border-line bg-surface transition-all duration-200
         max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-40 max-md:w-60
         ${sidebarOpen ? "w-52 max-md:translate-x-0" : "w-14 max-md:-translate-x-full"}`}>
-        <button
-          onClick={() => { setView(visibleNav[0]?.key ?? "myweek"); if (window.innerWidth < 768) setSidebarOpen(false); }}
-          title="Ir al inicio"
-          className="flex items-center gap-3 px-4 py-5 border-b border-line w-full text-left hover:bg-surface2/50 transition-colors group"
-        >
-          {(lightMode && agency?.logo_url_light ? agency.logo_url_light : agency?.logo_url) ? (
-            <div className="w-7 h-7 rounded-lg overflow-hidden flex-shrink-0 bg-surface2 group-hover:scale-105 transition-transform">
-              <img src={(lightMode && agency?.logo_url_light ? agency.logo_url_light : agency?.logo_url) as string} alt="Logo" className="w-full h-full object-contain" />
+        <div className="flex items-center gap-3 px-4 py-5 border-b border-line">
+          {agency?.logo_url ? (
+            <div className="w-7 h-7 rounded-lg overflow-hidden flex-shrink-0 bg-surface2">
+              <img src={agency.logo_url} alt="Logo" className="w-full h-full object-cover" />
             </div>
           ) : (
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-accent flex-shrink-0 group-hover:scale-105 transition-transform">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-accent flex-shrink-0">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <path d="M2 9L5 5L7.5 7.5L10 4L13 6.5" stroke="#0a0a0d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                 <circle cx="12" cy="11" r="2.5" fill="#0a0a0d"/>
@@ -463,10 +382,10 @@ function AppInner({ authUserId }: { authUserId: string }) {
           {sidebarOpen && (
             <div>
               <p className="font-display text-base font-800 uppercase tracking-widest text-ink leading-none">{(agency?.name ?? "Epikom").split(" ")[0]}</p>
-              <p className="font-mono text-[9px] text-muted uppercase tracking-widest">{(agency?.wordmark_sub as string) ?? "Hub Interno"}</p>
+              <p className="font-mono text-[9px] text-muted uppercase tracking-widest">Hub Interno</p>
             </div>
           )}
-        </button>
+        </div>
 
         <nav className="flex-1 py-3 space-y-0.5 px-2 overflow-y-auto">
           {visibleNav.map((item) => {
@@ -502,7 +421,7 @@ function AppInner({ authUserId }: { authUserId: string }) {
             onClick={() => setShowProfile(true)}
             className={`flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-surface2 transition-all w-full text-left ${sidebarOpen ? "" : "justify-center"}`}
           >
-            <Avatar initials={activeUser.initials} color={activeUser.color} size="sm" src={activeUser.avatarUrl} />
+            <Avatar initials={activeUser.initials} color={activeUser.color} size="sm" />
             {sidebarOpen && (
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-600 text-ink truncate">{activeUser.name}</p>
@@ -576,7 +495,7 @@ function AppInner({ authUserId }: { authUserId: string }) {
                 onClick={() => { setShowAvatarDropdown((v) => !v); setShowNotifDropdown(false); }}
                 className="rounded-full hover:ring-2 hover:ring-primary/40 transition-all"
               >
-                <Avatar initials={activeUser.initials} color={activeUser.color} size="sm" src={activeUser.avatarUrl} />
+                <Avatar initials={activeUser.initials} color={activeUser.color} size="sm" />
               </button>
               {showAvatarDropdown && (
                 <AvatarDropdown
@@ -600,70 +519,22 @@ function AppInner({ authUserId }: { authUserId: string }) {
           transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           className="flex-1 overflow-y-auto"
         >
-          {view === "myweek" && <MyWeek posts={posts} projects={projects} clients={clients} users={users} activeUser={activeUser} today={todayPR()} loggedUser={loggedUser} onMovePost={movePost}
-            tasks={tasksHook.tasks}
-            onToggleTask={(id) => tasksHook.toggleComplete(id).then((done) => { if (done) { triggerConfetti(); toast("✓ Tarea completada 🎉", "success"); } })}
-            onOpenTasks={() => setView("tasks")}
-          />}
-          {view === "tasks" && <TasksView
-            clients={clients} projects={projects} users={users}
-            authUserId={authUserId} canEdit={!isClientUser}
-            onConfetti={triggerConfetti} onToast={toast}
-          />}
-          {view === "calendar" && <ContentCalendar
-            dynamicFormats={workshop.byKind("format").map((o) => ({ value: o.value, label: o.label }))}
-            dynamicChannels={workshop.byKind("channel").map((o) => ({ value: o.value, label: o.label, color: o.color }))}
-            posts={posts} currentUserId={authUserId} canViewBudgets={can("budgets.view")}
-            clients={workshop.services.length > 0 ? clients.filter((c) => workshop.clientHasContentCalendar(c.id)) : clients}
-            users={users} today={todayPR()} onMovePost={movePost} onAddPost={addPost} onUpdatePost={updatePost} onAddPostFile={addPostFile} onRemovePostFile={removePostFile}
-            onImportLogged={(n) => logImport(n).catch(() => {})} />}
-          {view === "projects" && <ProjectsView projects={projects} clients={clients} users={users} onUpdateDeliverable={updateDeliverable} onAddDeliverableFile={addDeliverableFile} onRemoveDeliverableFile={removeDeliverableFile} onMoveProjectPhase={moveProjectPhase} onAddProject={addProject}
-            onUpdateProject={(id, u) => dbUpdateProject(id, u).then(() => toast("✓ Proyecto actualizado.", "success")).catch(() => toast("✕ No se pudo actualizar.", "error"))}
-            onDeleteProject={can("projects.delete") ? (id) => dbDeleteProject(id).then(() => toast("✓ Proyecto eliminado.", "success")).catch(() => toast("✕ No se pudo eliminar.", "error")) : undefined}
-            services={workshop.services}
-            projectServices={workshop.projectServices}
-            onToggleProjectService={(pid, sid, on) => workshop.toggleProjectService(pid, sid, on)}
-            canEdit={can("projects.edit")}
-            currentUserId={authUserId}
-          />}
-          {view === "clients" && <ClientsView
-            clients={clients} projects={projects} posts={posts}
-            onUpdateClient={updateClient} onAddClient={addClient}
-            onDeleteClient={can("clients.delete") ? (id) => dbDeleteClient(id).then(() => toast("✓ Cliente eliminado.", "success")).catch((e) => toast(e.message ?? "✕ No se pudo eliminar.", "error")) : undefined}
-            interactions={interactions}
-            services={workshop.services}
-            clientServices={workshop.clientServices}
-            onToggleService={(cid, sid, on) => workshop.toggleClientService(cid, sid, on)}
-            canEdit={can("clients.edit")}
-          />}
+          {view === "myweek" && <MyWeek posts={posts} projects={projects} clients={clients} users={users} activeUser={activeUser} today={todayPR()} onMovePost={movePost} onSwitchUser={(u) => setViewAsId(u.id)} />}
+          {view === "calendar" && <ContentCalendar posts={posts} clients={clients} users={users} today={todayPR()} onMovePost={movePost} onAddPost={addPost} onUpdatePost={updatePost} onAddPostFile={addPostFile} onRemovePostFile={removePostFile} />}
+          {view === "projects" && <ProjectsView projects={projects} clients={clients} users={users} onUpdateDeliverable={updateDeliverable} onAddDeliverableFile={addDeliverableFile} onRemoveDeliverableFile={removeDeliverableFile} onMoveProjectPhase={moveProjectPhase} onAddProject={addProject} />}
+          {view === "clients" && <ClientsView clients={clients} projects={projects} posts={posts} onUpdateClient={updateClient} onAddClient={addClient} interactions={interactions} />}
           {view === "analytics" && <Analytics posts={posts} projects={projects} clients={clients} users={users} />}
           {view === "notifications" && <NotificationsView notifications={notifications} clients={clients} onMarkRead={markNotifRead} onMarkAllRead={markAllRead} />}
           {view === "roles" && <RolesView
-            users={users} clients={clients} authUserId={authUserId}
+            users={users} clients={clients}
+            canManage={isSuperadmin} canAssign={isAdminUp}
             onToggleAssignment={(uid, cid, on) => toggleCrewAssignment(uid, cid, on).then(() => toast(on ? "✓ Cliente asignado." : "✓ Asignación removida.", "success")).catch(() => toast("✕ No se pudo actualizar.", "error"))}
-            onChangeRole={(uid, role) => changeUserRole(uid, role).then(() => { toast("✓ Rol actualizado.", "success"); perms.reload(); }).catch((e) => toast(e?.message ?? "✕ No se pudo cambiar el rol.", "error"))}
-            onToast={toast}
-            onRefresh={() => { reloadData(); perms.reload(); }}
+            onChangeRole={(uid, role) => changeUserRole(uid, role).then(() => toast("✓ Rol actualizado.", "success")).catch(() => toast("✕ Solo superadmin puede cambiar roles.", "error"))}
           />}
           {view === "documents" && <DocumentsView documents={documents} clients={clients} projects={projects} onAdd={addDocument} onDelete={deleteDocument} />}
-          {view === "reports" && <ClientReport
-            clients={clients} posts={posts} projects={projects} users={users}
-            canViewBudgets={can("budgets.view")}
-          />}
-          {view === "messages" && <MessageCenter
-            users={users} posts={posts} currentUserId={authUserId} canSend={can("messages.send")}
-          />}
-          {view === "workshop" && <WorkshopView
-            clients={clients}
-            canEdit={can("workshop.manage")}
-            agency={agency}
-            onSaveAgency={(u, f) => saveAgency(u, f)}
-            onToast={toast}
-          />}
           {view === "settings" && <SettingsView
-            profileOnly={isClientUser}
-            isDark={!lightMode} onToggleTheme={toggleTheme} onConfirm={setConfirm} onToast={toast}
-            agencyData={agency} canEditAgency={can("workshop.manage")}
+            isDark={!lightMode} onToggleTheme={toggleTheme} onConfirm={setConfirm}
+            agencyData={agency} canEditAgency={isAdminUp}
             onSaveAgency={(u, f) => saveAgency(u, f).then(() => toast("✓ Configuración guardada.", "success")).catch(() => toast("✕ No se pudo guardar.", "error"))}
           />}
         </motion.main>
@@ -674,15 +545,10 @@ function AppInner({ authUserId }: { authUserId: string }) {
         <UserProfilePanel
           user={activeUser}
           onClose={() => setShowProfile(false)}
-          onChangePassword={async (newPassword) => {
-            const { error } = await supabase.auth.updateUser({ password: newPassword });
-            if (error) throw error;
-          }}
           onUpdate={(updates) => {
-            const payload: { name?: string; phone?: string; avatar_url?: string | null } = {};
+            const payload: { name?: string; phone?: string } = {};
             if (typeof updates.name === "string") payload.name = updates.name;
             if (typeof updates.phone === "string") payload.phone = updates.phone;
-            if (updates.avatarUrl !== undefined) payload.avatar_url = updates.avatarUrl;
             if (Object.keys(payload).length === 0) return;
             updateProfile(payload)
               .then(() => toast("✓ Perfil actualizado.", "success"))

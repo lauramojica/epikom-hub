@@ -29,23 +29,16 @@ const VALID_FORMATS: PostFormat[] = ['reel','carrusel','story','imagen','video',
 // ---------- Fechas ----------
 const TZ = 'America/Puerto_Rico'
 
-/** timestamptz → "HH:MM" en hora de PR */
-export function toTimeStr(ts: string | null): string | null {
-  if (!ts) return null
-  return new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(ts))
-}
-
 /** timestamptz → "YYYY-MM-DD" en hora de PR */
 export function toDateStr(ts: string | null): string {
   if (!ts) return ''
   return new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ts))
 }
 
-/** "YYYY-MM-DD" + "HH:MM" → timestamptz en hora de PR (10:00 por defecto) */
-export function toTimestamp(dateStr: string, timeStr?: string | null): string | null {
+/** "YYYY-MM-DD" → timestamptz a las 10:00 AM PR (hora editable después) */
+export function toTimestamp(dateStr: string): string | null {
   if (!dateStr) return null
-  const t = timeStr && /^\d{2}:\d{2}$/.test(timeStr) ? `${timeStr}:00` : '10:00:00'
-  return `${dateStr}T${t}-04:00`
+  return `${dateStr}T10:00:00-04:00`
 }
 
 export function todayPR(): string {
@@ -94,9 +87,6 @@ export function postFromDb(row: any, boost?: any): ContentPost {
     campaign: row.campana ?? '',
     status: STATUS_DB_TO_UI[row.status] ?? 'idea',
     scheduledDate: toDateStr(row.publica_at),
-    scheduledTime: row.hora_definida ? toTimeStr(row.publica_at) : null,
-    reminderEnabled: row.recordatorio_activo ?? true,
-    reminderMinutes: row.recordatorio_minutos ?? 120,
     publishedDate: row.status === 'publicado' ? toDateStr(row.updated_at) : undefined,
     boostBudget: boost?.presupuesto != null ? Number(boost.presupuesto) : (row.boosted ? 0 : undefined),
     actualSpend: boost?.gasto_real != null ? Number(boost.gasto_real) : undefined,
@@ -115,10 +105,7 @@ export function postToDb(p: Partial<ContentPost>): Record<string, any> {
   if (p.channel !== undefined) out.canal = CHANNEL_UI_TO_DB[p.channel]
   if (p.format !== undefined) out.formato = p.format
   if (p.angle !== undefined) out.angulo = p.angle
-  if (p.scheduledDate !== undefined) out.publica_at = toTimestamp(p.scheduledDate, p.scheduledTime)
-  if (p.scheduledTime !== undefined) out.hora_definida = !!p.scheduledTime
-  if (p.reminderEnabled !== undefined) out.recordatorio_activo = p.reminderEnabled
-  if (p.reminderMinutes !== undefined) out.recordatorio_minutos = p.reminderMinutes
+  if (p.scheduledDate !== undefined) out.publica_at = toTimestamp(p.scheduledDate)
   if (p.copy !== undefined) out.copy = p.copy
   if (p.brand !== undefined) out.marca_producto = p.brand
   if (p.assigneeId !== undefined) out.asignado_a = p.assigneeId || null
@@ -139,7 +126,6 @@ export function clientFromDb(row: any): Client {
     id: row.id,
     name: row.nombre,
     slug: row.slug,
-    emailToken: row.email_token ?? null,
     company: row.nombre,
     industry: '',
     email: (row.contactos?.[0]?.email) ?? '',
@@ -171,16 +157,16 @@ export function clientFromDb(row: any): Client {
 // users (DB) → User (UI)
 // ============================================================================
 export function userFromDb(row: any, assignedClientIds: string[] = []): User {
-  // El rol viaja tal cual está en la base de datos, para que los roles
-  // personalizados creados en el Workshop también funcionen.
+  const roleMap: Record<string, User['role']> = {
+    superadmin: 'superadmin', admin: 'admin', crew: 'crew', cliente: 'client', client: 'client',
+  }
   const nice = displayName(row.name, row.email)
   return {
     id: row.id,
     name: nice,
-    avatarUrl: row.avatar_url ?? null,
     email: row.email,
     phone: row.phone ?? '',
-    role: (row.role ?? 'crew') as User['role'],
+    role: roleMap[row.role] ?? 'crew',
     initials: initialsOf(nice),
     color: colorForId(row.id),
     assignedClientIds,
@@ -289,7 +275,6 @@ export function projectFromDb(row: any, deliverables: Deliverable[] = []): Proje
   return {
     id: row.id,
     name: row.name,
-    emailToken: row.email_token ?? null,
     clientId: row.client_id,
     currentPhase: (row.current_phase ?? 'discovery') as ProjectPhase,
     phases,

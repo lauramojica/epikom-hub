@@ -2,14 +2,8 @@ import { useState, useRef } from "react";
 import { motion } from "motion/react";
 import type { ContentPost, Client, User, Channel, PostFormat, PostStatus, AttachedFile } from "../types";
 import FileUpload from "../components/FileUpload";
-import DiscussionBoard from "../components/DiscussionBoard";
 
 interface Props {
-  currentUserId?: string;
-  canViewBudgets?: boolean;
-  onImportLogged?: (count: number) => void;
-  dynamicFormats?: { value: string; label: string }[];
-  dynamicChannels?: { value: string; label: string; color: string | null }[];
   posts: ContentPost[];
   clients: Client[];
   users: User[];
@@ -31,10 +25,10 @@ const STATUSES: { key: PostStatus; label: string; color: string }[] = [
   { key: "published", label: "Publicado", color: "#dbfa45" },
 ];
 
-let CHANNELS: Channel[] = ["Instagram", "Facebook", "FB + IG", "TikTok", "LinkedIn", "YouTube", "Email"];
-let FORMATS: PostFormat[] = ["reel", "carrusel", "story", "imagen", "video", "foto", "texto", "evento", "shopper", "email"];
+const CHANNELS: Channel[] = ["Instagram", "Facebook", "FB + IG", "TikTok", "LinkedIn", "YouTube", "Email"];
+const FORMATS: PostFormat[] = ["reel", "carrusel", "story", "imagen", "video", "foto", "texto", "evento", "shopper", "email"];
 
-let channelColors: Record<string, string> = {
+const channelColors: Record<string, string> = {
   Instagram: "#e1306c", Facebook: "#1877f2", "FB + IG": "#a855f7", TikTok: "#00f2ea",
   LinkedIn: "#0a66c2", YouTube: "#ff0000", Email: "#f59e0b",
 };
@@ -67,8 +61,8 @@ function exportCSV(posts: ContentPost[], clients: Client[], users: User[]) {
 }
 
 function downloadTemplate() {
-  const headers = ["titulo","cliente","fecha","hora","canal","formato","status","angulo","copy","marca_producto","asignado","campana","hashtags","pauta","presupuesto_pauta","recordatorio","notas"];
-  const example = ["Tip: prepara tu casa para huracanes","national","2026-09-02","10:00","fb_ig","carrusel","idea","tip educativo","Temporada de huracanes: 5 cosas que no pueden faltar 🌀","Generadores","alexander@epikom.com","temporada-huracanes","#FerreteriasNational #PreparatePR","si","150","3h","Usar fotos de tienda Bayamón"];
+  const headers = ["titulo","cliente","fecha","hora","canal","formato","status","angulo","copy","marca_producto","asignado","campana","hashtags","pauta","presupuesto_pauta","notas"];
+  const example = ["Tip: prepara tu casa para huracanes","national","2026-09-02","10:00","fb_ig","carrusel","idea","tip educativo","Temporada de huracanes: 5 cosas que no pueden faltar 🌀","Generadores","alexander@epikom.com","temporada-huracanes","#FerreteriasNational #PreparatePR","si","150","Usar fotos de tienda Bayamón"];
   const csv = [headers, example].map((r) => r.map((v) => (v.includes(",") ? `"${v}"` : v)).join(",")).join("\n");
   const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
@@ -153,104 +147,11 @@ function BoardView({ posts, clients, users, filterClient, onMovePost, onSelectPo
 }
 
 // ─── Calendar View ─────────────────────────────────────────────────────────────
-
-/* ─── Programación: fecha + hora opcional + recordatorio ─────────────────── */
-function ScheduleFields({ draft, upd, compact = false }: {
-  draft: Partial<ContentPost>;
-  upd: (k: keyof ContentPost, v: unknown) => void;
-  compact?: boolean;
+function CalendarView({ posts, clients, filterClient, onSelectPost }: {
+  posts: ContentPost[]; clients: Client[]; filterClient: string; onSelectPost: (p: ContentPost) => void;
 }) {
-  const inputCls = compact
-    ? "w-full bg-surface2 border border-line rounded px-2 py-1 text-xs text-ink outline-none"
-    : "w-full bg-surface2 border border-line rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-primary/40";
-  const hasTime = !!draft.scheduledTime;
-  const reminderOn = draft.reminderEnabled !== false;
-
-  const REMINDERS = [
-    { min: 60, label: "1 hora antes" },
-    { min: 180, label: "3 horas antes" },
-    { min: 1440, label: "1 día antes" },
-  ];
-
-  return (
-    <div className="space-y-2.5">
-      <div className="flex gap-2">
-        <input
-          type="date"
-          value={draft.scheduledDate ?? ""}
-          onChange={(e) => upd("scheduledDate", e.target.value)}
-          className={inputCls + " flex-1"}
-        />
-        {hasTime ? (
-          <div className="flex items-center gap-1">
-            <input
-              type="time"
-              value={draft.scheduledTime ?? ""}
-              onChange={(e) => upd("scheduledTime", e.target.value)}
-              className={inputCls + " w-28"}
-            />
-            <button
-              onClick={() => upd("scheduledTime", null)}
-              className="text-muted hover:text-danger text-xs px-1"
-              title="Quitar hora"
-            >
-              ✕
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => upd("scheduledTime", "10:00")}
-            className="text-[10px] font-mono px-3 rounded-lg border border-line text-muted hover:text-primary hover:border-primary/40 transition-all whitespace-nowrap"
-          >
-            + Hora
-          </button>
-        )}
-      </div>
-
-      <label className="flex items-center gap-2 text-xs text-ink cursor-pointer">
-        <input
-          type="checkbox"
-          checked={reminderOn}
-          onChange={(e) => upd("reminderEnabled", e.target.checked)}
-          className="accent-[#31b498]"
-        />
-        Avisarme antes de publicar
-      </label>
-
-      {reminderOn && (
-        <div className="flex gap-1.5 flex-wrap pl-5">
-          {REMINDERS.map((r) => {
-            const active = (draft.reminderMinutes ?? 120) === r.min;
-            return (
-              <button
-                key={r.min}
-                onClick={() => upd("reminderMinutes", r.min)}
-                className={`text-[10px] font-mono px-2.5 py-1 rounded-lg border transition-all ${
-                  active ? "border-primary/50 bg-primary/10 text-primary" : "border-line text-muted hover:text-ink"
-                }`}
-              >
-                {r.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function CalendarView({ posts, clients, users, filterClient, onSelectPost, onMovePostDate, today }: {
-  posts: ContentPost[]; clients: Client[]; users: User[]; filterClient: string;
-  onSelectPost: (p: ContentPost) => void;
-  onMovePostDate?: (postId: string, newDate: string) => void;
-  today: string;
-}) {
-  const todayDate = new Date(today + "T12:00:00");
-  const [year, setYear] = useState(todayDate.getFullYear());
-  const [month, setMonth] = useState(todayDate.getMonth());
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [dragOver, setDragOver] = useState<string | null>(null);
-  const [expandedDay, setExpandedDay] = useState<string | null>(null);
+  const [year, setYear] = useState(2026);
+  const [month, setMonth] = useState(7); // Aug = 7
 
   const filtered = filterClient ? posts.filter((p) => p.clientId === filterClient) : posts;
 
@@ -261,138 +162,45 @@ function CalendarView({ posts, clients, users, filterClient, onSelectPost, onMov
 
   const postsByDate: Record<string, ContentPost[]> = {};
   filtered.forEach((p) => {
-    if (!p.scheduledDate) return;
-    (postsByDate[p.scheduledDate] ||= []).push(p);
+    if (!postsByDate[p.scheduledDate]) postsByDate[p.scheduledDate] = [];
+    postsByDate[p.scheduledDate].push(p);
   });
 
   const prevMonth = () => { if (month === 0) { setMonth(11); setYear((y) => y - 1); } else setMonth((m) => m - 1); };
   const nextMonth = () => { if (month === 11) { setMonth(0); setYear((y) => y + 1); } else setMonth((m) => m + 1); };
-  const goToday = () => { setYear(todayDate.getFullYear()); setMonth(todayDate.getMonth()); };
-
-  const monthPosts = Object.entries(postsByDate)
-    .filter(([d]) => d.startsWith(`${year}-${String(month + 1).padStart(2, "0")}`))
-    .reduce((n, [, list]) => n + list.length, 0);
-
-  const handleDrop = (dateStr: string) => {
-    if (dragId && onMovePostDate) onMovePostDate(dragId, dateStr);
-    setDragId(null);
-    setDragOver(null);
-  };
 
   return (
     <div className="bg-surface border border-line rounded-xl overflow-hidden">
-      {/* Cabecera */}
-      <div className="flex items-center justify-between px-4 md:px-6 py-4 border-b border-line gap-3">
-        <div className="flex items-center gap-2">
-          <button onClick={prevMonth} className="w-8 h-8 rounded-lg border border-line flex items-center justify-center text-muted hover:text-ink hover:border-muted transition-all">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 4L6 8L10 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-          </button>
-          <button onClick={nextMonth} className="w-8 h-8 rounded-lg border border-line flex items-center justify-center text-muted hover:text-ink hover:border-muted transition-all">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-          </button>
-          <button onClick={goToday} className="text-[10px] font-mono px-2.5 py-1.5 rounded-lg border border-line text-muted hover:text-primary hover:border-primary/40 transition-all">
-            Hoy
-          </button>
-        </div>
-        <h3 className="font-display text-lg md:text-xl font-700 uppercase tracking-wide text-ink">
-          {MONTHS_ES[month]} {year}
-        </h3>
-        <span className="font-mono text-[10px] text-muted whitespace-nowrap">
-          {monthPosts} {monthPosts === 1 ? "pieza" : "piezas"}
-        </span>
+      <div className="flex items-center justify-between px-6 py-4 border-b border-line">
+        <button onClick={prevMonth} className="text-muted hover:text-ink"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 4L6 8L10 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
+        <h3 className="font-display text-xl font-700 uppercase tracking-wide text-ink">{MONTHS_ES[month]} {year}</h3>
+        <button onClick={nextMonth} className="text-muted hover:text-ink"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
       </div>
-
-      {/* Días de la semana */}
       <div className="grid grid-cols-7 border-b border-line">
-        {DAYS_ES.map((d) => (
-          <div key={d} className="py-2 text-center font-mono text-[10px] text-muted uppercase tracking-widest">{d}</div>
-        ))}
+        {DAYS_ES.map((d) => <div key={d} className="py-2 text-center font-mono text-[10px] text-muted uppercase tracking-widest">{d}</div>)}
       </div>
-
-      {/* Celdas */}
       <div className="grid grid-cols-7">
         {Array.from({ length: totalCells }, (_, i) => {
           const dayNum = i - startPad + 1;
           const isValid = dayNum >= 1 && dayNum <= lastDay.getDate();
           const dateStr = isValid ? `${year}-${String(month + 1).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}` : "";
           const dayPosts = dateStr ? (postsByDate[dateStr] || []) : [];
-          const isToday = dateStr === today;
-          const isPast = isValid && dateStr < today;
-          const isDropTarget = dragOver === dateStr;
-          const showAll = expandedDay === dateStr;
-          const visible = showAll ? dayPosts : dayPosts.slice(0, 3);
-
+          const isToday = dateStr === "2026-08-28";
           return (
-            <div
-              key={i}
-              onDragOver={(e) => { if (isValid && dragId) { e.preventDefault(); setDragOver(dateStr); } }}
-              onDragLeave={() => setDragOver((d) => (d === dateStr ? null : d))}
-              onDrop={() => isValid && handleDrop(dateStr)}
-              className={`min-h-[132px] p-2 border-b border-r border-line transition-colors
-                ${!isValid ? "bg-surface/40" : ""}
-                ${isToday ? "bg-accent/5" : ""}
-                ${isDropTarget ? "bg-primary/10 ring-1 ring-inset ring-primary/40" : ""}`}
-            >
+            <div key={i} className={`min-h-[90px] p-1.5 border-b border-r border-line ${!isValid ? "bg-surface/50" : ""} ${isToday ? "bg-accent/5" : ""}`}>
               {isValid && (
                 <>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className={`font-mono text-sm ${isToday ? "text-accent font-700" : isPast ? "text-muted/40" : "text-muted"}`}>
-                      {dayNum}
-                    </span>
-                    {dayPosts.length > 0 && (
-                      <span className="font-mono text-[10px] text-muted/60">{dayPosts.length}</span>
-                    )}
-                  </div>
-
-                  <div className="space-y-1.5">
-                    {visible.map((post) => {
-                      const client = clients.find((c) => c.id === post.clientId);
-                      const st = STATUSES.find((x) => x.key === post.status);
-                      const chColor = channelColors[post.channel] ?? "#8b93a1";
+                  <p className={`font-mono text-xs mb-1 ${isToday ? "text-accent font-700" : "text-muted"}`}>{dayNum}</p>
+                  <div className="space-y-0.5">
+                    {dayPosts.slice(0, 3).map((post) => {
+                      const st = STATUSES.find((s) => s.key === post.status);
                       return (
-                        <div
-                          key={post.id}
-                          draggable={!!onMovePostDate}
-                          onDragStart={(e) => { setDragId(post.id); (e.currentTarget as HTMLElement).classList.add("dragging-card"); }}
-                          onDragEnd={(e) => { setDragId(null); setDragOver(null); (e.currentTarget as HTMLElement).classList.remove("dragging-card"); }}
-                          onClick={() => onSelectPost(post)}
-                          title={`${post.title}\n${client?.company ?? ""} · ${post.channel} · ${post.format}`}
-                          className="rounded-md px-2 py-1.5 cursor-pointer hover:brightness-110 transition-all"
-                          style={{ background: `${chColor}18`, borderLeft: `2px solid ${chColor}` }}
-                        >
-                          {/* Título */}
-                          <p className="text-[11px] font-700 text-ink leading-snug truncate">{post.title}</p>
-                          {/* Cliente */}
-                          {client && (
-                            <p className="text-[10px] leading-snug truncate mt-0.5" style={{ color: client.color }}>
-                              {client.company}
-                            </p>
-                          )}
-                          {/* Canal · formato · estado */}
-                          <div className="flex items-center gap-1 mt-1 flex-wrap">
-                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded" style={{ background: `${chColor}25`, color: chColor }}>
-                              {post.channel}
-                            </span>
-                            <span className="text-[9px] font-mono text-muted capitalize">{post.format}</span>
-                            {st && (
-                              <span className="text-[9px] font-mono ml-auto flex items-center gap-1" style={{ color: st.color }}>
-                                <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: st.color }} />
-                                {st.label}
-                              </span>
-                            )}
-                          </div>
-                        </div>
+                        <button key={post.id} onClick={() => onSelectPost(post)} className="w-full text-left rounded px-1 py-0.5 text-[9px] font-500 truncate hover:opacity-90" style={{ background: `${channelColors[post.channel]}20`, color: channelColors[post.channel] }}>
+                          {post.title}
+                        </button>
                       );
                     })}
-
-                    {dayPosts.length > 3 && (
-                      <button
-                        onClick={() => setExpandedDay(showAll ? null : dateStr)}
-                        className="w-full text-[10px] text-muted hover:text-primary font-mono text-left px-1 py-0.5 transition-colors"
-                      >
-                        {showAll ? "− menos" : `+${dayPosts.length - 3} más`}
-                      </button>
-                    )}
+                    {dayPosts.length > 3 && <p className="text-[9px] text-muted font-mono">+{dayPosts.length - 3} más</p>}
                   </div>
                 </>
               )}
@@ -400,232 +208,6 @@ function CalendarView({ posts, clients, users, filterClient, onSelectPost, onMov
           );
         })}
       </div>
-
-      {onMovePostDate && (
-        <div className="px-4 py-2.5 border-t border-line">
-          <p className="text-[10px] font-mono text-muted">
-            Arrastra una pieza a otro día para reprogramarla · Click para abrir el detalle
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-
-// ─── Agenda View (lista cronológica, ideal para móvil) ───────────────────────
-function AgendaView({ posts, clients, users, today, onSelectPost, onMovePost }: {
-  posts: ContentPost[]; clients: Client[]; users: User[]; today: string;
-  onSelectPost: (p: ContentPost) => void;
-  onMovePost: (id: string, s: PostStatus) => void;
-}) {
-  const [filter, setFilter] = useState<"upcoming" | "all" | "overdue">("upcoming");
-
-  const sorted = [...posts]
-    .filter((p) => p.scheduledDate)
-    .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
-
-  const overdue = sorted.filter((p) => p.scheduledDate < today && p.status !== "published");
-  const upcoming = sorted.filter((p) => p.scheduledDate >= today);
-  const unscheduled = posts.filter((p) => !p.scheduledDate);
-
-  const visible =
-    filter === "overdue" ? overdue :
-    filter === "all" ? sorted :
-    upcoming;
-
-  // Agrupar por día
-  const byDay: Record<string, ContentPost[]> = {};
-  visible.forEach((p) => { (byDay[p.scheduledDate] ||= []).push(p); });
-  const days = Object.keys(byDay).sort();
-
-  const dayLabel = (d: string) => {
-    const date = new Date(d + "T12:00:00");
-    const diff = Math.round((date.getTime() - new Date(today + "T12:00:00").getTime()) / 86400000);
-    if (diff === 0) return "Hoy";
-    if (diff === 1) return "Mañana";
-    if (diff === -1) return "Ayer";
-    return new Intl.DateTimeFormat("es-PR", {
-      weekday: "long", day: "numeric", month: "long", timeZone: "America/Puerto_Rico",
-    }).format(date);
-  };
-
-  const nextStatus: Record<string, PostStatus | null> = {
-    idea: "creation", creation: "design", design: "review",
-    review: "approved", approved: "scheduled", scheduled: "published", published: null,
-  };
-
-  return (
-    <div className="space-y-4">
-      {/* Filtros */}
-      <div className="flex gap-1 bg-surface border border-line rounded-xl p-1 w-fit">
-        {([
-          ["upcoming", `Próximas ${upcoming.length > 0 ? `(${upcoming.length})` : ""}`],
-          ["overdue", `Atrasadas ${overdue.length > 0 ? `(${overdue.length})` : ""}`],
-          ["all", "Todas"],
-        ] as const).map(([k, label]) => (
-          <button
-            key={k}
-            onClick={() => setFilter(k)}
-            className={`px-3 py-1.5 rounded-lg text-[11px] font-mono uppercase tracking-wide transition-all whitespace-nowrap ${
-              filter === k
-                ? k === "overdue" && overdue.length > 0
-                  ? "bg-danger text-white font-600"
-                  : "bg-primary text-bg font-600"
-                : "text-muted hover:text-ink"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {days.length === 0 ? (
-        <div className="bg-surface border border-line rounded-xl py-12 text-center">
-          <p className="text-3xl mb-2">{filter === "overdue" ? "🎉" : "📭"}</p>
-          <p className="text-sm font-600 text-ink">
-            {filter === "overdue" ? "Nada atrasado" : "Nada por aquí"}
-          </p>
-          <p className="text-xs text-muted mt-1">
-            {filter === "overdue" ? "Todo al día." : "No hay publicaciones en este filtro."}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-5">
-          {days.map((day) => {
-            const isToday = day === today;
-            const isPast = day < today;
-            return (
-              <div key={day}>
-                {/* Encabezado del día, pegajoso al hacer scroll */}
-                <div className="sticky top-0 z-10 flex items-baseline gap-2 py-2 bg-bg/95 backdrop-blur-sm">
-                  <span className={`font-display text-base font-700 uppercase tracking-wide ${isToday ? "text-accent" : "text-ink"}`}>
-                    {dayLabel(day)}
-                  </span>
-                  <span className="font-mono text-[10px] text-muted">
-                    {new Intl.DateTimeFormat("es-PR", { day: "numeric", month: "short", timeZone: "America/Puerto_Rico" }).format(new Date(day + "T12:00:00"))}
-                  </span>
-                  <span className="font-mono text-[10px] text-muted ml-auto">
-                    {byDay[day].length} {byDay[day].length === 1 ? "pieza" : "piezas"}
-                  </span>
-                </div>
-
-                <div className="space-y-2">
-                  {byDay[day].map((post) => {
-                    const client = clients.find((c) => c.id === post.clientId);
-                    const user = users.find((u) => u.id === post.assigneeId);
-                    const st = STATUSES.find((x) => x.key === post.status);
-                    const chColor = channelColors[post.channel] ?? "#8b93a1";
-                    const thumb = post.attachedFiles?.find((f) => f.type?.startsWith("image/"));
-                    const isOverdue = isPast && post.status !== "published";
-                    const next = nextStatus[post.status];
-
-                    return (
-                      <div
-                        key={post.id}
-                        onClick={() => onSelectPost(post)}
-                        className="bg-surface border border-line rounded-xl p-3 cursor-pointer hover-lift animate-card-in"
-                        style={{ borderLeft: `3px solid ${client?.color ?? chColor}` }}
-                      >
-                        <div className="flex gap-3">
-                          <div className="flex-1 min-w-0">
-                            {/* Cliente y hora */}
-                            <div className="flex items-center gap-2 mb-1 flex-wrap">
-                              {client && (
-                                <span className="text-[11px] font-600" style={{ color: client.color }}>
-                                  {client.company}
-                                </span>
-                              )}
-                              {post.scheduledTime && (
-                                <span className="font-mono text-[10px] text-muted">{post.scheduledTime}</span>
-                              )}
-                              {isOverdue && (
-                                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-danger/10 text-danger border border-danger/30">
-                                  atrasada
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Título */}
-                            <p className="text-sm font-700 text-ink leading-snug">{post.title}</p>
-
-                            {/* Copy */}
-                            {post.copy && (
-                              <p className="text-xs text-muted leading-relaxed mt-1 line-clamp-2">{post.copy}</p>
-                            )}
-
-                            {/* Metadatos */}
-                            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded" style={{ background: `${chColor}20`, color: chColor }}>
-                                {post.channel}
-                              </span>
-                              <span className="text-[9px] font-mono text-muted capitalize">{post.format}</span>
-                              {st && (
-                                <span className="text-[9px] font-mono flex items-center gap-1" style={{ color: st.color }}>
-                                  <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: st.color }} />
-                                  {st.label}
-                                </span>
-                              )}
-                              {user && (
-                                <span className="ml-auto w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-700 flex-shrink-0" style={{ background: `${user.color}20`, color: user.color }}>
-                                  {user.initials[0]}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Miniatura */}
-                          {thumb && (
-                            <div className="w-16 h-16 rounded-lg overflow-hidden bg-surface2 flex-shrink-0">
-                              <img src={thumb.url} alt="" className="w-full h-full object-cover" />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Avanzar de estado sin abrir */}
-                        {next && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); onMovePost(post.id, next); }}
-                            className="mt-2.5 w-full text-[10px] font-mono py-1.5 rounded-lg border border-line text-muted hover:text-primary hover:border-primary/40 transition-all"
-                          >
-                            Mover a {STATUSES.find((x) => x.key === next)?.label} →
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Sin fecha */}
-      {filter === "all" && unscheduled.length > 0 && (
-        <div>
-          <div className="flex items-baseline gap-2 py-2">
-            <span className="font-display text-base font-700 uppercase tracking-wide text-muted">Sin fecha</span>
-            <span className="font-mono text-[10px] text-muted ml-auto">{unscheduled.length}</span>
-          </div>
-          <div className="space-y-2">
-            {unscheduled.map((post) => {
-              const client = clients.find((c) => c.id === post.clientId);
-              return (
-                <div
-                  key={post.id}
-                  onClick={() => onSelectPost(post)}
-                  className="bg-surface border border-line border-dashed rounded-xl p-3 cursor-pointer hover-lift"
-                >
-                  {client && <span className="text-[11px] font-600" style={{ color: client.color }}>{client.company}</span>}
-                  <p className="text-sm font-700 text-ink leading-snug">{post.title}</p>
-                  <p className="text-[10px] font-mono text-muted mt-1">Falta programar</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -695,8 +277,8 @@ function TableView({ posts, clients, users, filterClient, onSelectPost, onMovePo
 }
 
 // ─── Post Detail Panel ─────────────────────────────────────────────────────────
-function PostPanel({ post, clients, users, onClose, onUpdate, onMove, onExpand, onAddFile, onRemoveFile, canViewBudgets = true }: {
-  post: ContentPost; clients: Client[]; users: User[]; currentUserId?: string; canViewBudgets?: boolean;
+function PostPanel({ post, clients, users, onClose, onUpdate, onMove, onExpand, onAddFile, onRemoveFile }: {
+  post: ContentPost; clients: Client[]; users: User[];
   onClose: () => void; onUpdate: (id: string, u: Partial<ContentPost>) => void;
   onMove: (id: string, s: PostStatus) => void; onExpand: () => void;
   onAddFile: (f: AttachedFile) => void; onRemoveFile: (id: string) => void;
@@ -775,8 +357,8 @@ function PostPanel({ post, clients, users, onClose, onUpdate, onMove, onExpand, 
                     {FORMATS.map((f) => <option key={f} value={f} className="bg-surface">{f}</option>)}
                   </select>
                 </Field>
-                <Field label="Programación">
-                  <ScheduleFields draft={draft} upd={upd} />
+                <Field label="Fecha programada">
+                  <input type="date" value={draft.scheduledDate} onChange={(e) => upd("scheduledDate", e.target.value)} className="w-full bg-surface2 border border-line rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-primary/40" />
                 </Field>
                 <Field label="Asignado">
                   <select value={draft.assigneeId} onChange={(e) => upd("assigneeId", e.target.value)} className="w-full bg-surface2 border border-line rounded-lg px-3 py-2 text-sm text-ink outline-none cursor-pointer">
@@ -821,7 +403,7 @@ function PostPanel({ post, clients, users, onClose, onUpdate, onMove, onExpand, 
                   ) : <p className="text-sm text-muted">—</p>}
                 </Field>
                 {post.reach && <Field label="Alcance"><p className="text-sm font-mono text-accent">{post.reach.toLocaleString()}</p></Field>}
-                {canViewBudgets && post.boostBudget && <Field label="Boost"><p className="text-sm font-mono text-ink">${post.boostBudget.toLocaleString()}</p></Field>}
+                {post.boostBudget && <Field label="Boost"><p className="text-sm font-mono text-ink">${post.boostBudget.toLocaleString()}</p></Field>}
                 {post.notes && <Field label="Notas"><p className="text-sm text-muted">{post.notes}</p></Field>}
               </div>
 
@@ -857,8 +439,8 @@ function PostPanel({ post, clients, users, onClose, onUpdate, onMove, onExpand, 
 }
 
 // ─── Post Screen (pantalla completa de tarea) ──────────────────────────────────
-function PostScreen({ post, clients, users, onClose, onUpdate, onMove, onAddFile, onRemoveFile, currentUserId, canViewBudgets = true }: {
-  post: ContentPost; clients: Client[]; users: User[]; currentUserId?: string; canViewBudgets?: boolean;
+function PostScreen({ post, clients, users, onClose, onUpdate, onMove, onAddFile, onRemoveFile }: {
+  post: ContentPost; clients: Client[]; users: User[];
   onClose: () => void; onUpdate: (id: string, u: Partial<ContentPost>) => void; onMove: (id: string, s: PostStatus) => void;
   onAddFile: (f: AttachedFile) => void; onRemoveFile: (id: string) => void;
 }) {
@@ -990,13 +572,6 @@ function PostScreen({ post, clients, users, onClose, onUpdate, onMove, onAddFile
               <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-2">Archivos adjuntos</p>
               <FileUpload files={post.attachedFiles || []} onAdd={onAddFile} onRemove={onRemoveFile} />
             </div>
-
-            {/* Discusión */}
-            {currentUserId && (
-              <div className="bg-surface border border-line rounded-xl p-5">
-                <DiscussionBoard entityType="post" entityId={post.id} users={users} currentUserId={currentUserId} />
-              </div>
-            )}
           </div>
 
           {/* Sidebar col */}
@@ -1030,7 +605,7 @@ function PostScreen({ post, clients, users, onClose, onUpdate, onMove, onAddFile
                   },
                   {
                     label: "Fecha", content: editing ? (
-                      <ScheduleFields draft={draft} upd={upd} compact />
+                      <input type="date" value={draft.scheduledDate} onChange={(e) => upd("scheduledDate", e.target.value)} className="w-full bg-surface2 border border-line rounded px-2 py-1 text-xs text-ink outline-none" />
                     ) : <span className="text-sm font-mono text-ink">{post.scheduledDate}</span>
                   },
                   {
@@ -1074,16 +649,16 @@ function PostScreen({ post, clients, users, onClose, onUpdate, onMove, onAddFile
                       : <span className="font-mono text-lg font-700 text-accent">{post.reach ? post.reach.toLocaleString() : "—"}</span>
                   },
                   {
-                    label: "Boost presupuesto", hidden: !canViewBudgets, value: editing
+                    label: "Boost presupuesto", value: editing
                       ? <input type="number" value={draft.boostBudget || ""} onChange={(e) => upd("boostBudget", Number(e.target.value) || undefined)} className="w-full bg-surface2 border border-line rounded px-2 py-1 text-xs text-ink font-mono outline-none" />
                       : <span className="font-mono text-sm text-ink">{post.boostBudget ? `$${post.boostBudget.toLocaleString()}` : "—"}</span>
                   },
                   {
-                    label: "Gasto real", hidden: !canViewBudgets, value: editing
+                    label: "Gasto real", value: editing
                       ? <input type="number" value={draft.actualSpend || ""} onChange={(e) => upd("actualSpend", Number(e.target.value) || undefined)} className="w-full bg-surface2 border border-line rounded px-2 py-1 text-xs text-ink font-mono outline-none" />
                       : <span className="font-mono text-sm text-ink">{post.actualSpend ? `$${post.actualSpend.toLocaleString()}` : "—"}</span>
                   },
-                ].filter((f) => !("hidden" in f && f.hidden)).map(({ label, value }) => (
+                ].map(({ label, value }) => (
                   <div key={label} className="px-4 py-3">
                     <p className="text-[9px] font-mono text-muted uppercase tracking-widest mb-1">{label}</p>
                     {value}
@@ -1140,7 +715,7 @@ function NewPostForm({ clients, users, onAdd, onClose }: {
           ))}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Cuenta</label>
+              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Cliente</label>
               <select value={form.clientId || ""} onChange={(e) => upd("clientId", e.target.value)} className="w-full bg-surface2 border border-line rounded-lg px-3 py-2 text-sm text-ink outline-none cursor-pointer">
                 <option value="">Seleccionar...</option>
                 {clients.map((c) => <option key={c.id} value={c.id} className="bg-surface">{c.company}</option>)}
@@ -1253,13 +828,6 @@ function CSVImportModal({ clients, users, onImport, onCancel }: {
         const assignee = users.find((u) => u.email.toLowerCase() === asignadoEmail);
         const pautaSi = get("pauta", 13).toLowerCase() === "si";
         const presupuesto = parseFloat(get("presupuesto_pauta", 14));
-        const horaRaw = get("hora", 3).trim();
-        const recRaw = get("recordatorio", 15).toLowerCase().trim();
-        const REC_MAP: Record<string, number> = {
-          "1h": 60, "1 hora": 60, "60": 60,
-          "3h": 180, "3 horas": 180, "180": 180,
-          "1d": 1440, "1 dia": 1440, "1 día": 1440, "1440": 1440,
-        };
         return {
           ok: true,
           data: {
@@ -1277,10 +845,7 @@ function CSVImportModal({ clients, users, onImport, onCancel }: {
             scheduledDate: get("fecha", 2),
             assigneeId: assignee?.id || "",
             boostBudget: pautaSi && !isNaN(presupuesto) ? presupuesto : undefined,
-            scheduledTime: /^\d{1,2}:\d{2}$/.test(horaRaw) ? horaRaw.padStart(5, "0") : null,
-            reminderEnabled: recRaw !== "no",
-            reminderMinutes: REC_MAP[recRaw] ?? 120,
-            notes: get("notas", 16),
+            notes: get("notas", 15),
             attachedFiles: [],
           },
         };
@@ -1378,16 +943,8 @@ function CSVImportModal({ clients, users, onImport, onCancel }: {
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-export default function ContentCalendar({ posts, clients, users, today, onMovePost, onAddPost, onUpdatePost, onAddPostFile, onRemovePostFile, dynamicFormats, dynamicChannels, currentUserId, canViewBudgets = true, onImportLogged }: Props) {
-  // Catálogos configurables desde el Workshop: sincronizan las listas del módulo
-  if (dynamicFormats?.length) FORMATS = dynamicFormats.map((f) => f.value) as PostFormat[];
-  if (dynamicChannels?.length) {
-    CHANNELS = dynamicChannels.map((c) => c.label) as Channel[];
-    channelColors = { ...channelColors, ...Object.fromEntries(dynamicChannels.map((c) => [c.label, c.color ?? "#8b93a1"])) };
-  }
-  const [viewMode, setViewMode] = useState<"agenda" | "board" | "calendar" | "table">(
-    typeof window !== "undefined" && window.innerWidth < 768 ? "agenda" : "board"
-  );
+export default function ContentCalendar({ posts, clients, users, today, onMovePost, onAddPost, onUpdatePost, onAddPostFile, onRemovePostFile }: Props) {
+  const [viewMode, setViewMode] = useState<"board" | "calendar" | "table">("board");
   const [filterClient, setFilterClient] = useState("");
   const [filterChannel, setFilterChannel] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
@@ -1430,15 +987,15 @@ export default function ContentCalendar({ posts, clients, users, today, onMovePo
       <div className="space-y-3">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex gap-1 bg-surface border border-line rounded-xl p-1">
-            {(["agenda","board","calendar","table"] as const).map((m) => (
+            {(["board","calendar","table"] as const).map((m) => (
               <button key={m} onClick={() => setViewMode(m)} className={`px-4 py-1.5 rounded-lg text-xs font-mono uppercase tracking-wide transition-all ${viewMode === m ? "bg-primary text-bg font-600" : "text-muted hover:text-ink"}`}>
-                {m === "agenda" ? "Agenda" : m === "board" ? "Tablero" : m === "calendar" ? "Calendario" : "Tabla"}
+                {m === "board" ? "Tablero" : m === "calendar" ? "Calendario" : "Tabla"}
               </button>
             ))}
           </div>
           {/* Client filter */}
           <select value={filterClient} onChange={(e) => setFilterClient(e.target.value)} className="bg-surface2 border border-line rounded-lg px-3 py-2 text-xs text-ink outline-none cursor-pointer font-mono flex-1 min-w-[140px] md:flex-none">
-            <option value="">Todas las cuentas</option>
+            <option value="">Todos los clientes</option>
             {clients.map((c) => <option key={c.id} value={c.id} className="bg-surface">{c.company}</option>)}
           </select>
           {/* Channel filter */}
@@ -1472,27 +1029,13 @@ export default function ContentCalendar({ posts, clients, users, today, onMovePo
       </div>
 
       {/* Views */}
-      {viewMode === "agenda" && (
-        <AgendaView
-          posts={filtered} clients={clients} users={users} today={today}
-          onSelectPost={setSelectedPost} onMovePost={onMovePost}
-        />
-      )}
       {viewMode === "board" && <BoardView posts={filtered} clients={clients} users={users} filterClient="" onMovePost={onMovePost} onSelectPost={setSelectedPost} />}
-      {viewMode === "calendar" && (
-        <CalendarView
-          posts={filtered} clients={clients} users={users} filterClient=""
-          onSelectPost={setSelectedPost}
-          onMovePostDate={(id, date) => onUpdatePost(id, { scheduledDate: date })}
-          today={today}
-        />
-      )}
+      {viewMode === "calendar" && <CalendarView posts={filtered} clients={clients} filterClient="" onSelectPost={setSelectedPost} />}
       {viewMode === "table" && <TableView posts={filtered} clients={clients} users={users} filterClient="" onSelectPost={setSelectedPost} onMovePost={onMovePost} />}
 
       {/* Modals */}
       {selectedPost && (
         <PostPanel
-          canViewBudgets={canViewBudgets}
           post={posts.find((p) => p.id === selectedPost.id) || selectedPost}
           clients={clients} users={users}
           onClose={() => setSelectedPost(null)}
@@ -1506,7 +1049,7 @@ export default function ContentCalendar({ posts, clients, users, today, onMovePo
       {expandedPost && (
         <PostScreen
           post={posts.find((p) => p.id === expandedPost.id) || expandedPost}
-          clients={clients} users={users} currentUserId={currentUserId} canViewBudgets={canViewBudgets}
+          clients={clients} users={users}
           onClose={() => setExpandedPost(null)}
           onUpdate={onUpdatePost}
           onMove={(id, s) => { onMovePost(id, s); }}
@@ -1520,7 +1063,6 @@ export default function ContentCalendar({ posts, clients, users, today, onMovePo
           clients={clients} users={users}
           onImport={(newPosts) => {
             newPosts.forEach((p) => onAddPost({ ...p, id: "" } as ContentPost));
-            onImportLogged?.(newPosts.length);
             setShowImport(false);
           }}
           onCancel={() => setShowImport(false)}

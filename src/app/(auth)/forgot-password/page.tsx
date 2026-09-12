@@ -7,19 +7,26 @@ import { createClient } from '@/lib/supabase/client'
 export default function ForgotPasswordPage() {
   const supabase = useMemo(() => createClient(), [])
   const [email, setEmail] = useState('')
-  const [sent, setSent] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async () => {
-    if (!email) { setError('Escribe tu email.'); return }
-    setLoading(true); setError(null)
+  const handleReset = async () => {
+    if (!email) {
+      setError('Escribe tu email.')
+      return
+    }
+    setLoading(true)
+    setError(null)
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
+      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
     })
     setLoading(false)
-    if (error) { setError(error.message); return }
-    // Siempre confirmamos, exista o no la cuenta (no filtramos qué emails existen)
+    if (error) {
+      setError(error.message)
+      return
+    }
+    // Siempre confirmamos, exista o no la cuenta: no revelamos quién tiene acceso.
     setSent(true)
   }
 
@@ -28,7 +35,7 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-accent mb-5">
-            <svg width="24" height="24" viewBox="0 0 14 14" fill="none">
+            <svg width="24" height="24" viewBox="0 0 14 14" fill="none" aria-hidden="true">
               <path d="M2 9L5 5L7.5 7.5L10 4L13 6.5" stroke="#0a0a0d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
               <circle cx="12" cy="11" r="2.5" fill="#0a0a0d" />
             </svg>
@@ -37,46 +44,60 @@ export default function ForgotPasswordPage() {
           <p className="font-mono text-[10px] text-muted uppercase tracking-widest mt-1.5">Recuperar acceso</p>
         </div>
 
-        {sent ? (
-          <div className="bg-surface border border-line rounded-2xl p-6 text-center animate-pop-in">
-            <p className="text-4xl mb-3">🔑</p>
-            <p className="text-sm font-600 text-ink mb-1.5">Enlace enviado</p>
-            <p className="text-xs text-muted leading-relaxed mb-5">
-              Si <span className="text-ink font-mono">{email}</span> tiene cuenta, te llegó un enlace para crear una contraseña nueva.
-            </p>
-            <Link href="/login" className="text-xs font-mono text-primary hover:opacity-80">← Volver al login</Link>
-          </div>
-        ) : (
-          <div className="bg-surface border border-line rounded-2xl p-6 space-y-4">
-            <p className="text-xs text-muted leading-relaxed">
-              Escribe tu email y te mandamos un enlace para crear una contraseña nueva.
-            </p>
-            <div>
-              <label className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => { setEmail(e.target.value); setError(null) }}
-                onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-                placeholder="tu@epikom.com"
-                autoComplete="email"
-                autoFocus
-                className="w-full bg-surface2 border border-line rounded-lg px-3 py-2.5 text-sm text-ink outline-none focus:border-primary/40 font-body placeholder:text-muted/50"
-              />
+        <div className="bg-surface border border-line rounded-2xl p-6">
+          {sent ? (
+            <div className="text-center py-4">
+              <p className="text-2xl mb-3">📬</p>
+              <p className="text-sm font-600 mb-1.5">Revisa tu correo</p>
+              <p className="text-xs text-muted leading-relaxed">
+                Si <span className="text-ink">{email}</span> tiene cuenta en el hub, ahí llega el
+                enlace para poner una contraseña nueva. Ábrelo en este mismo navegador.
+              </p>
             </div>
-            {error && <p className="text-xs text-danger bg-danger/10 border border-danger/20 rounded-lg px-3 py-2">{error}</p>}
-            <button
-              onClick={handleSubmit}
-              disabled={loading}
-              className="w-full bg-primary text-bg font-600 text-sm rounded-lg py-2.5 hover:opacity-90 transition-opacity disabled:opacity-50 font-body"
-            >
-              {loading ? 'Enviando…' : 'Enviar enlace de recuperación'}
-            </button>
-            <div className="text-center pt-1">
-              <Link href="/login" className="text-xs font-mono text-muted hover:text-ink">← Volver al login</Link>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-xs text-muted leading-relaxed">
+                Escribe tu email y te mandamos un enlace para crear una contraseña nueva.
+              </p>
+              <div>
+                <label htmlFor="email" className="text-[10px] font-mono text-muted uppercase tracking-widest block mb-1.5">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleReset()}
+                  placeholder="tu@epikom.com"
+                  autoComplete="email"
+                  className="w-full bg-surface2 border border-line rounded-lg px-3 py-2.5 text-sm text-ink outline-none focus:border-primary/40 font-body placeholder:text-muted/50"
+                />
+              </div>
+
+              {error && (
+                <p className="text-xs text-danger bg-danger/10 border border-danger/20 rounded-lg px-3 py-2">{error}</p>
+              )}
+
+              <button
+                onClick={handleReset}
+                disabled={loading}
+                className="w-full bg-primary text-bg font-600 text-sm rounded-lg py-2.5 hover:opacity-90 transition-opacity disabled:opacity-50 font-body"
+              >
+                {loading ? 'Enviando…' : 'Enviar enlace →'}
+              </button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+
+        <div className="text-center mt-6">
+          <Link
+            href="/login"
+            className="text-[10px] font-mono text-muted uppercase tracking-widest hover:text-ink transition-colors"
+          >
+            ← Volver a entrar
+          </Link>
+        </div>
       </div>
     </div>
   )

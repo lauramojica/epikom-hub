@@ -1,5 +1,4 @@
 import { useState } from "react";
-import PushToggle from "../components/PushToggle";
 
 const INTEGRATIONS = [
   { name: "Meta Business Suite", desc: "Publicar en Facebook e Instagram", icon: "📘", connected: true },
@@ -27,7 +26,7 @@ const NOTIF_EVENTS = [
   { key: "new_project",      label: "Nuevo proyecto",           desc: "Cuando se asigna un proyecto nuevo" },
 ];
 
-function NotifPrefsSection({ onToast }: { onToast?: (m: string, k?: "success" | "error" | "info") => void }) {
+function NotifPrefsSection() {
   type Channel = "push" | "email" | "sms";
   const [prefs, setPrefs] = useState<Record<string, Record<Channel, boolean>>>(() =>
     Object.fromEntries(NOTIF_EVENTS.map((e) => [e.key, { push: true, email: e.key !== "post_published", sms: false }]))
@@ -43,16 +42,6 @@ function NotifPrefsSection({ onToast }: { onToast?: (m: string, k?: "success" | 
         <h2 className="font-display text-xl font-700 uppercase text-ink">Preferencias de notificaciones</h2>
         <p className="text-xs text-muted mt-0.5">Elige cómo y cuándo te avisamos de cada evento.</p>
       </div>
-
-      {/* Activación de push en este dispositivo */}
-      <div className="px-5 py-4 border-b border-line bg-surface2/30">
-        <p className="font-mono text-[10px] text-muted uppercase tracking-widest mb-1.5">Notificaciones en este dispositivo</p>
-        <p className="text-xs text-muted mb-3 leading-relaxed">
-          Recibe avisos aunque tengas el Hub cerrado. Se activa por dispositivo y navegador.
-        </p>
-        <PushToggle onToast={onToast} />
-      </div>
-
       <div className="divide-y divide-line">
         {/* Table header */}
         <div className="flex items-center gap-4 px-5 py-2 bg-surface2">
@@ -108,14 +97,12 @@ interface Props {
   agencyData?: AgencyData | null;
   onSaveAgency?: (updates: Record<string, unknown>, logoFile?: File) => Promise<void> | void;
   canEditAgency?: boolean;
-  profileOnly?: boolean;
-  onToast?: (m: string, k?: "success" | "error" | "info") => void;
   isDark?: boolean;
   onToggleTheme?: () => void;
   onConfirm?: (config: { title: string; message: string; danger?: boolean; onConfirm: () => void }) => void;
 }
 
-export default function SettingsView({ isDark = true, onToggleTheme, agencyData, onSaveAgency, canEditAgency = false, onToast, profileOnly = false }: Props) {
+export default function SettingsView({ isDark = true, onToggleTheme, agencyData, onSaveAgency, canEditAgency = false }: Props) {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [fontSize, setFontSize] = useState(16);
@@ -154,12 +141,8 @@ export default function SettingsView({ isDark = true, onToggleTheme, agencyData,
   return (
     <div className="p-4 md:p-8 space-y-8 max-w-3xl">
       <div>
-        <p className="font-mono text-muted text-xs tracking-widest uppercase mb-1">
-          {profileOnly ? "Tus preferencias" : "Preferencias del sistema"}
-        </p>
-        <h1 className="font-display text-3xl md:text-5xl font-700 tracking-tight text-ink uppercase">
-          {profileOnly ? "Mi configuración" : "Configuración"}
-        </h1>
+        <p className="font-mono text-muted text-xs tracking-widest uppercase mb-1">Preferencias del sistema</p>
+        <h1 className="font-display text-3xl md:text-5xl font-700 tracking-tight text-ink uppercase">Configuración</h1>
       </div>
 
       {/* Appearance */}
@@ -230,7 +213,6 @@ export default function SettingsView({ isDark = true, onToggleTheme, agencyData,
       </section>
 
       {/* Agency identity */}
-      {!profileOnly && (
       <section className="bg-surface border border-line rounded-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-line">
           <h2 className="font-display text-xl font-700 uppercase text-ink">Identidad de la agencia</h2>
@@ -318,10 +300,8 @@ export default function SettingsView({ isDark = true, onToggleTheme, agencyData,
           >{saving ? "Guardando…" : canEditAgency ? "Guardar cambios" : "Solo admins pueden editar"}</button>
         </div>
       </section>
-      )}
 
       {/* Workflow preferences */}
-      {!profileOnly && (
       <section className="bg-surface border border-line rounded-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-line">
           <h2 className="font-display text-xl font-700 uppercase text-ink">Flujo de trabajo</h2>
@@ -370,10 +350,8 @@ export default function SettingsView({ isDark = true, onToggleTheme, agencyData,
           </div>
         </div>
       </section>
-      )}
 
       {/* Integrations */}
-      {!profileOnly && (
       <section className="bg-surface border border-line rounded-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-line">
           <h2 className="font-display text-xl font-700 uppercase text-ink">Integraciones</h2>
@@ -396,13 +374,11 @@ export default function SettingsView({ isDark = true, onToggleTheme, agencyData,
           ))}
         </div>
       </section>
-      )}
 
       {/* Notification preferences */}
-      <NotifPrefsSection onToast={onToast} />
+      <NotifPrefsSection />
 
       {/* Danger zone */}
-      {!profileOnly && (
       <section className="bg-surface border border-danger/20 rounded-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-danger/20">
           <h2 className="font-display text-xl font-700 uppercase text-danger">Zona de peligro</h2>
@@ -425,7 +401,6 @@ export default function SettingsView({ isDark = true, onToggleTheme, agencyData,
           ))}
         </div>
       </section>
-      )}
     </div>
   );
 }

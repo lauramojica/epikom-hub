@@ -3,8 +3,7 @@ export type PostFormat = 'reel' | 'carrusel' | 'story' | 'imagen' | 'video' | 'f
 export type PostStatus = 'idea' | 'creation' | 'design' | 'review' | 'approved' | 'scheduled' | 'published';
 export type ProjectPhase = 'discovery' | 'strategy' | 'production' | 'review' | 'launch' | 'reporting';
 export type DeliverableStatus = 'pending' | 'in-review' | 'approved' | 'rejected';
-/** Roles base + cualquiera creado desde el Workshop */
-export type UserRole = 'superadmin' | 'admin' | 'crew' | 'client' | 'cliente' | (string & {});
+export type UserRole = 'superadmin' | 'admin' | 'crew' | 'client';
 export type NotifType = 'alert' | 'approval' | 'mention' | 'publish' | 'system';
 export type UserStatus = 'active' | 'away' | 'offline';
 
@@ -23,9 +22,6 @@ export interface ContentPost {
   campaign: string;
   status: PostStatus;
   scheduledDate: string;
-  scheduledTime?: string | null;      // "14:30" · opcional
-  reminderEnabled?: boolean;          // ¿avisar antes de publicar?
-  reminderMinutes?: number;           // 60 = 1h · 180 = 3h · 1440 = 1 día
   publishedDate?: string;
   boostBudget?: number;
   actualSpend?: number;
@@ -53,7 +49,6 @@ export interface PhaseData {
 
 export interface Project {
   id: string;
-  emailToken?: string | null;
   name: string;
   clientId: string;
   currentPhase: ProjectPhase;
@@ -97,7 +92,6 @@ export interface Client {
   id: string;
   name: string;
   slug?: string;
-  emailToken?: string | null;
   company: string;
   industry: string;
   email: string;
@@ -124,7 +118,6 @@ export interface Client {
 export interface User {
   id: string;
   name: string;
-  avatarUrl?: string | null;
   email: string;
   phone: string;
   role: UserRole;
@@ -151,7 +144,7 @@ export interface Notification {
   clientId?: string;
 }
 
-export type View = 'myweek' | 'calendar' | 'projects' | 'clients' | 'analytics' | 'notifications' | 'roles' | 'tasks' | 'reports' | 'messages' | 'workshop' | 'settings' | 'documents';
+export type View = 'myweek' | 'calendar' | 'projects' | 'clients' | 'analytics' | 'notifications' | 'roles' | 'settings' | 'documents';
 
 export interface AttachedFile {
   id: string;
@@ -174,28 +167,4 @@ export interface Document {
   postId?: string;
   category: 'brief' | 'arte' | 'contrato' | 'reporte' | 'referencia' | 'otro';
   notes: string;
-}
-
-// ─── Tareas ───────────────────────────────────────────────────────────────────
-export type TaskStatus = 'pendiente' | 'en_proceso' | 'bloqueada' | 'completada';
-export type TaskPriority = 'baja' | 'media' | 'alta' | 'urgente';
-
-export interface HubTask {
-  id: string;
-  title: string;
-  description: string;
-  clientId?: string | null;
-  projectId?: string | null;
-  assigneeId?: string | null;
-  status: TaskStatus;
-  priority: TaskPriority;
-  dueDate?: string | null;
-  dueTime?: string | null;
-  tags: string[];
-  attachments: AttachedFile[];
-  source: 'hub' | 'email';
-  sourceEmail?: string | null;
-  createdBy?: string | null;
-  completedAt?: string | null;
-  createdAt: string;
 }
