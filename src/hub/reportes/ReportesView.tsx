@@ -190,7 +190,8 @@ export default function ReportesView({ me, users }: Props) {
           title={modal.rowIds.length === 1
             ? rowsApi.rows.find((x) => x.id === modal.rowIds[0])?.title || "Sin título"
             : `${modal.rowIds.length} reportes de ${table.name}`}
-          users={users.filter((u) => u.role !== "client" && u.id !== me?.id)}
+          users={users.filter((u) => u.role !== "client")}
+          meId={me?.id}
           onClose={() => setModal(null)}
           onSent={(names, skipped) => {
             setModal(null);
@@ -399,8 +400,8 @@ function ShareModal({ space, members, users, onSet, onClose }: {
 
 const LAST_RECIPIENTS_KEY = "epikom-reportes-destinatarios";
 
-function SendModal({ tableId, rowIds, title, users, onClose, onSent, onError }: {
-  tableId: string; rowIds: string[]; title: string; users: User[];
+function SendModal({ tableId, rowIds, title, users, meId, onClose, onSent, onError }: {
+  tableId: string; rowIds: string[]; title: string; users: User[]; meId?: string;
   onClose: () => void; onSent: (names: string[], skippedImages: number) => void; onError: (msg: string) => void;
 }) {
   // Se recuerdan los últimos destinatarios (normalmente siempre es Laura)
@@ -450,7 +451,7 @@ function SendModal({ tableId, rowIds, title, users, onClose, onSent, onError }: 
             <input type="checkbox" checked={selected.includes(u.id)} onChange={() => toggle(u.id)} className="w-4 h-4 accent-[var(--app-primary)]" />
             <span className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-700 flex-shrink-0" style={{ background: `${u.color}30`, color: u.color }}>{u.initials}</span>
             <span className="min-w-0">
-              <span className="block text-sm text-ink truncate">{u.name}</span>
+              <span className="block text-sm text-ink truncate">{u.name}{u.id === meId && <span className="text-muted"> (tú)</span>}</span>
               <span className="block text-[10px] text-muted truncate">{u.email}</span>
             </span>
           </label>
