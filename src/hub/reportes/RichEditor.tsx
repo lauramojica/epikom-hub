@@ -2,13 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useEditor, EditorContent, useEditorState, type Editor, type JSONContent } from "@tiptap/react";
 import type { Node as PMNode } from "@tiptap/pm/model";
-import StarterKit from "@tiptap/starter-kit";
-import Image from "@tiptap/extension-image";
-import { TaskList, TaskItem } from "@tiptap/extension-list";
-import { Placeholder } from "@tiptap/extensions";
-import { TableKit } from "@tiptap/extension-table";
-import { ListContinuation } from "./listContinuation";
-import { Indent } from "./indent";
+import { reportExtensions } from "./extensions";
 
 interface Props {
   /** Cambiar la key del componente para cargar otro documento */
@@ -19,23 +13,6 @@ interface Props {
   onError?: (message: string) => void;
   placeholder?: string;
 }
-
-/**
- * Imagen con marca de "subiendo": mientras se sube se muestra la vista previa
- * local (blob:) con uploadId; al terminar se cambia por la URL definitiva.
- */
-const ReportImage = Image.extend({
-  addAttributes() {
-    return {
-      ...this.parent?.(),
-      uploadId: {
-        default: null,
-        parseHTML: () => null,
-        renderHTML: (attrs) => (attrs.uploadId ? { "data-uploading": "true" } : {}),
-      },
-    };
-  },
-});
 
 function findUpload(doc: PMNode, id: string): { node: PMNode; pos: number } | null {
   let found: { node: PMNode; pos: number } | null = null;
@@ -53,23 +30,6 @@ function hasPendingUploads(doc: PMNode): boolean {
     return !pending;
   });
   return pending;
-}
-
-export function reportExtensions(placeholder = "") {
-  return [
-    StarterKit.configure({
-      heading: { levels: [1, 2, 3] },
-      link: { openOnClick: false, autolink: true, HTMLAttributes: { target: "_blank", rel: "noopener noreferrer" } },
-    }),
-    ReportImage.configure({ allowBase64: false }),
-    TaskList,
-    TaskItem.configure({ nested: true }),
-    // Tablas: también conserva las que se pegan desde Notion, Word o una página web
-    TableKit.configure({ table: { resizable: true, cellMinWidth: 60 } }),
-    Placeholder.configure({ placeholder }),
-    ListContinuation,
-    Indent,
-  ];
 }
 
 /** Los saltos de línea entre <tr> y <td> del HTML se convertirían en filas vacías */

@@ -10,8 +10,8 @@ const UUID = /^[0-9a-f-]{36}$/i;
  * /reportes/imprimir?table=<id>&rows=<id>,<id>
  * Lee con la sesión del usuario: el RLS decide qué puede ver.
  */
-export default async function PrintPage({ searchParams }: { searchParams: Promise<{ table?: string; rows?: string }> }) {
-  const { table: tableId, rows: rowsParam } = await searchParams;
+export default async function PrintPage({ searchParams }: { searchParams: Promise<{ table?: string; rows?: string; auto?: string }> }) {
+  const { table: tableId, rows: rowsParam, auto } = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -42,6 +42,7 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
       table={{ name: table.name, icon: table.icon, titleLabel: table.title_label, columns: table.columns ?? [] }}
       rows={ordered.map((r) => ({ id: r!.id, title: r!.title, values: r!.values ?? {}, content: r!.content }))}
       people={Object.fromEntries((users ?? []).map((u) => [u.id, u.name || u.email]))}
+      autoPrint={auto !== "0"}
     />
   );
 }

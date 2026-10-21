@@ -7,6 +7,13 @@ import { createClient } from '@/lib/supabase/client'
 
 type Mode = 'password' | 'magic'
 
+/** Adónde volver después de entrar: solo rutas internas del Hub */
+function nextPath(): string {
+  const next = new URLSearchParams(window.location.search).get('next') ?? '/'
+  // "//x" y "/\x" los navegadores los toman como otro sitio
+  return next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/\\') ? next : '/'
+}
+
 export default function LoginPage() {
   const router = useRouter()
   const supabase = useMemo(() => createClient(), [])
@@ -50,7 +57,7 @@ export default function LoginPage() {
       setLoading(false)
       return
     }
-    router.push('/')
+    router.push(nextPath())
     router.refresh()
   }
 
@@ -64,7 +71,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=/`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath())}`,
         shouldCreateUser: false, // el hub es interno: solo entran cuentas ya creadas
       },
     })

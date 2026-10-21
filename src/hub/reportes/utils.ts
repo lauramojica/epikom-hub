@@ -144,3 +144,16 @@ export function groupRows(rows: ReportRow[], column: ReportColumn | undefined, d
   if (map.has("")) groups.push({ key: "", label: "Sin " + column.name.toLowerCase(), rows: map.get("")! });
   return groups;
 }
+
+/** Valor de una celda como texto, para el PDF y el correo */
+export function formatCell(col: ReportColumn, v: CellValue | undefined, people: Record<string, string>): string {
+  if (v === null || v === undefined || v === "") return "";
+  switch (col.type) {
+    case "date": return fmtDate(String(v), col.withTime);
+    case "url": return displayUrl(String(v));
+    case "checkbox": return v ? "Sí" : "No";
+    case "select": return col.options?.find((o) => o.id === v)?.label ?? "";
+    case "person": return people[String(v)] ?? "";
+    default: return String(v);
+  }
+}

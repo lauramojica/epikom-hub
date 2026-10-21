@@ -20,7 +20,8 @@ export async function GET(request: Request) {
 
   // Solo aceptamos rutas internas: evita redirecciones a dominios ajenos.
   const nextParam = url.searchParams.get('next') ?? '/'
-  const next = nextParam.startsWith('/') && !nextParam.startsWith('//') ? nextParam : '/'
+  // "//x" y "/\x" los navegadores los toman como otro sitio
+  const next = nextParam.startsWith('/') && !nextParam.startsWith('//') && !nextParam.startsWith('/\\') ? nextParam : '/'
 
   // Detrás del proxy de Vercel, el host real viene en x-forwarded-host.
   const forwardedHost = request.headers.get('x-forwarded-host')

@@ -255,4 +255,30 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
+-- ---------------------------------------------------------------------------
+-- 6. Registro de reportes enviados por correo
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS report_email_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  table_id UUID REFERENCES report_tables(id) ON DELETE SET NULL,
+  row_ids UUID[] NOT NULL DEFAULT '{}',
+  sent_by UUID NOT NULL DEFAULT auth.uid() REFERENCES auth.users(id) ON DELETE CASCADE,
+  recipients TEXT[] NOT NULL DEFAULT '{}',
+  subject TEXT NOT NULL DEFAULT '',
+  gmail_id TEXT,
+  sent_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE report_email_log ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS report_email_log_insert ON report_email_log;
+CREATE POLICY report_email_log_insert ON report_email_log FOR INSERT TO authenticated
+  WITH CHECK (sent_by = auth.uid());
+DROP POLICY IF EXISTS report_email_log_select ON report_email_log;
+CREATE POLICY report_email_log_select ON report_email_log FOR SELECT TO authenticated
+  USING (sent_by = auth.uid() OR report_is_admin());
+
+GRANT SELECT, INSERT ON report_email_log TO authenticated;
+REVOKE ALL ON report_email_log FROM anon;
+
 SELECT 'Reportes configurados ✓' AS status;

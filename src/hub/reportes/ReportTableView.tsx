@@ -20,6 +20,7 @@ interface Props {
   onDeleteRow: (rowId: string) => void;
   onOpenRow: (rowId: string) => void;
   onPrint: (rowIds: string[]) => void;
+  onSend: (rowIds: string[]) => void;
   onDeleteTable: () => void;
 }
 
@@ -128,6 +129,7 @@ export default function ReportTableView(p: Props) {
           </div>
 
           <ToolbarButton onClick={() => p.onPrint(visible.map((r) => r.id))}>⎙ PDF</ToolbarButton>
+          <ToolbarButton onClick={() => p.onSend(visible.map((r) => r.id))}>✉ Enviar</ToolbarButton>
 
           {editable && (
             <div className="relative">
@@ -208,7 +210,10 @@ export default function ReportTableView(p: Props) {
                     <span className="font-display text-lg font-700 uppercase tracking-wide text-ink">{g.label}</span>
                     <span className="text-[10px] font-mono text-muted">{g.rows.length}</span>
                   </div>
-                  <button onClick={() => p.onPrint(g.rows.map((r) => r.id))} className="text-[10px] font-mono text-muted hover:text-primary">⎙ PDF de este grupo</button>
+                  <div className="flex gap-3">
+                    <button onClick={() => p.onSend(g.rows.map((r) => r.id))} className="text-[10px] font-mono text-muted hover:text-primary">✉ Enviar grupo</button>
+                    <button onClick={() => p.onPrint(g.rows.map((r) => r.id))} className="text-[10px] font-mono text-muted hover:text-primary">⎙ PDF de este grupo</button>
+                  </div>
                 </div>
               )}
               {g.rows.map((r) => (

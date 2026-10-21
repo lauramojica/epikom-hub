@@ -22,6 +22,7 @@ interface Props {
   onUploadImage: (file: File) => Promise<string>;
   onSaveTemplate: (doc: JSONContent) => void;
   onPrint: () => void;
+  onSend: () => void;
   onDelete: () => void;
   onError: (msg: string) => void;
 }
@@ -89,6 +90,8 @@ export default function RowPanel(p: Props) {
             <span className={`ml-2 ${save === "error" ? "text-danger" : save === "saved" ? "text-primary" : ""}`}>{saveLabel[save]}</span>
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
+            <button onClick={async () => { await flush(); p.onSend(); }} title="Enviar este reporte por correo"
+              className="text-xs font-mono px-3 py-1.5 rounded-lg border border-line text-muted hover:text-ink">✉ Enviar</button>
             <button onClick={async () => { await flush(); p.onPrint(); }} className="text-xs font-mono px-3 py-1.5 rounded-lg border border-line text-muted hover:text-ink">⎙ PDF</button>
             {editable && (
               <button
