@@ -24,6 +24,7 @@ interface Props {
   onPrint: () => void;
   onSend: () => void;
   onDelete: () => void;
+  onDuplicate: () => void;
   onError: (msg: string) => void;
 }
 
@@ -104,6 +105,11 @@ export default function RowPanel(p: Props) {
                 className="text-xs font-mono px-3 py-1.5 rounded-lg border border-line text-muted hover:text-ink">
                 ☆ Plantilla
               </button>
+            )}
+            {editable && (
+              <button onClick={async () => { await flush(); p.onDuplicate(); }}
+                title="Copia el contenido con el checklist sin marcar y la fecha de hoy"
+                className="text-xs font-mono px-3 py-1.5 rounded-lg border border-line text-muted hover:text-ink">⧉ Duplicar</button>
             )}
             {editable && (
               <button onClick={() => window.confirm(`¿Eliminar “${row.title || "Sin título"}”?`) && p.onDelete()}

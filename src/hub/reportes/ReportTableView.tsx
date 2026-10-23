@@ -18,6 +18,7 @@ interface Props {
   onSetTitle: (rowId: string, title: string) => void;
   onSetCell: (rowId: string, columnId: string, value: CellValue) => void;
   onDeleteRow: (rowId: string) => void;
+  onDuplicateRow: (rowId: string) => void;
   onOpenRow: (rowId: string) => void;
   onPrint: (rowIds: string[]) => void;
   onSend: (rowIds: string[]) => void;
@@ -79,7 +80,7 @@ export default function ReportTableView(p: Props) {
     if (row) p.onOpenRow(row.id);
   };
 
-  const gridCols = `minmax(220px,2fr) ${table.columns.map((c) => (c.type === "checkbox" ? "90px" : c.type === "text" ? "minmax(200px,2fr)" : "minmax(150px,1fr)")).join(" ")} 40px`;
+  const gridCols = `minmax(220px,2fr) ${table.columns.map((c) => (c.type === "checkbox" ? "90px" : c.type === "text" ? "minmax(200px,2fr)" : "minmax(150px,1fr)")).join(" ")} 64px`;
 
   return (
     <div className="space-y-4">
@@ -232,10 +233,15 @@ export default function ReportTableView(p: Props) {
                         onAddOption={(opt) => addOption(c.id, opt)} />
                     </div>
                   ))}
-                  <div className="flex items-center justify-center">
+                  <div className="flex items-center justify-center gap-2">
                     {editable && (
-                      <button onClick={() => window.confirm(`¿Eliminar “${r.title || "Sin título"}”?`) && p.onDeleteRow(r.id)}
-                        title="Eliminar" className="opacity-0 group-hover:opacity-100 text-muted hover:text-danger text-sm">✕</button>
+                      <>
+                        <button onClick={() => p.onDuplicateRow(r.id)}
+                          title="Duplicar: copia el contenido con el checklist sin marcar y la fecha de hoy"
+                          className="opacity-0 group-hover:opacity-100 text-muted hover:text-primary text-sm">⧉</button>
+                        <button onClick={() => window.confirm(`¿Eliminar “${r.title || "Sin título"}”?`) && p.onDeleteRow(r.id)}
+                          title="Eliminar" className="opacity-0 group-hover:opacity-100 text-muted hover:text-danger text-sm">✕</button>
+                      </>
                     )}
                   </div>
                 </div>

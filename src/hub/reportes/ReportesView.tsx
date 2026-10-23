@@ -5,6 +5,7 @@ import type { User } from "../types";
 import { useToast } from "../components/Toast";
 import type { ReportSpace, ReportTable, SpaceMember } from "./types";
 import { useReportes, useReportRows, uploadReportImage, type TablePreset } from "./useReportes";
+import { duplicateRow } from "./utils";
 import ReportTableView from "./ReportTableView";
 import RowPanel from "./RowPanel";
 import { InlineText } from "./Cells";
@@ -55,6 +56,15 @@ export default function ReportesView({ me, users }: Props) {
 
   const updateTable = (patch: Partial<ReportTable>) => {
     if (table) r.updateTable(table.id, patch).catch(fail("No se pudo guardar el cambio en la tabla"));
+  };
+
+  /** Copia la fila (mismo estilo, checklist sin marcar, fecha de hoy) y la abre */
+  const duplicate = (rowId: string) => {
+    const source = rowsApi.rows.find((x) => x.id === rowId);
+    if (!table || !source) return;
+    rowsApi.addRow(duplicateRow(source, table.columns))
+      .then((row) => { setOpenRowId(row.id); toast("✓ Copia creada", "success"); })
+      .catch(fail("No se pudo duplicar"));
   };
 
   const print = (rowIds: string[]) => {
@@ -127,6 +137,7 @@ export default function ReportesView({ me, users }: Props) {
               onSetTitle={(id, t) => rowsApi.setTitle(id, t).catch(fail("No se pudo guardar el título"))}
               onSetCell={(id, col, v) => rowsApi.setCell(id, col, v).catch(fail("No se pudo guardar la celda"))}
               onDeleteRow={(id) => rowsApi.deleteRow(id).catch(fail("No se pudo eliminar"))}
+              onDuplicateRow={duplicate}
               onOpenRow={setOpenRowId}
               onPrint={print}
               onSend={(rowIds) => rowIds.length ? setModal({ kind: "send", rowIds }) : toast("No hay filas para enviar", "info")}
@@ -157,6 +168,7 @@ export default function ReportesView({ me, users }: Props) {
           onSaveTemplate={(doc) => { updateTable({ template: doc }); toast("✓ Plantilla guardada para las filas nuevas", "success"); }}
           onPrint={() => print([openRow.id])}
           onSend={() => setModal({ kind: "send", rowIds: [openRow.id] })}
+          onDuplicate={() => duplicate(openRow.id)}
           onDelete={() => { rowsApi.deleteRow(openRow.id).catch(fail("No se pudo eliminar")); setOpenRowId(null); }}
           onError={(m) => toast(`✕ ${m}`, "error")}
         />

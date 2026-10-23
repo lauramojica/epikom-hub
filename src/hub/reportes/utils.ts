@@ -1,3 +1,4 @@
+import type { JSONContent } from "@tiptap/core";
 import type { ReportColumn, ReportRow, CellValue } from "./types";
 import { TITLE_COLUMN } from "./types";
 
@@ -156,4 +157,37 @@ export function formatCell(col: ReportColumn, v: CellValue | undefined, people: 
     case "person": return people[String(v)] ?? "";
     default: return String(v);
   }
+}
+
+/** Contenido con todas las casillas del checklist sin marcar */
+function uncheckAll(node: JSONContent): JSONContent {
+  const copy: JSONContent = { ...node };
+  if (node.type === "taskItem") copy.attrs = { ...node.attrs, checked: false };
+  if (node.content) copy.content = node.content.map(uncheckAll);
+  return copy;
+}
+
+const DAY_TITLE = /^(lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo)\s+\d{1,2}\s+de\s+\w+\s+\d{4}$/i;
+
+/**
+ * Copia de una fila para "seguir el mismo estilo":
+ *  - contenido igual, con el checklist sin marcar
+ *  - fechas que se llenan solas (p. ej. Hora de comienzo) → ahora; las demás fechas, vacías
+ *  - título de fecha ("Viernes 02 de octubre 2026") → el de hoy; si no, "… (copia)"
+ */
+export function duplicateRow(row: ReportRow, columns: ReportColumn[]) {
+  const values: Record<string, CellValue> = {};
+  for (const c of columns) {
+    const v = row.values[c.id];
+    if (c.type === "date") {
+      if (c.defaultNow) values[c.id] = nowLocal(!!c.withTime);
+    } else if (v !== undefined && v !== null && v !== "") {
+      values[c.id] = v;
+    }
+  }
+  const auto = columns.find((c) => c.type === "date" && c.defaultNow);
+  const title = DAY_TITLE.test(row.title.trim()) && auto
+    ? longDayTitle(String(values[auto.id]))
+    : row.title ? `${row.title} (copia)` : "";
+  return { title, values, content: row.content ? uncheckAll(row.content) : null };
 }
